@@ -11,8 +11,7 @@
 #include <GL/glu.h>
 
 #include "tnfs_math.h"
-#include "tnfs_fiziks.h"
-#include "tnfs_collision.h"
+#include "tnfs_base.h"
 
 static SDL_Event event;
 

@@ -3,7 +3,7 @@
  * Rigid body dynamics
  */
 #include "tnfs_math.h"
-#include "tnfs_fiziks.h"
+#include "tnfs_base.h"
 
 // globals
 int g_collision_force;
@@ -12,6 +12,9 @@ int g_surf_clipping = 1;
 tnfs_vec3 g_collision_speed;
 int g_const_7333 = 0x7333;
 int g_const_CCCC = 0xCCCC;
+int DAT_800eae14 = 10;
+int DAT_800eae18 = 0x8000;
+tnfs_car_data * tnfs_car_data_ptr = 0;
 
 void math_matrix_create_from_vec3(tnfs_vec9 *result, int amount, tnfs_vec3 *direction) {
 	int angle_a;
@@ -291,7 +294,7 @@ void tnfs_collision_update_vectors(tnfs_collision_data *body) {
 	/* apply gravity */
 	body->speed.y -= 0x53b6;
 
-	// new from PSX
+	// check angular speed
 	if (0xf0000 < (body->angular_speed).x) {
 		(body->angular_speed).x = 0xf0000;
 	}
@@ -328,6 +331,9 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	tnfs_vec3 fenceDistance;
 	tnfs_vec3 roadHeading;
 	int roadWidth;
+	int iVar4 = 0;
+	int local_24 = 0;
+	int local_28 = 0;
 
 	// ...
 
@@ -391,6 +397,28 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	tnfs_collision_detect(collision_data, &roadNormal, &roadPosition);
 
 	/* ... lots of code goes here ... */
+
+
+ 	// play crashing sounds
+	iVar4 = 2;
+	if (DAT_800eae18 > 0) {
+		if (sound_flag == 0) {
+			tnfs_physics_car_vector((tnfs_car_data*) car->unknown_const_88, &local_28, &local_24);
+		}
+		if (car->collision_data.field6_0x60 > 0x80000) {
+			tnfs_physics_car_vector((tnfs_car_data*) car->unknown_const_88, &local_28, &local_24);
+			if (car->car_flag_0x480 == 0) {
+				local_24 = 1;
+				local_28 = 0x400000;
+			} else {
+				local_24 = 1;
+				local_28 = 0xc00000;
+			}
+			tnfs_sfx_play(0xffffffff, iVar4, 1, 0, local_24, local_28);
+		}
+		DAT_800eae18 = 0x8000;
+		DAT_800eae14 = 10;
+	}
 
 	// update new position, speed and orientation
 	car->position.x = collision_data->position.x;
@@ -460,7 +488,7 @@ void tnfs_collision_rollover_start_2(tnfs_car_data *param_1) {
 	param_1->field203_0x174 = param_1->field203_0x174 & 0xfffffdff;
 	param_1->collision_data.crashed_time = 300;
 	//tnfs_unecessary_800489a4(0x5c);
-	if (DAT_8010d30c == 0) {
+	if (sound_flag == 0) {
 		if (param_1 != tnfs_car_data_ptr) {
 			return;
 		}
@@ -470,18 +498,18 @@ void tnfs_collision_rollover_start_2(tnfs_car_data *param_1) {
 	//FUN_8003c09c(param_1);
 }
 
-void tnfs_collision_rollover_start(tnfs_car_data *car, int param_2, int param_3, int param_4) {
+void tnfs_collision_rollover_start(tnfs_car_data *car, int force_z, int force_y, int force_x) {
 	tnfs_collision_rollover_start_2(car);
 
-	car->collision_data.angular_speed.x += math_mul(param_4, car->collision_data.matrix.ax);
-	car->collision_data.angular_speed.y += math_mul(param_4, car->collision_data.matrix.ay);
-	car->collision_data.angular_speed.z += math_mul(param_4, car->collision_data.matrix.az);
-	car->collision_data.angular_speed.x += math_mul(param_3, car->collision_data.matrix.cx);
-	car->collision_data.angular_speed.y += math_mul(param_3, car->collision_data.matrix.cy);
-	car->collision_data.angular_speed.z += math_mul(param_3, car->collision_data.matrix.cz);
-	car->collision_data.angular_speed.x -= math_mul(param_2, car->collision_data.matrix.bx);
-	car->collision_data.angular_speed.y -= math_mul(param_2, car->collision_data.matrix.by);
-	car->collision_data.angular_speed.z -= math_mul(param_2, car->collision_data.matrix.bz);
+	car->collision_data.angular_speed.x += math_mul(force_x, car->collision_data.matrix.ax);
+	car->collision_data.angular_speed.y += math_mul(force_x, car->collision_data.matrix.ay);
+	car->collision_data.angular_speed.z += math_mul(force_x, car->collision_data.matrix.az);
+	car->collision_data.angular_speed.x += math_mul(force_y, car->collision_data.matrix.cx);
+	car->collision_data.angular_speed.y += math_mul(force_y, car->collision_data.matrix.cy);
+	car->collision_data.angular_speed.z += math_mul(force_y, car->collision_data.matrix.cz);
+	car->collision_data.angular_speed.x -= math_mul(force_z, car->collision_data.matrix.bx);
+	car->collision_data.angular_speed.y -= math_mul(force_z, car->collision_data.matrix.by);
+	car->collision_data.angular_speed.z -= math_mul(force_z, car->collision_data.matrix.bz);
 	if ((car->field203_0x174 & 4U) != 0) {
 		//  FUN_800534e0(0);
 	}

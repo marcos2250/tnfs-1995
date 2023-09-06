@@ -1,189 +1,42 @@
 /*
- * The Need For Speed (1995) "Fiziks" module
+ * The "Fiziks" module
  */
 #include "tnfs_math.h"
-#include "tnfs_fiziks.h"
-
-tnfs_car_specs car_specs;
-tnfs_car_data car_data;
-unsigned int *tnfs_car_data_ptr;
-
-int dword_146493, dword_1465DD, dword_122C20, dword_146475, //
-		dword_146460, dword_132F74, dword_DC52C, //
-		dword_132EFC, dword_122CAC, dword_146483, dword_D8AFC, dword_122CAC, dword_D8B00, //
-		dword_D8AF0, dword_D8AF4, dword_D8AF8, dword_D8AE8, dword_D8AEC, dword_D8AB8;
+#include "tnfs_base.h"
 
 char is_drifting;
 char camera_selected;
-int road_surface_type_array[10];
 int unknown_stats_array[128];
-int roadLeftMargin;
-int roadRightMargin;
-int roadLeftFence;
-int roadRightFence;
-char roadConstantA;
-char roadConstantB;
-int road_segment_pos_x;
-int road_segment_pos_z;
-int road_segment_slope;
-int road_segment_heading;
-int cheat_mode;
 
-int DAT_8010d30c;
-int DAT_80111a40;
-int DAT_8010d1c4;
+int dword_DC52C = 0;
+int dword_D8AB8 = 0;
+int dword_D8AE8 = 0;
+int dword_D8AEC = 0;
+int dword_D8AF0 = 0;
+int dword_D8AF4 = 0;
+int dword_D8AF8 = 0;
+int dword_D8AFC = 0;
+int dword_D8B00 = 0;
+int dword_122C20 = 0x10;
+int dword_122CAC = 0;
+int dword_132EFC = 0;
+int dword_132F74 = 0;
+int dword_146460 = 0;
+int dword_146475 = 0;
+int dword_146483 = 0;
+int dword_146493 = 0;
+int dword_1465DD = 0;
 
-void tnfs_reset() {
-	int i;
+int DAT_80111a40 = 0;
+int DAT_8010d1c4 = 0;
 
-	roadLeftMargin = 220;
-	roadRightMargin = 220;
-	roadLeftFence = 200;
-	roadRightFence = 200;
-	roadConstantA = 0x00;
-	roadConstantB = 0x22;
-	road_segment_pos_x = 0;
-	road_segment_pos_z = 0;
-	road_segment_slope = 0;
-	road_segment_heading = 0;
-	cheat_mode = 0;
-	DAT_8010d30c = 0;
-	DAT_80111a40 = 0;
-	DAT_8010d1c4 = 0;
-	tnfs_car_data_ptr = &car_data;
 
-	for (i = 0; i < 10; ++i) {
-		road_surface_type_array[i] = 0x100;
-	}
 
-	dword_DC52C = 0;
-	dword_122C20 = 0x10;
-	dword_132EFC = 0;
-	dword_146460 = 0;
-	dword_146475 = 0;
-	dword_1465DD = 0;
-	dword_146493 = 0;
-
-	car_specs.front_brake_percentage = 0xc000; //70%
-	car_specs.front_drive_percentage = 0; //RWD
-	car_specs.max_brake_force_1 = 0x133fff;
-	car_specs.max_brake_force_2 = 0x133fff;
-	car_specs.body_roll_factor = 0x2666; //0.15
-	car_specs.body_pitch_factor = 0x2666; //0.15
-	car_specs.max_slip_angle = 0x1fe667; //~45deg
-	car_specs.max_speed = 0x47c000; //71m/s
-	car_specs.max_tire_lateral_force = 0x150000;
-	car_specs.thrust_to_acc_factor = 0x66; //1577kg TNFS scale
-
-	car_data.is_crashed = 0;
-	car_data.unknown_const_88 = &car_data;
-	car_data.car_specs_ptr = &car_specs;
-	car_data.weight_distribution = 0x7e49; //49% front
-	car_data.weight_transfer_factor = 0x3028;
-	car_data.front_friction_factor = 0xe469a;
-	car_data.rear_friction_factor = 0xd10de;
-	car_data.wheel_base = 0x7a9; //2.44m TNFS scale
-	car_data.wheel_track = 0x3d5; //1.50m TNFS scale
-	car_data.front_yaw_factor = 0x107a77;
-	car_data.rear_yaw_factor = 0x107a77;
-	car_data.gear_speed = 1;
-	car_data.gear_speed_selected = 1;
-	car_data.gear_RND = 3;
-	car_data.throttle = 0;
-	car_data.tcs_on = 0;
-	car_data.tcs_enabled = 0;
-	car_data.brake = 0;
-	car_data.abs_on = 0;
-	car_data.abs_enabled = 0;
-	car_data.wheels_on_ground = 1;
-	car_data.surface_type = 0;
-	car_data.tire_grip_front = 0xe469a;
-	car_data.tire_grip_rear = 0xd10de;
-	car_data.slope_force_lat = 0;
-	car_data.slope_force_lon = 0;
-
-	car_data.position.x = 0;
-	car_data.position.y = 150;
-	car_data.position.z = 0;
-	car_data.angle_x = 0;
-	car_data.angle_y = 0; //uint32 0 to 16777215(0xFFFFFF)
-	car_data.angle_z = 0;
-	car_data.angular_speed = 0;
-	car_data.speed_x = 0;
-	car_data.speed_y = 0;
-	car_data.speed_z = 0;
-	car_data.speed = 0;
-	car_data.speed_drivetrain = 0;
-	car_data.speed_local_lon = 0;
-	car_data.speed_local_lat = 0;
-	car_data.steer_angle = 0; //int32 -1769472 to +1769472
-	car_data.road_segment_a = 0;
-	car_data.road_segment_b = 0;
-	car_data.game_status = 1;
-	car_data.unknown_flag_475 = 0;
-
-	car_data.road_fence_normal.x = 65532;
-	car_data.road_fence_normal.y = -46;
-	car_data.road_fence_normal.z = 0;
-
-	//surface normal (up)
-	car_data.road_normal.x = 0;
-	car_data.road_normal.y = 0x10000;
-	car_data.road_normal.z = 0;
-
-	car_data.road_heading.x = 0;
-	car_data.road_heading.y = 0;
-	car_data.road_heading.z = 0xfcd2;
-
-	//surface position center
-	car_data.road_position.x = 0;
-	car_data.road_position.y = 0;
-	car_data.road_position.z = 0;
-
-	math_matrix_identity(&car_data.matrix);
-	math_matrix_identity(&car_data.collision_data.matrix);
-
-	car_data.collision_data.position.x = 0;
-	car_data.collision_data.position.y = 0;
-	car_data.collision_data.position.z = 0;
-	car_data.collision_data.speed.x = 0;
-	car_data.collision_data.speed.y = 0;
-	car_data.collision_data.speed.z = 0;
-	car_data.collision_data.field4_0x48.x = 0;
-	car_data.collision_data.field4_0x48.y = 0;
-	car_data.collision_data.field4_0x48.z = 0;
-	car_data.collision_data.linear_acc_factor = 0xf646;
-	car_data.collision_data.angular_acc_factor = 0x7dd4;
-	car_data.collision_data.size.x = 0Xf645;  //63045
-	car_data.collision_data.size.y = 0x92f1;  //37216
-	car_data.collision_data.size.z = 0x242fe; //148222
-	car_data.collision_data.crashed_time = 0;
-	car_data.collision_data.angular_speed.x = 0;
-	car_data.collision_data.angular_speed.y = 0;
-	car_data.collision_data.angular_speed.z = 0;
-
-	car_data.collision_delta_factor = 0x92f1;
-	car_data.field203_0x174 = 0x1e0;
-	car_data.field444_0x520 = 0;
-	car_data.field445_0x524 = 0;
-
-	road_segment_pos_x = 0;
-	road_segment_pos_z = 0;
-}
-
-// stub TNFS functions
-/* 34309 */
-void tnfs_debug_00034309(int a, int b, int x, int y) {
-	//TODO
-}
-/* 343C2 */
-void tnfs_debug_000343C2(int a, int b) {
-	//TODO
-}
 /* 3C917 */
 void tnfs_engine_rev_limiter(tnfs_car_data *car_data) {
 	//TODO
 }
+
 /* 3CD20 */
 int tnfs_engine_thrust(tnfs_car_data *car_data) {
 	if (car_data->gear_RND == 3) { //drive
@@ -196,40 +49,17 @@ int tnfs_engine_thrust(tnfs_car_data *car_data) {
 	}
 	return 0; //neutral
 }
+
 /* 3C7E8 */
 void tnfs_engine_auto_shift(tnfs_car_data *car_data) {
 	//TODO
 }
-/* 49432 */
-void tnfs_sfx_play(int a, int b, int c, int d, int e, int f) {
-	printf("sound %i\n", f);
-}
+
 /* 3D29D */
 int tnfs_drag_force(tnfs_car_data *car_data, int speed) {
 	return -(speed >> 4);
 }
-/* inside 3E62E */
-int tnfs_collision_car_size(tnfs_car_data *car_data, int a) {
-	return 0;
-}
-/* 502ab */
-void tnfs_collision_debug(char a) {
-	printf("collision %c\n", a);
-}
-/* 5b5f7 */
-void tnfs_cheat_crash_cars() {
-	//unused function from old cheat code from 3DO version
-	if (cheat_mode == 4) {
-		tnfs_collision_rollover_start(&car_data, 0xa0000, 0xa0000, 0xa0000);
-	}
-}
-/* 64baf */
-void tnfs_physics_car_vector(tnfs_car_data *car_data, int *angle, int *length) {
-	*angle = car_data->angle_y;
-	*length = car_data->speed;
-}
 
-/* 3e3d7 */
 void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int a3, int fence_side, int a5, int a6) {
 	int v9;
 	int v10;
@@ -303,7 +133,6 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int a3, int fence
 	}
 }
 
-/* 3E62E, decompiled from PSX->800311F4 */
 void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	int iVar1;
 	int iVar2;
@@ -368,7 +197,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	math_rotate_2d(-car_data->speed_x, car_data->speed_z, road_segment_heading * -0x400, &local_40, &local_38);
 	iVar1 = abs(local_40);
 	if ((uVar7 == 0) && (iVar1 >= 0x60001)) {
-		if (DAT_8010d30c == 0) {
+		if (sound_flag == 0) {
 			if (car_data->unknown_flag_475 == 0) {
 				if (DAT_80111a40 != 0) {
 					if (iVar2 <= 0)
@@ -489,7 +318,6 @@ void tnfs_tire_forces_locked(int *force_lat, int *force_lon, signed int max_grip
 	}
 }
 
-/* 3EF17 */
 void tnfs_road_surface_modifier(tnfs_car_data *car_data) {
 	int v4;
 	int v5;
@@ -561,7 +389,6 @@ int tnfs_tire_slide_table(tnfs_car_data *a1, unsigned int slip_angle, int is_rea
 	return slide_table[(is_rear_wheels << 5) + (v4 >> 16)] << 9;
 }
 
-/* 3D828 */
 void tnfs_tire_limit_max_grip(tnfs_car_data *car_data, //
 		int *force_lat, signed int *force_lon, signed int max_grip, int *slide) {
 
@@ -651,7 +478,6 @@ void tnfs_tire_limit_max_grip(tnfs_car_data *car_data, //
 	}
 }
 
-/* 3DAE0 */
 void tnfs_tire_forces(tnfs_car_data *_car_data, //
 		int *_result_Lat, int *_result_Lon, //
 		int force_Lat, int force_Lon, //
@@ -807,7 +633,6 @@ void tnfs_tire_forces(tnfs_car_data *_car_data, //
 }
 
 /* 
- * Offset 0003F0FA
  * Main physics routine
  */
 void tnfs_physics_main(tnfs_car_data *a1) {
@@ -1291,13 +1116,4 @@ void tnfs_physics_main(tnfs_car_data *a1) {
 	}
 
 	dword_132F74 = car_data->position.z + car_data->position.y + car_data->position.x;
-}
-
-void tnfs_update() {
-	if (car_data.collision_data.crashed_time == 0) {
-		tnfs_physics_main(&car_data);
-		matrix_create_from_pitch_yaw_roll(&car_data.matrix, -car_data.angle_x, -car_data.angle_y, -car_data.angle_z);
-	} else {
-		tnfs_collision_main(&car_data);
-	}
 }

@@ -48,8 +48,6 @@ int math_sin(int input);
 int math_cos(int input);
 int math_sin_2(int input);
 int math_cos_2(int input);
-int math_sin_cos_1(int angle);
-int math_sin_cos_2(int angle);
 int math_atan2(int x, int y);
 void math_rotate_2d(int x1, int y1, int angle, int *x2, int *y2);
 int math_angle_wrap(int a);

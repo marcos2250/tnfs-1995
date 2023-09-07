@@ -1,15 +1,26 @@
 /*
  * The "Fiziks" module
+ * 2D car handling dynamics and road fence collision
  */
 #include "tnfs_math.h"
 #include "tnfs_base.h"
 
 char is_drifting;
-char camera_selected;
 int unknown_stats_array[128];
 
-int dword_DC52C = 0;
-int dword_D8AB8 = 0;
+// settings/flags
+int DAT_800db54c = 0;
+int DAT_800dc5a0 = 0x10;
+int DAT_800dc574 = 0;
+int DAT_800eb1fc = 0;
+int DAT_8010d1ad = 0;
+int DAT_8010d1c4 = 0;
+int DAT_8010d1cc = 0;
+int DAT_8010d2f4 = 0;
+int DAT_8010d30c = 0;
+int DAT_80111a40 = 0;
+
+// debug stats flags
 int dword_D8AE8 = 0;
 int dword_D8AEC = 0;
 int dword_D8AF0 = 0;
@@ -17,18 +28,9 @@ int dword_D8AF4 = 0;
 int dword_D8AF8 = 0;
 int dword_D8AFC = 0;
 int dword_D8B00 = 0;
-int dword_122C20 = 0x10;
 int dword_122CAC = 0;
 int dword_132EFC = 0;
-int dword_132F74 = 0;
-int dword_146460 = 0;
-int dword_146475 = 0;
 int dword_146483 = 0;
-int dword_146493 = 0;
-int dword_1465DD = 0;
-
-int DAT_80111a40 = 0;
-int DAT_8010d1c4 = 0;
 
 
 
@@ -108,13 +110,13 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int a3, int fence
 			v13 = v10 - v12;
 		}
 		if (a5) {
-			dword_D8AB8 = -v12;
+			DAT_800eb1fc = -v12;
 		} else {
 			v13 = -v13;
-			dword_D8AB8 = fix6(v10 * (collisionAngle >> 16));
+			DAT_800eb1fc = fix6(v10 * (collisionAngle >> 16));
 		}
 		if (v14 != 0) {
-			tnfs_collision_rollover_start(car_data->unknown_const_88, fix2(v14), fix2(3 * v13), fix2(3 * dword_D8AB8));
+			tnfs_collision_rollover_start(car_data->unknown_const_88, fix2(v14), fix2(3 * v13), fix2(3 * DAT_800eb1fc));
 		}
 	} else {
 		if (abs(collisionAngle) < 0x130000 && car_data->speed_local_lon > 0) {
@@ -134,48 +136,53 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int a3, int fence
 }
 
 void tnfs_track_fence_collision(tnfs_car_data *car_data) {
-	int iVar1;
-	int iVar2;
-	int iVar3;
-	int uVar4;
+	int abs_speed;
+	int distance;
+	int aux;
 	long fence_angle;
 	int fenceSide;
-	uint uVar7;
-	int local_40;
-	int local_38;
-	int local_30;
-	int local_2c;
+	int road_flag;
+	int rebound_speed_x;
+	int rebound_speed_z;
+	int rebound_x;
+	int rebound_z;
 	int local_angle;
 	int local_length;
+	int pos_x;
+	int pos_y;
+	int re_speed;
+	int lm_speed;
+	int vX;
+	int vZ;
 
 	//fence_angle = (dword_12DECC + 36 * (dword_1328E4 & car_data->road_segment_a) + 22) >> 16 << 10;
 	fence_angle = road_segment_heading * 0x400;
-	iVar2 = math_sin_2(fence_angle >> 8);
-	iVar3 = math_cos_2(fence_angle >> 8);
-	uVar7 = 0;
+	pos_x = math_sin_2(fence_angle >> 8);
+	pos_y = math_cos_2(fence_angle >> 8);
+	road_flag = 0;
 	fenceSide = 0;
-	iVar2 = fixmul(iVar2, road_segment_pos_z - car_data->position.z) - fixmul(iVar3, road_segment_pos_x - car_data->position.x);
+	distance = fixmul(pos_x, road_segment_pos_z - car_data->position.z) - fixmul(pos_y, road_segment_pos_x - car_data->position.x);
 
-	local_40 = 0;
-	if (iVar2 < roadLeftMargin * -0x2000) {
+	rebound_speed_x = 0;
+	if (distance < roadLeftMargin * -0x2000) {
 		// left road side
 		car_data->surface_type = (uint) (roadConstantB >> 4);
-		iVar3 = tnfs_collision_car_size(car_data, fence_angle);
-		iVar3 = iVar3 + (uint) roadLeftFence * -0x2000;
-		if (iVar2 < iVar3) {
+		aux = tnfs_collision_car_size(car_data, fence_angle);
+		aux = roadLeftFence * -0x2000 + aux;
+		if (distance < aux) {
 			fenceSide = -0x100;
-			local_40 = iVar3 - (iVar2 + -0x8000);
-			uVar7 = (uint) (roadConstantA >> 4);
+			rebound_speed_x = aux - distance - 0x8000;
+			road_flag = roadConstantA >> 4;
 		}
-	} else if (iVar2 > roadRightMargin * 0x2000) {
+	} else if (distance > roadRightMargin * 0x2000) {
 		// right road side
 		car_data->surface_type = roadConstantB & 0xf;
-		iVar3 = tnfs_collision_car_size(car_data, fence_angle);
-		iVar3 = (uint) roadRightFence * 0x2000 - iVar3;
-		if (iVar3 < iVar2) {
+		aux = tnfs_collision_car_size(car_data, fence_angle);
+		aux = roadRightFence * 0x2000 - aux;
+		if (distance > aux) {
 			fenceSide = 0x100;
-			local_40 = (iVar2 + 0x8000) - iVar3;
-			uVar7 = roadConstantA & 0xf;
+			rebound_speed_x = distance + 0x8000 - aux;
+			road_flag = roadConstantA & 0xf;
 		}
 	} else {
 		car_data->surface_type = 0;
@@ -185,22 +192,22 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	}
 
 	// impact bounce off
-	local_40 = fixmul(fenceSide, abs(local_40));
-	local_38 = 0;
+	rebound_speed_x = fixmul(fenceSide, abs(rebound_speed_x));
+	rebound_speed_z = 0;
 
 	// reposition the car back off the fence
-	math_rotate_2d(local_40, 0, fence_angle, &local_30, &local_2c);
-	car_data->position.x = car_data->position.x - local_30;
-	car_data->position.z = car_data->position.z + local_2c;
+	math_rotate_2d(rebound_speed_x, 0, fence_angle, &rebound_x, &rebound_z);
+	car_data->position.x = car_data->position.x - rebound_x;
+	car_data->position.z = car_data->position.z + rebound_z;
 
 	// change speed direction
-	math_rotate_2d(-car_data->speed_x, car_data->speed_z, road_segment_heading * -0x400, &local_40, &local_38);
-	iVar1 = abs(local_40);
-	if ((uVar7 == 0) && (iVar1 >= 0x60001)) {
+	math_rotate_2d(-car_data->speed_x, car_data->speed_z, road_segment_heading * -0x400, &rebound_speed_x, &rebound_speed_z);
+	abs_speed = abs(rebound_speed_x);
+	if ((road_flag == 0) && (abs_speed >= 0x60001)) {
 		if (sound_flag == 0) {
 			if (car_data->unknown_flag_475 == 0) {
 				if (DAT_80111a40 != 0) {
-					if (iVar2 <= 0)
+					if (distance <= 0)
 						local_angle = 0x280000;
 					else
 						local_angle = 0xd70000;
@@ -218,74 +225,75 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 		}
 
 		//play collision sound
-		tnfs_sfx_play(0xffffffff, 2, 9, iVar1, local_length, local_angle);
-		if (iVar1 > 0x140000) {
+		tnfs_sfx_play(-1, 2, 9, abs_speed, local_length, local_angle);
+		if (abs_speed > 0x140000) {
 			tnfs_collision_debug(0x32);
 		}
 	}
 
 	// limit collision speed
-	if (iVar1 > 0x180000) {
-		if (local_40 > +0x20000)
-			local_40 = +0x20000;
-		if (local_40 < -0x20000)
-			local_40 = -0x20000;
+	if (abs_speed > 0x180000) {
+		if (rebound_speed_x > +0x20000)
+			rebound_speed_x = +0x20000;
+		if (rebound_speed_x < -0x20000)
+			rebound_speed_x = -0x20000;
 	} else {
-		local_40 = fix2(local_40);
+		rebound_speed_x = fix2(rebound_speed_x);
 	}
-	if (local_38 < -0x30000) {
+	if (rebound_speed_z < -0x30000) {
 		if ((DAT_8010d1c4 & 0x20) == 0) {
-			local_38 = iVar1 + local_38;
-			iVar2 = fix2(iVar1);
+			rebound_speed_z = abs_speed + rebound_speed_z;
+			lm_speed = fix2(abs_speed);
 		} else {
-			iVar2 = iVar1 / 2;
+			lm_speed = abs_speed / 2;
 		}
-		local_38 = local_38 + iVar2;
-		if (0 < local_38) {
-			local_38 = 0;
+		rebound_speed_z = rebound_speed_z + lm_speed;
+		if (0 < rebound_speed_z) {
+			rebound_speed_z = 0;
 		}
-	} else if (local_38 > 0x30000) {
+	} else if (rebound_speed_z > 0x30000) {
 		if ((DAT_8010d1c4 & 0x20) == 0) {
-			iVar2 = fix2(iVar1);
-			iVar3 = iVar1;
+			lm_speed = fix2(abs_speed);
+			aux = abs_speed;
 		} else {
-			iVar2 = fix3(iVar1);
-			iVar3 = iVar1 / 2;
+			lm_speed = fix3(abs_speed);
+			aux = abs_speed / 2;
 		}
-		local_38 = (local_38 - iVar3) - iVar2;
-		if (local_38 < 0) {
-			local_38 = 0;
+		rebound_speed_z = rebound_speed_z - lm_speed - aux;
+		if (rebound_speed_z < 0) {
+			rebound_speed_z = 0;
 		}
 	}
 
 	// set collision angle side
-	iVar2 = fix2(iVar1);
-	if (0xa0000 < iVar2) {
-		iVar2 = 0xa0000;
+	re_speed = fix2(abs_speed);
+	if (re_speed > 0xa0000) {
+		re_speed = 0xa0000;
 	}
 	if (fenceSide < 1) {
 		fence_angle = fence_angle + 0x20000; //+180
-		car_data->collision_x = -iVar2;
+		car_data->collision_x = -re_speed;
 	} else {
-		fence_angle = fence_angle + -0x20000; //-180
-		car_data->collision_x = iVar2;
+		fence_angle = fence_angle - 0x20000; //-180
+		car_data->collision_x = re_speed;
 	}
 
-	car_data->collision_y = -iVar2;
+	car_data->collision_y = -re_speed;
 	car_data->collision_a = 0x1e;
 	car_data->collision_b = 0x1e;
 
 	// reflect car speeds 180deg
 	//FIXME (fence_angle * 0x400) for correct angle scale
-	math_rotate_2d(local_40, local_38, fence_angle * 0x400, &car_data->speed_x, &car_data->speed_z);
+	math_rotate_2d(rebound_speed_x, rebound_speed_z, fence_angle * 0x400, &car_data->speed_x, &car_data->speed_z);
 
-	if (uVar7 == 0) {
-		uVar4 = 0x30000;
-		uVar7 = 0;
+	// ???
+	if (vX == 0) {
+		vZ = 0x30000;
+		vX = 0;
 	} else {
-		uVar4 = 0x18000;
+		vZ = 0x18000;
 	}
-	tnfs_collision_rotate(car_data, fence_angle, iVar1, fenceSide, uVar7, uVar4);
+	tnfs_collision_rotate(car_data, fence_angle, abs_speed, fenceSide, vX, vZ);
 	if (car_data->speed_y > 0) {
 		car_data->speed_y = 0;
 	}
@@ -527,7 +535,7 @@ void tnfs_tire_forces(tnfs_car_data *_car_data, //
 		slide = &_car_data->slide_rear;
 	}
 	*skid = 0;
-	dword_132F74 = *_result_Lon + *_result_Lat;
+	DAT_800dc574 = *_result_Lon + *_result_Lat;
 
 	force_lat_local_abs = abs(force_lat_local);
 	if (force_lon_local <= 0)
@@ -712,19 +720,19 @@ void tnfs_physics_main(tnfs_car_data *a1) {
 	a1->scale_b = 30;
 
 	// custom scales/framerate speeds, not using
-	if (dword_146493 > 1 && dword_1465DD != 0) {
+	if (DAT_8010d1cc > 1 && DAT_8010d2f4 != 0) {
 		//v43 = (*(dword_132F84[1 - a1->dword475] + 76) - a1->road_segment_b) / 2;
 		v43 = 0;
 		if (v43 > 0) {
-			if (v43 > dword_1465DD)
-				v43 = dword_1465DD;
+			if (v43 > DAT_8010d2f4)
+				v43 = DAT_8010d2f4;
 			a1->scale_b = 30 - v43;
 			a1->scale_a = 0x10000 / a1->scale_b;
 		}
 	}
 
 	// TCS/ABS controls
-	if ((dword_122C20 & 0x10) != 0 && a1->handbrake == 0) {
+	if ((DAT_800dc5a0 & 0x10) != 0 && a1->handbrake == 0) {
 		a1->abs_on = a1->abs_enabled;
 		a1->tcs_on = a1->tcs_enabled;
 	} else {
@@ -733,7 +741,7 @@ void tnfs_physics_main(tnfs_car_data *a1) {
 	}
 
 	// gear shift control
-	if ((dword_122C20 & 4) || a1->gear_speed == -1) {
+	if ((DAT_800dc5a0 & 4) || a1->gear_speed == -1) {
 		tnfs_engine_rev_limiter(a1);
 		if (car_data->gear_RND > 0) {
 			switch (car_data->gear_RND) {
@@ -812,9 +820,9 @@ void tnfs_physics_main(tnfs_car_data *a1) {
 		if (car_data->gear_shift_interval > 12 || car_data->is_shifting_gears < 1)
 			--car_data->gear_shift_interval;
 
-		if (car_data->unknown_flag_475 == dword_146460 //
+		if (car_data->unknown_flag_475 == DAT_8010d30c //
 		&& car_data->gear_shift_interval == 11 //
-		&& camera_selected == 0 // dashboard view
+		&& selected_camera == 0 // dashboard view
 		&& car_data->is_shifting_gears < 1) {
 			//play gear shift sound
 			tnfs_sfx_play(-1, 13, 0, 0, 1, 15728640);
@@ -824,7 +832,7 @@ void tnfs_physics_main(tnfs_car_data *a1) {
 	// aero/drag forces
 	drag_lat = tnfs_drag_force(car_data, car_data->speed_local_lat);
 	drag_lon = tnfs_drag_force(car_data, car_data->speed_local_lon);
-	if (car_data->speed_local_lon > car_specs->max_speed && dword_146475 != 6) {
+	if (car_data->speed_local_lon > car_specs->max_speed && DAT_8010d1ad != 6) {
 		if (drag_lon > 0 && drag_lon < thrust_force) {
 			drag_lon = abs(thrust_force);
 		} else if (drag_lon < 0) {
@@ -899,7 +907,7 @@ void tnfs_physics_main(tnfs_car_data *a1) {
 				force_Lon = limit_tire_force;
 			}
 		}
-		if (dword_146475 == 3 && (car_data->road_segment_a <= 97 || car_data->road_segment_a >= 465)) {
+		if (DAT_8010d1ad == 3 && (car_data->road_segment_a <= 97 || car_data->road_segment_a >= 465)) {
 			v33 = force_Lat <= 0 ? -force_Lat : f_R_Lat + f_F_Lat;
 			if (v33 > limit_tire_force) {
 				if (force_Lat < 0) {
@@ -1014,11 +1022,11 @@ void tnfs_physics_main(tnfs_car_data *a1) {
 	// wrap angle
 	car_data->angle_y = math_angle_wrap(car_data->angle_y);
 
-	dword_132F74 = car_data->speed_local_lon + car_data->speed_local_vert + car_data->speed_local_lat;
+	DAT_800dc574 = car_data->speed_local_lon + car_data->speed_local_vert + car_data->speed_local_lat;
 
 	// track fence collision
 	tnfs_track_fence_collision(car_data);
-	if ((dword_122C20 & 4) && dword_DC52C == 1) {
+	if ((DAT_800dc5a0 & 4) && DAT_800db54c == 1) {
 		if (car_data->speed_local_lon / 2 <= 0)
 			v24 = car_data->speed_local_lon / -2;
 		else
@@ -1047,7 +1055,7 @@ void tnfs_physics_main(tnfs_car_data *a1) {
 	}
 
 	// used for debug
-	if (!dword_146483 && dword_146475 == 3) {
+	if (!dword_146483 && DAT_8010d1ad == 3) {
 		if (car_data->road_segment_a <= 97 || car_data->road_segment_a >= 465) {
 			if (car_data->speed_local_lon < 13107) {
 				dword_D8AFC = dword_122CAC;
@@ -1115,5 +1123,5 @@ void tnfs_physics_main(tnfs_car_data *a1) {
 		}
 	}
 
-	dword_132F74 = car_data->position.z + car_data->position.y + car_data->position.x;
+	DAT_800dc574 = car_data->position.z + car_data->position.y + car_data->position.x;
 }

@@ -170,6 +170,8 @@ typedef struct tnfs_car_data {
 // global variables
 extern struct tnfs_car_data car_data;
 extern struct tnfs_car_specs car_specs;
+extern tnfs_vec3 camera_position;
+extern int selected_camera;
 extern int cheat_mode;
 extern int road_surface_type_array[10];
 extern int roadLeftMargin;
@@ -184,7 +186,6 @@ extern int road_segment_slope;
 extern int road_segment_heading;
 extern int sound_flag;
 
-
 // common functions
 void tnfs_reset();
 void tnfs_update();
@@ -195,5 +196,6 @@ void tnfs_sfx_play(int a, int b, int c, int d, int e, int f);
 void tnfs_physics_car_vector(tnfs_car_data * car_data, int * angle, int * length);
 int tnfs_collision_car_size(tnfs_car_data * car_data, int a);
 void tnfs_collision_debug(char a);
+void tnfs_change_camera();
 
 #endif /* TNFS_BASE_H_ */

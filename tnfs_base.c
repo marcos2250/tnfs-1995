@@ -23,23 +23,22 @@ int road_segment_slope = 0;
 int road_segment_heading = 0;
 int sound_flag = 0;
 
+int selected_camera = 0;
+tnfs_vec3 camera_position;
 
-/* 34309 */
 void tnfs_debug_00034309(int a, int b, int x, int y) {
 	//TODO
 }
 
-/* 343C2 */
 void tnfs_debug_000343C2(int a, int b) {
 	//TODO
 }
 
-/* 49432 */
 void tnfs_sfx_play(int a, int b, int c, int d, int e, int f) {
 	printf("sound %i\n", f);
 }
 
-void tnfs_physics_car_vector(tnfs_car_data * car_data, int * angle, int * length) {
+void tnfs_physics_car_vector(tnfs_car_data *car_data, int *angle, int *length) {
 	*angle = car_data->angle_y;
 	*length = car_data->speed;
 }
@@ -48,7 +47,6 @@ int tnfs_collision_car_size(tnfs_car_data *car_data, int a) {
 	return 0;
 }
 
-/* 502ab */
 void tnfs_collision_debug(char a) {
 	printf("collision %c\n", a);
 }
@@ -61,16 +59,15 @@ void tnfs_cheat_crash_cars() {
 	}
 }
 
-
 void tnfs_reset() {
 	int i;
 
 	cheat_mode = 0;
-	roadLeftMargin = 220;
-	roadRightMargin = 220;
-	roadLeftFence = 200;
-	roadRightFence = 200;
-	roadConstantA = 0x00;
+	roadLeftMargin = 135;
+	roadRightMargin = 150;
+	roadLeftFence = 135;
+	roadRightFence = 150;
+	roadConstantA = 0;
 	roadConstantB = 0x22;
 	road_segment_pos_x = 0;
 	road_segment_pos_z = 0;
@@ -191,12 +188,41 @@ void tnfs_reset() {
 	road_segment_pos_z = 0;
 }
 
+void tnfs_change_camera() {
+	selected_camera++;
+	if (selected_camera > 1)
+		selected_camera = 0;
+}
 
 void tnfs_update() {
+
+	// update camera
+	switch (selected_camera) {
+		case 1: //chase cam
+			camera_position.x = car_data.position.x;
+			camera_position.y = 0x60000;
+			camera_position.z = car_data.position.z - 0x100000;
+			break;
+		default: //fixed cam
+			camera_position.x = 0;
+			camera_position.y = 0x60000;
+			camera_position.z = -0x120000;
+			break;
+	}
+
 	if (car_data.collision_data.crashed_time == 0) {
+		// driving mode loop
 		tnfs_physics_main(&car_data);
-		matrix_create_from_pitch_yaw_roll(&car_data.matrix, -car_data.angle_x, -car_data.angle_y, -car_data.angle_z);
+		// update render matrix
+		matrix_create_from_pitch_yaw_roll(&car_data.matrix, -car_data.angle_x -car_data.body_pitch, -car_data.angle_y, -car_data.angle_z + car_data.body_roll);
 	} else {
+		// crash mode loop
 		tnfs_collision_main(&car_data);
 	}
+
+	// parking lot boundaries
+	if (car_data.position.z > 0x600000)
+		car_data.position.z = 0x600000;
+	if (car_data.position.z < -0x600000)
+		car_data.position.z = -0x600000;
 }

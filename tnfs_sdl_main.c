@@ -16,7 +16,6 @@
 static SDL_Event event;
 
 GLfloat matrix[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
-tnfs_vec3 camera_position = { 0, -5, -10 };
 
 void handleKeys() {
 	if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
@@ -48,6 +47,9 @@ void handleKeys() {
 			tnfs_reset();
 			break;
 		case SDLK_c:
+			tnfs_change_camera();
+			break;
+		case SDLK_d:
 			cheat_mode = 4;
 			tnfs_cheat_crash_cars();
 			break;
@@ -81,11 +83,8 @@ void handleKeys() {
 	}
 }
 
-
-void renderGl() {
-
+void renderVehicle() {
 	glMatrixMode( GL_MODELVIEW);
-
 	matrix[0] = (float) car_data.matrix.ax / 0x10000;
 	matrix[1] = (float) car_data.matrix.ay / 0x10000;
 	matrix[2] = (float) car_data.matrix.az / 0x10000;
@@ -98,34 +97,67 @@ void renderGl() {
 	matrix[9] = (float) car_data.matrix.cy / 0x10000;
 	matrix[10] = (float) car_data.matrix.cz / 0x10000;
 	matrix[11] = 0;
-	matrix[12] = ((float) car_data.position.x) / 0x10000 + camera_position.x;
-	matrix[13] = ((float) car_data.position.y) / 0x10000 + camera_position.y;
-	matrix[14] = -(((float) car_data.position.z) / 0x10000) + camera_position.z;
+	matrix[12] = ((float) (car_data.position.x - camera_position.x)) / 0x10000;
+	matrix[13] = ((float) (car_data.position.y - camera_position.y)) / 0x10000;
+	matrix[14] = ((float) (-car_data.position.z + camera_position.z)) / 0x10000;
 	matrix[15] = 1;
 	glLoadMatrixf(&matrix);
 
 	glBegin(GL_QUADS);
-	glVertex3f(-1, -0.5f, -2);
-	glVertex3f(1, -0.5f, -2);
-	glVertex3f(1, 0.5f, -2);
-	glVertex3f(-1, 0.5f, -2);
+	glVertex3f(-1, 0, -2);
+	glVertex3f(1, 0, -2);
+	glVertex3f(1, 1.3f, -2);
+	glVertex3f(-1, 1.3f, -2);
 
-	glVertex3f(-1, -0.5f, 2);
-	glVertex3f(1, -0.5f, 2);
-	glVertex3f(1, 0.5f, 2);
-	glVertex3f(-1, 0.5f, 2);
+	glVertex3f(-1, 0, 2);
+	glVertex3f(1, 0, 2);
+	glVertex3f(1, 1.3f, 2);
+	glVertex3f(-1, 1.3f, 2);
 
-	glVertex3f(-1, 0.5f, -2);
-	glVertex3f(1, 0.5f, -2);
-	glVertex3f(1, 0.5f, 2);
-	glVertex3f(-1, 0.5f, 2);
+	glVertex3f(-1, 1.3f, -2);
+	glVertex3f(1, 1.3f, -2);
+	glVertex3f(1, 1.3f, 2);
+	glVertex3f(-1, 1.3f, 2);
 
-	glVertex3f(-1, -0.5f, 2);
-	glVertex3f(1, -0.5f, 2);
-	glVertex3f(1, -0.5f, -2);
-	glVertex3f(-1, -0.5f, -2);
+	glVertex3f(-1, 0, 2);
+	glVertex3f(1, 0, 2);
+	glVertex3f(1, 0, -2);
+	glVertex3f(-1, 0, -2);
 
 	glEnd();
+}
+
+void renderPanel(int x, int y, int z, int width, int a) {
+	glMatrixMode(GL_MODELVIEW);
+	if (a) { //front
+		matrix[0] = 1; matrix[1] = 0; matrix[2] = 0; matrix[3] = 0;
+		matrix[4] = 0; matrix[5] = 1; matrix[6] = 0; matrix[7] = 0;
+		matrix[8] = 0; matrix[9] = 0; matrix[10] = 1; matrix[11] = 0;
+	} else { //side
+		matrix[0] = 0; matrix[1] = 0; matrix[2] = 1; matrix[3] = 0;
+		matrix[4] = 0; matrix[5] = 1; matrix[6] = 0; matrix[7] = 0;
+		matrix[8] = 1; matrix[9] = 0; matrix[10] = 0; matrix[11] = 0;
+	}
+	matrix[12] = ((float) -camera_position.x) / 0x10000 + x;
+	matrix[13] = ((float) -camera_position.y) / 0x10000 + y;
+	matrix[14] = ((float) camera_position.z) / 0x10000 + z;
+	matrix[15] = 1;
+	glLoadMatrixf(&matrix);
+
+	glBegin(GL_QUADS);
+	glVertex3f(-width, 0, 1);
+	glVertex3f( width, 0, 1);
+	glVertex3f( width, 1, 1);
+	glVertex3f(-width, 1, 1);
+	glEnd();
+}
+
+void renderGl() {
+	renderPanel(-20, 0, 0, 100, 0);
+	renderPanel(+20, 0, 0, 100, 0);
+	renderPanel( 1,  0, 99, 20, 1);
+	renderPanel( 1,  0, -101, 20, 1);
+	renderVehicle();
 }
 
 int main(int argc, char **argv) {

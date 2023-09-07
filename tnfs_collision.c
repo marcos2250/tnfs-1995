@@ -1,6 +1,6 @@
 /*
  * tnfs_collision.c
- * Rigid body dynamics
+ * 3D Rigid body dynamics
  */
 #include "tnfs_math.h"
 #include "tnfs_base.h"
@@ -40,7 +40,7 @@ void math_matrix_create_from_vec3(tnfs_vec9 *result, int amount, tnfs_vec3 *dire
 	math_matrix_multiply(result, result, &mInv);
 }
 
-void tnfs_collision_bounce(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_vec3 *speed, tnfs_vec3 *normal) {
+void tnfs_collision_rebound(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_vec3 *speed, tnfs_vec3 *normal) {
 	tnfs_vec3 cross_prod;
 	tnfs_vec3 normal_accel;
 	tnfs_vec3 accel;
@@ -48,8 +48,8 @@ void tnfs_collision_bounce(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_ve
 	tnfs_vec3 accel_scale;
 	int force;
 	int length;
-	int dotCompare, dotProduct;
-	int decceleration;
+	int rebound, dampening;
+	int dampen;
 	int aux;
 	int iX, iY, iZ;
 
@@ -63,7 +63,7 @@ void tnfs_collision_bounce(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_ve
 	cross_prod.y = fixmul(normal->x, l_edge->z) - fixmul(normal->z, l_edge->x);
 	cross_prod.z = fixmul(normal->y, l_edge->x) - fixmul(normal->x, l_edge->y);
 
-	dotCompare = 0;
+	rebound = 0;
 
 	length = math_vec3_length_squared(&cross_prod);
 	length = (body->linear_acc_factor >> 1) + (math_mul(length, body->angular_acc_factor) >> 1);
@@ -79,46 +79,51 @@ void tnfs_collision_bounce(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_ve
 	force = math_mul(force, g_const_7333);
 
 	if (((accel.x != 0) || (accel.y != 0)) || (accel.z != 0)) {
+
+		// dot product to reflect bounce off vector
 		aux = fixmul(accel.x, normal->x) + fixmul(accel.y, normal->y) + fixmul(accel.z, normal->z);
 		accel.x = accel.x - fixmul(aux, normal->x);
 		accel.y = accel.y - fixmul(aux, normal->y);
 		accel.z = accel.z - fixmul(aux, normal->z);
 
 		aux = fixmul(accel.x, accel.x) + fixmul(accel.y, accel.y) + fixmul(accel.z, accel.z);
-		dotCompare = math_sqrt(aux);
-		aux = -math_inverse_value(dotCompare);
+		rebound = math_sqrt(aux);
+
+		// inverse square root to normalize vector
+		aux = -math_inverse_value(rebound);
 		accel.x = math_mul(aux, accel.x);
 		accel.y = math_mul(aux, accel.y);
 		accel.z = math_mul(aux, accel.z);
 	}
 
-	// not so rigid body, soften the collision force a bit
-	decceleration = math_mul(g_const_CCCC, force);
-	accel_scale.x = math_mul(math_mul(decceleration, body->linear_acc_factor), accel.x);
-	accel_scale.y = math_mul(math_mul(decceleration, body->linear_acc_factor), accel.y);
-	accel_scale.z = math_mul(math_mul(decceleration, body->linear_acc_factor), accel.z);
+	// soften the collision a bit
+	dampen = math_mul(g_const_CCCC, force);
+	accel_scale.x = math_mul(math_mul(dampen, body->linear_acc_factor), accel.x);
+	accel_scale.y = math_mul(math_mul(dampen, body->linear_acc_factor), accel.y);
+	accel_scale.z = math_mul(math_mul(dampen, body->linear_acc_factor), accel.z);
 
 	aux = fixmul(l_edge->y, accel.x) - fixmul(l_edge->x, accel.y);
 	iX = fixmul(l_edge->z, fixmul(l_edge->x, accel.z) - fixmul(l_edge->z, accel.x)) - fixmul(l_edge->y, aux);
 	iY = fixmul(l_edge->x, aux) - fixmul(l_edge->z, iX);
 	iZ = fixmul(l_edge->y, iX) - fixmul(l_edge->x, iY);
 
-	aux = math_mul(decceleration, body->linear_acc_factor);
+	aux = math_mul(dampen, body->linear_acc_factor);
 	accel_edge.x = math_mul(aux, iX);
 	accel_edge.y = math_mul(aux, iY);
 	accel_edge.z = math_mul(aux, iZ);
 
-	dotProduct = fixmul(accel_scale.x + accel_edge.x, accel.x) //
+	dampening = fixmul(accel_scale.x + accel_edge.x, accel.x) //
 			+ fixmul(accel_scale.y + accel_edge.y, accel.y) //
 			+ fixmul(accel_scale.z + accel_edge.z, accel.z);
 
-	if (dotProduct > dotCompare) {
-		decceleration = math_mul(decceleration, math_div(dotCompare, dotProduct));
+	if (dampening > rebound) {
+		dampen = math_mul(dampen, math_div(rebound, dampening));
 	}
 
-	accel.x = math_mul(decceleration, accel.x);
-	accel.y = math_mul(decceleration, accel.y);
-	accel.z = math_mul(decceleration, accel.z);
+	accel.x = math_mul(dampen, accel.x);
+	accel.y = math_mul(dampen, accel.y);
+	accel.z = math_mul(dampen, accel.z);
+
 
 	// change linear and rotation speeds
 	if (force > 0) {
@@ -246,7 +251,7 @@ void tnfs_collision_detect(tnfs_collision_data *body, tnfs_vec3 *surf_normal, tn
 		if (fixmul(surf_normal->x, v_speed.x) + fixmul(surf_normal->y, v_speed.y) + fixmul(surf_normal->z, v_speed.z) < 0) {
 
 			// call bounce off calculation
-			tnfs_collision_bounce(body, &l_edge, &v_speed, surf_normal);
+			tnfs_collision_rebound(body, &l_edge, &v_speed, surf_normal);
 
 			// never used values
 			g_collision_speed.x = fixmul(body->angular_speed.y, l_edge.z) - fixmul(body->angular_speed.z, l_edge.y) + body->speed.x;
@@ -369,7 +374,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		//  iVar10 = DAT_800eae10;
 		//}
 		//iVar10 = (int)((uint)bRam00000002 * -0x2000 - iVar10) >> 8;
-		roadWidth = -0x19;
+		roadWidth = -0x16;
 
 		 fencePosition.y = roadWidth * fenceNormal.y + roadPosition.y;
 		 fencePosition.x = roadWidth * fenceNormal.x + roadPosition.x;
@@ -380,7 +385,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		//  iVar10 = DAT_800eae10;
 		//}
 		//iVar10 = (int)((uint)bRam00000003 * 0x2000 + iVar10) >> 8;
-		roadWidth = -0x19;
+		roadWidth = -0x16;
 
 		fenceNormal.x = -fenceNormal.x;
 		fenceNormal.z = -fenceNormal.z;
@@ -414,7 +419,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 				local_24 = 1;
 				local_28 = 0xc00000;
 			}
-			tnfs_sfx_play(0xffffffff, iVar4, 1, 0, local_24, local_28);
+			tnfs_sfx_play(-1, iVar4, 1, 0, local_24, local_28);
 		}
 		DAT_800eae18 = 0x8000;
 		DAT_800eae14 = 10;

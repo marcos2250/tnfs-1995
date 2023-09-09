@@ -339,6 +339,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	int iVar4 = 0;
 	int local_24 = 0;
 	int local_28 = 0;
+	int aux;
 
 	// ...
 
@@ -369,23 +370,21 @@ void tnfs_collision_main(tnfs_car_data *car) {
 
 	// check if left or right fence
 	if (fixmul(fenceDistance.x, fenceNormal.x) + fixmul(fenceDistance.y, fenceNormal.y) + fixmul(fenceDistance.z, fenceNormal.z) < 1) {
-		//iVar10 = DAT_800eae0c;
+		aux = 0x20000; //DAT_800eae0c;
 		//if ((bRam00000005 >> 4 != 0) && (cRam00000007 != '\x05')) {
-		//  iVar10 = DAT_800eae10;
+		//  aux = DAT_800eae10;
 		//}
-		//iVar10 = (int)((uint)bRam00000002 * -0x2000 - iVar10) >> 8;
-		roadWidth = -0x16;
+		roadWidth = (roadLeftFence * -0x2000 - aux) >> 16;
 
-		 fencePosition.y = roadWidth * fenceNormal.y + roadPosition.y;
-		 fencePosition.x = roadWidth * fenceNormal.x + roadPosition.x;
-		 fencePosition.z = roadWidth * fenceNormal.z + roadPosition.z;
+		fencePosition.y = roadWidth * fenceNormal.y + roadPosition.y;
+		fencePosition.x = roadWidth * fenceNormal.x + roadPosition.x;
+		fencePosition.z = roadWidth * fenceNormal.z + roadPosition.z;
 	} else {
-		//iVar10 = DAT_800eae0c;
+		aux = 0x20000; //DAT_800eae0c;
 		//if (((bRam00000005 & 0xf) != 0) && (cRam00000007 != '\x05')) {
-		//  iVar10 = DAT_800eae10;
+		//  aux = DAT_800eae10;
 		//}
-		//iVar10 = (int)((uint)bRam00000003 * 0x2000 + iVar10) >> 8;
-		roadWidth = -0x16;
+		roadWidth = (roadRightFence * -0x2000 - aux) >> 16;
 
 		fenceNormal.x = -fenceNormal.x;
 		fenceNormal.z = -fenceNormal.z;
@@ -429,9 +428,9 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	car->position.x = collision_data->position.x;
 	car->position.y = collision_data->position.y;
 	car->position.z = -collision_data->position.z;
-	car->position.x -= fixmul(collision_data->matrix.bx, car->collision_delta_factor);
-	car->position.y -= fixmul(collision_data->matrix.by, car->collision_delta_factor);
-	car->position.z += fixmul(collision_data->matrix.bz, car->collision_delta_factor);
+	car->position.x -= fixmul(collision_data->matrix.bx, car->collision_height_offset);
+	car->position.y -= fixmul(collision_data->matrix.by, car->collision_height_offset);
+	car->position.z += fixmul(collision_data->matrix.bz, car->collision_height_offset);
 
 	car->speed_x = collision_data->speed.x;
 	car->speed_y = collision_data->speed.y;
@@ -480,9 +479,10 @@ void tnfs_collision_rollover_start_3(tnfs_car_data *car) {
 		(car->collision_data.matrix).cy = -(car->collision_data.matrix).cy;
 	}
 
-	car->collision_data.position.x += fixmul(car->collision_data.matrix.bx, car->collision_delta_factor);
-	car->collision_data.position.y += fixmul(car->collision_data.matrix.by, car->collision_delta_factor);
-	car->collision_data.position.z += fixmul(car->collision_data.matrix.bz, car->collision_delta_factor);
+	// height offset
+	car->collision_data.position.x += fixmul(car->collision_data.matrix.bx, car->collision_height_offset);
+	car->collision_data.position.y += fixmul(car->collision_data.matrix.by, car->collision_height_offset);
+	car->collision_data.position.z += fixmul(car->collision_data.matrix.bz, car->collision_height_offset);
 }
 
 void tnfs_collision_rollover_start_2(tnfs_car_data *param_1) {

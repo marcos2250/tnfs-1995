@@ -92,7 +92,7 @@ typedef struct tnfs_car_data {
 	tnfs_vec3 road_position;
 
 	// ...
-	int collision_delta_factor;
+	int collision_height_offset;
 	tnfs_collision_data collision_data;
 	int field203_0x174;
 	// ...
@@ -197,5 +197,10 @@ void tnfs_physics_car_vector(tnfs_car_data * car_data, int * angle, int * length
 int tnfs_collision_car_size(tnfs_car_data * car_data, int a);
 void tnfs_collision_debug(char a);
 void tnfs_change_camera();
+void tnfs_change_gear_up();
+void tnfs_change_gear_down();
+void tnfs_abs();
+void tnfs_tcs();
+void tnfs_cheat_mode();
 
 #endif /* TNFS_BASE_H_ */

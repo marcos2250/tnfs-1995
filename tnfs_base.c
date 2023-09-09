@@ -63,10 +63,10 @@ void tnfs_reset() {
 	int i;
 
 	cheat_mode = 0;
-	roadLeftMargin = 135;
-	roadRightMargin = 150;
-	roadLeftFence = 135;
-	roadRightFence = 150;
+	roadLeftMargin = 140;
+	roadRightMargin = 140;
+	roadLeftFence = 140;
+	roadRightFence = 140;
 	roadConstantA = 0;
 	roadConstantB = 0x22;
 	road_segment_pos_x = 0;
@@ -178,7 +178,7 @@ void tnfs_reset() {
 	car_data.collision_data.angular_speed.z = 0;
 	car_data.collision_data.field6_0x60 = 0;
 
-	car_data.collision_delta_factor = 0x92f1;
+	car_data.collision_height_offset = 0x92f1;
 	car_data.field203_0x174 = 0x1e0;
 	car_data.field444_0x520 = 0;
 	car_data.field445_0x524 = 0;
@@ -192,6 +192,45 @@ void tnfs_change_camera() {
 	selected_camera++;
 	if (selected_camera > 1)
 		selected_camera = 0;
+}
+
+void tnfs_change_gear_up() {
+	car_data.gear_RND = 3;
+	car_data.gear_speed = 0;
+	printf("Gear: Drive\n");
+}
+
+void tnfs_change_gear_down() {
+	car_data.gear_RND = 1;
+	car_data.gear_speed = -2;
+	printf("Gear: Reverse\n");
+}
+
+void tnfs_abs() {
+	car_data.abs_enabled = car_data.abs_enabled ? 0 : 1;
+	if (car_data.abs_enabled) {
+		printf("ABS brakes on\n");
+	} else {
+		printf("ABS brakes off\n");
+	}
+}
+
+void tnfs_tcs() {
+	car_data.tcs_enabled = car_data.tcs_enabled ? 0 : 1;
+	if (car_data.tcs_enabled) {
+		printf("Traction control on\n");
+	} else {
+		printf("Traction control off\n");
+	}
+}
+
+void tnfs_cheat_mode() {
+	cheat_mode = cheat_mode ? 0 : 4;
+	if (cheat_mode == 4) {
+		printf("Crashing cars cheat enabled - Press handbrake to crash\n");
+	} else {
+		printf("Crashing cars cheat disabled\n");
+	}
 }
 
 void tnfs_update() {

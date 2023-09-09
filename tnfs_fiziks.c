@@ -34,12 +34,10 @@ int dword_146483 = 0;
 
 
 
-/* 3C917 */
 void tnfs_engine_rev_limiter(tnfs_car_data *car_data) {
 	//TODO
 }
 
-/* 3CD20 */
 int tnfs_engine_thrust(tnfs_car_data *car_data) {
 	if (car_data->gear_RND == 3) { //drive
 		if (car_data->speed < 600000)
@@ -52,12 +50,10 @@ int tnfs_engine_thrust(tnfs_car_data *car_data) {
 	return 0; //neutral
 }
 
-/* 3C7E8 */
 void tnfs_engine_auto_shift(tnfs_car_data *car_data) {
 	//TODO
 }
 
-/* 3D29D */
 int tnfs_drag_force(tnfs_car_data *car_data, int speed) {
 	return -(speed >> 4);
 }
@@ -299,7 +295,6 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	}
 }
 
-/* 3D721 */
 void tnfs_tire_forces_locked(int *force_lat, int *force_lon, signed int max_grip, int *slide) {
 	signed int v5;
 	int v6;
@@ -319,10 +314,11 @@ void tnfs_tire_forces_locked(int *force_lat, int *force_lon, signed int max_grip
 	if (v10 > max_grip) {
 		v5 = max_grip - fix3(3 * max_grip);
 		v6 = fix8(v10);
-
-		*force_lat = fix8(v5 / v6 * *force_lat);
-		*force_lon = fix8(v5 / v6 * *force_lon);
 		*slide = v10 - v5;
+
+		v5 = v5 / v6;
+		*force_lat = fix8(v5 * *force_lat);
+		*force_lon = fix8(v5 * *force_lon);
 	}
 }
 
@@ -475,7 +471,7 @@ void tnfs_tire_limit_max_grip(tnfs_car_data *car_data, //
 			*force_lat = fix8(v11 * *force_lat);
 			*force_lon = fix8(v11 * *force_lon);
 			// ANGLE WARNING!!
-			printf("ANGLE WARNING!! %s=%d", "a", f_lat_abs);
+			printf("ANGLE WARNING!! %s=%d\n", "a", f_lat_abs);
 		}
 	}
 
@@ -548,7 +544,9 @@ void tnfs_tire_forces(tnfs_car_data *_car_data, //
 		*skid |= 1u;
 	}
 
-	if ( fix2(5 * max_grip) >= abs(braking_force) || (car_data->abs_enabled != 0 && car_data->handbrake == 0)) {
+	if ( ( car_data->brake <= 245 || car_data->abs_enabled ) //
+		&& ( fix2(5 * max_grip) >= abs(braking_force) //
+		|| (car_data->abs_enabled != 0 && car_data->handbrake == 0))) {
 		// not locked wheels
 
 		// lateral tire grip factor
@@ -628,6 +626,7 @@ void tnfs_tire_forces(tnfs_car_data *_car_data, //
 		tnfs_tire_forces_locked(&force_lat_local, &force_lon_local, max_grip, slide);
 	}
 
+
 	if (*slide > 9830400)
 		*slide = 9830400;
 
@@ -638,6 +637,7 @@ void tnfs_tire_forces(tnfs_car_data *_car_data, //
 		*_result_Lat = force_lat_local;
 		*_result_Lon = force_lon_local;
 	}
+
 }
 
 /* 

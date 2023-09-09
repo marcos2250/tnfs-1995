@@ -17,7 +17,7 @@ int math_mul(int x, int y) {
 int math_div(int x, int y) {
 	if (y == 0)
 		return 0;
-	return (((long long) x) << 16) / y;
+	return (((long long) x) << 14) / y;
 }
 
 int math_sin(int input) {

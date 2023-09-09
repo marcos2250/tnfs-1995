@@ -30,18 +30,16 @@ void handleKeys() {
 			car_data.throttle = 0xFF;
 			break;
 		case SDLK_DOWN:
-			car_data.brake = 100;
+			car_data.brake = 0xFF;
 			break;
 		case SDLK_SPACE:
 			car_data.handbrake = 1;
 			break;
 		case SDLK_a:
-			car_data.gear_RND = 3; //Drive
-			car_data.gear_speed = 0;
+			tnfs_change_gear_up();
 			break;
 		case SDLK_z:
-			car_data.gear_RND = 1; //Reverse
-			car_data.gear_speed = -2;
+			tnfs_change_gear_down();
 			break;
 		case SDLK_r:
 			tnfs_reset();
@@ -53,8 +51,14 @@ void handleKeys() {
 			cheat_mode = 4;
 			tnfs_cheat_crash_cars();
 			break;
+		case SDLK_F1:
+			tnfs_abs();
+			break;
+		case SDLK_F2:
+			tnfs_tcs();
+			break;
 		case SDLK_F4:
-			cheat_mode = 4;
+			tnfs_cheat_mode();
 			break;
 		default:
 			break;
@@ -145,18 +149,18 @@ void renderPanel(int x, int y, int z, int width, int a) {
 	glLoadMatrixf(&matrix);
 
 	glBegin(GL_QUADS);
-	glVertex3f(-width, 0, 1);
-	glVertex3f( width, 0, 1);
-	glVertex3f( width, 1, 1);
-	glVertex3f(-width, 1, 1);
+	glVertex3f(-width, 0, 0);
+	glVertex3f( width, 0, 0);
+	glVertex3f( width, 1, 0);
+	glVertex3f(-width, 1, 0);
 	glEnd();
 }
 
 void renderGl() {
 	renderPanel(-20, 0, 0, 100, 0);
 	renderPanel(+20, 0, 0, 100, 0);
-	renderPanel( 1,  0, 99, 20, 1);
-	renderPanel( 1,  0, -101, 20, 1);
+	renderPanel( 0, 0, 100, 20, 1);
+	renderPanel( 0, 0, -100, 20, 1);
 	renderVehicle();
 }
 

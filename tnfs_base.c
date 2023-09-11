@@ -207,28 +207,44 @@ void tnfs_change_gear_down() {
 }
 
 void tnfs_abs() {
-	car_data.abs_enabled = car_data.abs_enabled ? 0 : 1;
 	if (car_data.abs_enabled) {
-		printf("ABS brakes on\n");
-	} else {
+		car_data.abs_enabled = 0;
 		printf("ABS brakes off\n");
+	} else {
+		car_data.abs_enabled = 1;
+		printf("ABS brakes on\n");
 	}
 }
 
 void tnfs_tcs() {
-	car_data.tcs_enabled = car_data.tcs_enabled ? 0 : 1;
 	if (car_data.tcs_enabled) {
-		printf("Traction control on\n");
-	} else {
+		car_data.tcs_enabled = 0;
 		printf("Traction control off\n");
+	} else {
+		car_data.tcs_enabled = 1;
+		printf("Traction control on\n");
+	}
+}
+
+void tnfs_change_traction() {
+	if (car_data.car_specs_ptr->front_drive_percentage == 0x8000) {
+		car_data.car_specs_ptr->front_drive_percentage = 0x10000;
+		printf("Traction: FWD\n");
+	} else if (car_data.car_specs_ptr->front_drive_percentage == 0) {
+		car_data.car_specs_ptr->front_drive_percentage = 0x8000;
+		printf("Traction: AWD\n");
+	} else {
+		car_data.car_specs_ptr->front_drive_percentage = 0;
+		printf("Traction: RWD\n");
 	}
 }
 
 void tnfs_cheat_mode() {
-	cheat_mode = cheat_mode ? 0 : 4;
 	if (cheat_mode == 4) {
+		cheat_mode = 0;
 		printf("Crashing cars cheat enabled - Press handbrake to crash\n");
 	} else {
+		cheat_mode = 4;
 		printf("Crashing cars cheat disabled\n");
 	}
 }

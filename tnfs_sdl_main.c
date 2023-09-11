@@ -57,6 +57,9 @@ void handleKeys() {
 		case SDLK_F2:
 			tnfs_tcs();
 			break;
+		case SDLK_F3:
+			tnfs_change_traction();
+			break;
 		case SDLK_F4:
 			tnfs_cheat_mode();
 			break;

@@ -8,10 +8,13 @@ O=build
 
 OBJS=$(O)/tnfs_base.o $(O)/tnfs_collision.o $(O)/tnfs_fiziks.o $(O)/tnfs_math.o $(O)/tnfs_sdl_main.o
 
-all:	$(O)/tnfs
+all:	mkdir $(O)/tnfs 	
 		
 clean:
 	rm -f $(O)/*
+
+mkdir: 
+	mkdir -p build
 
 $(O)/tnfs:	$(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) -o $(O)/tnfs $(LIBS)

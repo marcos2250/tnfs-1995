@@ -2,10 +2,7 @@
  * TNFS 1995 car physics code
  * Recreation and analysis of the physics engine from the classic racing game
  */
-#include <stdio.h>
-#include <math.h>
 #include <SDL.h>
-#include <SDL_ttf.h>
 #include <SDL_opengl.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -48,8 +45,7 @@ void handleKeys() {
 			tnfs_change_camera();
 			break;
 		case SDLK_d:
-			cheat_mode = 4;
-			tnfs_cheat_crash_cars();
+			tnfs_crash_car();
 			break;
 		case SDLK_F1:
 			tnfs_abs();
@@ -90,46 +86,63 @@ void handleKeys() {
 	}
 }
 
+/*
+ * TNFS coord system
+ * position X+ right Y+ up Z+ north
+ * angle X+ pitch down Y+ yaw clockwise Z+ roll left
+ */
 void renderVehicle() {
-	glMatrixMode( GL_MODELVIEW);
+	// TNFS uses LHS, convert to OpenGL's RHS
+	glMatrixMode(GL_MODELVIEW);
 	matrix[0] = (float) car_data.matrix.ax / 0x10000;
 	matrix[1] = (float) car_data.matrix.ay / 0x10000;
-	matrix[2] = (float) car_data.matrix.az / 0x10000;
+	matrix[2] = (float) -car_data.matrix.az / 0x10000;
 	matrix[3] = 0;
 	matrix[4] = (float) car_data.matrix.bx / 0x10000;
 	matrix[5] = (float) car_data.matrix.by / 0x10000;
-	matrix[6] = (float) car_data.matrix.bz / 0x10000;
+	matrix[6] = (float) -car_data.matrix.bz / 0x10000;
 	matrix[7] = 0;
 	matrix[8] = (float) car_data.matrix.cx / 0x10000;
 	matrix[9] = (float) car_data.matrix.cy / 0x10000;
-	matrix[10] = (float) car_data.matrix.cz / 0x10000;
+	matrix[10] = (float) -car_data.matrix.cz / 0x10000;
 	matrix[11] = 0;
 	matrix[12] = ((float) (car_data.position.x - camera_position.x)) / 0x10000;
 	matrix[13] = ((float) (car_data.position.y - camera_position.y)) / 0x10000;
 	matrix[14] = ((float) (-car_data.position.z + camera_position.z)) / 0x10000;
 	matrix[15] = 1;
-	glLoadMatrixf(&matrix);
+	glLoadMatrixf(matrix);
 
 	glBegin(GL_QUADS);
-	glVertex3f(-1, 0, -2);
-	glVertex3f(1, 0, -2);
-	glVertex3f(1, 1.3f, -2);
-	glVertex3f(-1, 1.3f, -2);
 
+	// front bumper
 	glVertex3f(-1, 0, 2);
 	glVertex3f(1, 0, 2);
-	glVertex3f(1, 1.3f, 2);
-	glVertex3f(-1, 1.3f, 2);
+	glVertex3f(1, 0.5f, 2);
+	glVertex3f(-1, 0.5f, 2);
 
-	glVertex3f(-1, 1.3f, -2);
-	glVertex3f(1, 1.3f, -2);
-	glVertex3f(1, 1.3f, 2);
-	glVertex3f(-1, 1.3f, 2);
+	// hood
+	glVertex3f(-1, 0.5f, 2);
+	glVertex3f(1, 0.5f, 2);
+	glVertex3f(1, 1.3f, 0);
+	glVertex3f(-1, 1.3f, 0);
 
-	glVertex3f(-1, 0, 2);
-	glVertex3f(1, 0, 2);
-	glVertex3f(1, 0, -2);
+	// roof/trunk
+	glVertex3f(-1, 1.3f, 0);
+	glVertex3f(1, 1.3f, 0);
+	glVertex3f(1, 1.0f, -2);
+	glVertex3f(-1, 1.0f, -2);
+
+	// rear bumper
 	glVertex3f(-1, 0, -2);
+	glVertex3f(1, 0, -2);
+	glVertex3f(1, 1.0f, -2);
+	glVertex3f(-1, 1.0f, -2);
+
+	// bottom
+	glVertex3f(-1, 0, -2);
+	glVertex3f(1, 0, -2);
+	glVertex3f(1, 0, 2);
+	glVertex3f(-1, 0, 2);
 
 	glEnd();
 }
@@ -149,7 +162,7 @@ void renderPanel(int x, int y, int z, int width, int a) {
 	matrix[13] = ((float) -camera_position.y) / 0x10000 + y;
 	matrix[14] = ((float) camera_position.z) / 0x10000 + z;
 	matrix[15] = 1;
-	glLoadMatrixf(&matrix);
+	glLoadMatrixf(matrix);
 
 	glBegin(GL_QUADS);
 	glVertex3f(-width, 0, 0);
@@ -201,7 +214,7 @@ int main(int argc, char **argv) {
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glColor3f(0.0f, 0.0f, 0.0f);
 
-	glMatrixMode( GL_PROJECTION);
+	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	gluPerspective(90.0, 1, 0.1, 1000);
 
@@ -217,7 +230,7 @@ int main(int argc, char **argv) {
 
 		tnfs_update();
 
-		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		renderGl();
 		SDL_GL_SwapWindow(window);
 

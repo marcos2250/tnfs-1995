@@ -11,10 +11,10 @@ tnfs_car_data car_data;
 int cheat_mode = 0;
 int road_surface_type_array[10];
 
-int roadLeftMargin = 220;
-int roadRightMargin = 220;
-int roadLeftFence = 200;
-int roadRightFence = 200;
+int roadLeftMargin = 140;
+int roadRightMargin = 140;
+int roadLeftFence = 150;
+int roadRightFence = 150;
 char roadConstantA = 0x00;
 char roadConstantB = 0x22;
 int road_segment_pos_x = 0;
@@ -26,14 +26,6 @@ int sound_flag = 0;
 int selected_camera = 0;
 tnfs_vec3 camera_position;
 
-void tnfs_debug_00034309(int a, int b, int x, int y) {
-	//TODO
-}
-
-void tnfs_debug_000343C2(int a, int b) {
-	//TODO
-}
-
 void tnfs_sfx_play(int a, int b, int c, int d, int e, int f) {
 	printf("sound %i\n", f);
 }
@@ -43,32 +35,10 @@ void tnfs_physics_car_vector(tnfs_car_data *car_data, int *angle, int *length) {
 	*length = car_data->speed;
 }
 
-int tnfs_collision_car_size(tnfs_car_data *car_data, int a) {
-	return 0;
-}
-
-void tnfs_collision_debug(char a) {
-	printf("collision %c\n", a);
-}
-
-/* 5b5f7 */
-void tnfs_cheat_crash_cars() {
-	// crashing cars cheat code
-	if (cheat_mode == 4) {
-		tnfs_collision_rollover_start(&car_data, 0xa0000, 0xa0000, 0xa0000);
-	}
-}
-
 void tnfs_reset() {
 	int i;
 
 	cheat_mode = 0;
-	roadLeftMargin = 140;
-	roadRightMargin = 140;
-	roadLeftFence = 140;
-	roadRightFence = 140;
-	roadConstantA = 0;
-	roadConstantB = 0x22;
 	road_segment_pos_x = 0;
 	road_segment_pos_z = 0;
 	road_segment_slope = 0;
@@ -91,7 +61,7 @@ void tnfs_reset() {
 	car_specs.thrust_to_acc_factor = 0x66; //1577kg TNFS scale
 
 	car_data.is_crashed = 0;
-	car_data.unknown_const_88 = &car_data;
+	car_data.car_data_pointer = &car_data;
 	car_data.car_specs_ptr = &car_specs;
 	car_data.weight_distribution = 0x7e49; //49% front
 	car_data.weight_transfer_factor = 0x3028;
@@ -249,6 +219,11 @@ void tnfs_cheat_mode() {
 	}
 }
 
+void tnfs_crash_car() {
+	tnfs_collision_rollover_start(&car_data, 0, 0, -0xa0000);
+}
+
+
 void tnfs_update() {
 
 	// update camera
@@ -269,7 +244,7 @@ void tnfs_update() {
 		// driving mode loop
 		tnfs_physics_main(&car_data);
 		// update render matrix
-		matrix_create_from_pitch_yaw_roll(&car_data.matrix, -car_data.angle_x -car_data.body_pitch, -car_data.angle_y, -car_data.angle_z + car_data.body_roll);
+		matrix_create_from_pitch_yaw_roll(&car_data.matrix, car_data.angle_x + car_data.body_pitch, car_data.angle_y, car_data.angle_z + car_data.body_roll);
 	} else {
 		// crash mode loop
 		tnfs_collision_main(&car_data);

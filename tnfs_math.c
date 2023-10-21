@@ -2,6 +2,7 @@
  * tnfs_math.c
  * Fixed point math functions
  */
+#include <math.h>
 #include "tnfs_math.h"
 
 /*
@@ -12,7 +13,7 @@ int math_mul(int x, int y) {
 }
 
 /*
- * fixed division, eg. 4b2 / 2800 => 884e6
+ * fixed division, eg. 0x4b2 / 0x2800 => 0x884e6
  */
 int math_div(int x, int y) {
 	if (y == 0)
@@ -165,9 +166,9 @@ void matrix_create_from_pitch_yaw_roll(tnfs_vec9 *result, int pitch, int yaw, in
 
 /*
  * inverse value f(x) = 1/v
- * 2260 => 77280
- * 15266 => c1aa
- * 3a97a => 45e8
+ * 0x2260 => 0x77280
+ * 0x15266 => 0xc1aa
+ * 0x3a97a => 0x45e8
  */
 int math_inverse_value(int v) {
 	if (v == 0)
@@ -211,5 +212,5 @@ int math_vec3_length_XZ(tnfs_vec3 *vector) {
 	int x, z;
 	x = math_mul(vector->x, vector->x);
 	z = math_mul(vector->z, vector->z);
-	return sqrt(x + z) * 0xFFFF;
+	return sqrt(x + z) * 0xFF;
 }

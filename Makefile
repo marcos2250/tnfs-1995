@@ -14,11 +14,10 @@ clean:
 	rm -f $(O)/*
 
 mkdir: 
-	mkdir -p build
+	mkdir -p $(O)
 
 $(O)/tnfs:	$(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) -o $(O)/tnfs $(LIBS)
 
 $(O)/%.o: %.c
 	$(CC) $(INCL) $(CFLAGS) -c $< -o $@
-

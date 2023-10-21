@@ -1,8 +1,5 @@
 /*
  * tnfs_base.h
- *
- *  Created on: 6 de set. de 2023
- *      Author: m3
  */
 
 #ifndef TNFS_BASE_H_
@@ -85,7 +82,7 @@ typedef struct tnfs_car_data {
 	int speed; //00000070
 	int angular_speed; //00000074
 	// ...
-	int * unknown_const_88; //00000088
+	struct tnfs_car_data * car_data_pointer; //00000088
 	tnfs_vec3 road_fence_normal;
 	tnfs_vec3 road_normal;
 	tnfs_vec3 road_heading;
@@ -189,16 +186,13 @@ extern int sound_flag;
 // common functions
 void tnfs_reset();
 void tnfs_update();
-void tnfs_cheat_crash_cars();
-void tnfs_debug_00034309(int a, int b, int x, int y);
-void tnfs_debug_000343C2(int a, int b);
+void tnfs_crash_car();
 void tnfs_sfx_play(int a, int b, int c, int d, int e, int f);
 void tnfs_physics_car_vector(tnfs_car_data * car_data, int * angle, int * length);
-int tnfs_collision_car_size(tnfs_car_data * car_data, int a);
-void tnfs_collision_debug(char a);
 void tnfs_change_camera();
 void tnfs_change_gear_up();
 void tnfs_change_gear_down();
+void tnfs_change_traction();
 void tnfs_abs();
 void tnfs_tcs();
 void tnfs_cheat_mode();

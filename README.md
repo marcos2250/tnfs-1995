@@ -2,7 +2,7 @@
 
 Recreation and analysis of the physics engine from the classic racing game from 1995.
 
-This project aims to reconstitute accurately as possible the physics formulas used in the game, decompiled from DOS, PSX and 3DO versions.
+This project aims to reconstitute accurately as possible the physics formulas used in the game, decompiled from DOS, PSX and 3DO binaries, and manually rewritten to C.
 
 ## Features
 * 2D car driving simulation, with a 2-wheel tire grip model;
@@ -12,7 +12,12 @@ This project aims to reconstitute accurately as possible the physics formulas us
 * No assets required;
 * SDL2/OpenGL 3D in pure C.
 
-## Controls
+## How to play
+1. clone/download repo;
+2. install `libsdl2`;
+3. `make`
+4. run `./build/tnfs`
+
 Use the keys to drive around the parking lot area:
 * Up/Down - Accel and brake
 * Left/Right - Steer

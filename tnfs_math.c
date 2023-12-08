@@ -12,6 +12,10 @@ int math_mul(int x, int y) {
 	return (((long long) x) * y + 0x8000) >> 16;
 }
 
+int math_mul_10(int x, int y) {
+	return (((long long) x) * y + 0x8000) >> 10;
+}
+
 /*
  * fixed division, eg. 0x4b2 / 0x2800 => 0x884e6
  */

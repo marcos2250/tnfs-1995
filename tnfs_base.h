@@ -1,10 +1,8 @@
 /*
  * tnfs_base.h
  */
-
 #ifndef TNFS_BASE_H_
 #define TNFS_BASE_H_
-
 
 typedef struct {
 	tnfs_vec9 matrix; //0
@@ -31,31 +29,39 @@ typedef struct tnfs_car_specs {
 	int max_brake_force_1; //00000028
 	int max_brake_force_2; //0000002C
 	//  ...
+	int unknown_const_drag; //00000034
 	int max_speed; //00000038
 	//  ...
-	int diff_ratio; //00000054
+	int final_drive_speed_ratio; //00000054
+	int number_of_gears;
 	//  ...
-	int gear_ratio_table; //00000070
+	int gear_ratio_table[10]; //00000070
+	int gear_ratio_table_2[10];
+	//  ...
+	int torque_table_entries; //0x88
 	//  ...
 	int max_slip_angle; //000000a4
+	// ...
 	int rpm_redline; //000000ac
 	int rpm_idle; //000000b0
-	int torque_table_r01; //000000b4
-	int torque_table_t01; //000000b8
+	unsigned int torque_table[100]; //000000b4
 	//  ...
-	int torque_table_r10; //000000fc
-	int torque_table_t10; //00000100
-	//  ...
-	int gear_ratio_table_2; //000002b8
+	int gear_upshift_rpm[10]; // 0x290
 	//  ...
 	int body_roll_factor; //000002D4
 	int body_pitch_factor; //000002D8
 	//  ...
 	int max_tire_lateral_force; //0000031C
 	//  ...
+	int final_drive_torque_ratio; //00000328
 	int thrust_to_acc_factor; //0000032C
 	//  ...
-	int diff_ratio_2; //00000368
+	int gear_shift_delay; //00000354
+	int rev_speed_idle; //00000358
+	int rev_speed_neutral; //0000035C
+	int rev_clutch_drop_rpm_dec; //00000360
+	int rev_clutch_drop_rpm_inc; //00000364
+	int negative_torque; //00000368
 	// ...
 	unsigned char slide_table[1024]; //00000374
 } tnfs_car_specs;
@@ -87,7 +93,6 @@ typedef struct tnfs_car_data {
 	tnfs_vec3 road_normal;
 	tnfs_vec3 road_heading;
 	tnfs_vec3 road_position;
-
 	// ...
 	int collision_height_offset;
 	tnfs_collision_data collision_data;
@@ -97,11 +102,12 @@ typedef struct tnfs_car_data {
 	int body_pitch; //00000369
 	// ...
 	int throttle; //000003B1
-	// ...
+	int throttle_previous_pos; //000003B5
 	int brake; //000003B9
 	int is_shifting_gears; //000003BD
 	short rpm_engine; //000003C1
-	short rpm_idle; //000003C2
+	short rpm_vehicle; //000003C2
+	short rpm_redline; //000003C2
 	int road_grip_increment; //000003C9
 	int tire_grip_rear; //000003CD
 	int tire_grip_front; //000003D1
@@ -111,18 +117,18 @@ typedef struct tnfs_car_data {
 	int slope_force_lon; //000003E1
 	int thrust; //000003E5
 	int gear_RND; //000003E9
-	int gear_speed; //000003ED
-	// ...
+	int gear_selected; //000003ED
+	int is_gear_engaged; //000003F1
 	int handbrake; //000003F5
-	// ...
+	int is_engine_cutoff; //000003F9
 	int wheels_on_ground; //00000401
 	int slide_front; //00000405
 	int slide_rear; //00000409
 	int slide; //0000040D
 	int susp_incl_lat; //00000411
 	int susp_incl_lon; //00000415
-	int gear_speed_selected; //00000419
-	int gear_speed_previous; //0000041D
+	int gear_shift_current; //00000419
+	int gear_shift_previous; //0000041D
 	int gear_shift_interval; //00000421
 	char tire_skid_front; //00000425
 	char tire_skid_rear; //00000426
@@ -144,14 +150,16 @@ typedef struct tnfs_car_data {
 	// ...
 	struct tnfs_car_specs *car_specs_ptr; //00000471
 	int unknown_flag_475; //00000475
+	int unknown_flag_479; //00000479
 	//...
 	int car_flag_0x480;
 	// ...
 	int tcs_enabled; //00000491
 	int abs_enabled; //00000495
 	// ...
-	int surface_type; //0000049D
-	// ...
+	int surface_type_a; //0000049D
+	int surface_type_b; //000004A1
+	//..
 	int tcs_on; //000004AD
 	int abs_on; //000004B1
 	// ...
@@ -182,6 +190,7 @@ extern int road_segment_pos_z;
 extern int road_segment_slope;
 extern int road_segment_heading;
 extern int sound_flag;
+static signed int g_gear_ratios[10];
 
 // common functions
 void tnfs_reset();
@@ -193,6 +202,7 @@ void tnfs_change_camera();
 void tnfs_change_gear_up();
 void tnfs_change_gear_down();
 void tnfs_change_traction();
+void tnfs_change_transmission_type();
 void tnfs_abs();
 void tnfs_tcs();
 void tnfs_cheat_mode();

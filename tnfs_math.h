@@ -26,7 +26,7 @@ typedef struct {
 
 
 // fixed point math macros
-#define fixmul(x,y) (int)(((long long)(x) * (y) + 0x8000) >> 16)
+#define fixmul(x,y) (int)(((long)(x) * (y) + 0x8000) >> 16)
 #define fixdiv(x,y) (((x) << 6) / (y))
 
 #define fix16(a) (((a)<0 ? (a) + 0xfffff : (a)) >> 16)

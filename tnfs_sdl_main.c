@@ -12,6 +12,9 @@
 
 static SDL_Event event;
 
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = 600;
+
 GLfloat matrix[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 
 void handleKeys() {
@@ -57,6 +60,9 @@ void handleKeys() {
 			tnfs_change_traction();
 			break;
 		case SDLK_F4:
+			tnfs_change_transmission_type();
+			break;
+		case SDLK_F5:
 			tnfs_cheat_mode();
 			break;
 		default:
@@ -112,6 +118,8 @@ void renderVehicle() {
 	matrix[15] = 1;
 	glLoadMatrixf(matrix);
 
+	glColor3f(0.0f, 0.0f, 1.0f);
+
 	glBegin(GL_QUADS);
 
 	// front bumper
@@ -164,6 +172,8 @@ void renderPanel(int x, int y, int z, int width, int a) {
 	matrix[15] = 1;
 	glLoadMatrixf(matrix);
 
+	glColor3f(0.0f, 0.0f, 0.0);
+
 	glBegin(GL_QUADS);
 	glVertex3f(-width, 0, 0);
 	glVertex3f( width, 0, 0);
@@ -172,12 +182,42 @@ void renderPanel(int x, int y, int z, int width, int a) {
 	glEnd();
 }
 
+void renderTach() {
+	float c,s,r;
+	r = ((float) car_data.rpm_engine / (float) car_data.rpm_redline) * 3.14 - 1.56;
+	c = -cosf(r);
+	s = sinf(r);
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+
+	glOrtho(0.0, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0, -1.0, 10.0);
+	glMatrixMode(GL_MODELVIEW);
+	matrix[0] = c; matrix[1] = -s; matrix[2] = 0; matrix[3] = 0;
+	matrix[4] = s; matrix[5] = c; matrix[6] = 0; matrix[7] = 0;
+	matrix[8] = 0; matrix[9] = 0; matrix[10] = 0; matrix[11] = 0;
+	matrix[12] = 100; matrix[13] = 520; matrix[14] = 0; matrix[15] = 1;
+	glLoadMatrixf(matrix);
+
+	glColor3f(1.0f, 0.0f, 0.0);
+	glBegin(GL_TRIANGLES);
+	glVertex3f(-2, 0, 0);
+	glVertex3f(+2, 0, 0);
+	glVertex3f(0, 80, 0);
+	glEnd();
+}
+
 void renderGl() {
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(90.0, 1, 0.1, 1000);
+
 	renderPanel(-20, 0, 0, 100, 0);
 	renderPanel(+20, 0, 0, 100, 0);
 	renderPanel( 0, 0, 100, 20, 1);
 	renderPanel( 0, 0, -100, 20, 1);
 	renderVehicle();
+	renderTach();
 }
 
 int main(int argc, char **argv) {
@@ -207,16 +247,12 @@ int main(int argc, char **argv) {
 		printf("GL Context could not be created! SDL_Error: %s\n", SDL_GetError());
 	}
 
-	glViewport(0, 0, 800, 600);
+	glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	glClearColor(1.f, 1.f, 1.f, 0.f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glColor3f(0.0f, 0.0f, 0.0f);
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	gluPerspective(90.0, 1, 0.1, 1000);
 
 	tnfs_reset();
 
@@ -232,10 +268,12 @@ int main(int argc, char **argv) {
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		renderGl();
+
 		SDL_GL_SwapWindow(window);
 
 		SDL_Delay(30);
 	}
+
 	SDL_GL_DeleteContext(glContext);
 	SDL_DestroyWindow(window);
 	SDL_Quit();

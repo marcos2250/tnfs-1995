@@ -3,7 +3,8 @@
  */
 #include "tnfs_math.h"
 #include "tnfs_base.h"
-#include "tnfs_collision.h"
+
+#include "tnfs_collision_3d.h"
 #include "tnfs_fiziks.h"
 
 tnfs_car_specs car_specs;
@@ -25,6 +26,30 @@ int sound_flag = 0;
 
 int selected_camera = 0;
 tnfs_vec3 camera_position;
+
+/* tire grip slide table - default values for front engine RWD cars */
+static const unsigned char g_slide_table[64] = {
+// front values
+		2, 14, 26, 37, 51, 65, 101, 111, 120, 126, 140, 150, 160, 165, 174, 176, 176, 176, 176, 176, 176, 177, 177, 177, 200, 200, 200, 174, 167, 161, 152, 142,
+		// rear values
+		174, 174, 174, 174, 175, 176, 177, 177, 200, 200, 200, 200, 177, 177, 177, 177, 177, 177, 177, 177, 177, 177, 177, 177, 200, 176, 173, 170, 165, 162, 156, 153 };
+
+/* engine torque table, for 200 rpm values */
+static const unsigned int g_torque_table[100] = { 1000, 0x1dc4f, 1200, 0x1e837, 1400, 0x20008, 1600, 0x22fa9, 1800, 0x23b92, 2000, 0x2477a, 2200, 0x2771b, 2400, 0x29ad5, 2600,
+		0x2a6bd, 2800, 0x22ba5, 3000, 0x2be8e, 3200, 0x2c0ef, 3400, 0x2ca76, 3600, 0x2d65e, 3800, 0x2ca76, 4000, 0x2b2a5, 4200, 0x2a6bd, 4400, 0x2a6bd, 4600, 0x29ad5, 4800,
+		0x29ad5, 5000, 0x29ad5, 5200, 0x28eec, 5400, 0x28eec, 5600, 0x2771b, 5800, 0x25f4b, 6000, 0x25362, 6200, 0x2477a, 6400, 0x23b92, 6600, 0x22fa9, 6800, 0x223c1 };
+
+
+static signed int g_gear_ratios[10] = { //
+		-152698, //reverse
+				0x1999, //neutral
+				0x2a8f5, //2.66
+				0x1c7ae, //1.78
+				0x14ccc, //1.30
+				0x10000, //1.00
+				0xcccc,  //0.75
+				0x8000,  //0.50
+				0, 0 };
 
 void tnfs_sfx_play(int a, int b, int c, int d, int e, int f) {
 	printf("sound %i\n", f);
@@ -48,6 +73,16 @@ void tnfs_reset() {
 	for (i = 0; i < 10; ++i) {
 		road_surface_type_array[i] = 0x100;
 	}
+	for (i = 0; i < 100; ++i) {
+		car_specs.torque_table[i] = 0;
+	}
+	for (i = 0; i < 1024; ++i) {
+		car_specs.slide_table[i] = 0;
+	}
+
+	memcpy(car_specs.torque_table, &g_torque_table, 128 * 4);
+	memcpy(car_specs.slide_table, &g_slide_table, 64);
+	memcpy(car_specs.gear_ratio_table, &g_gear_ratios, 40);
 
 	car_specs.front_brake_percentage = 0xc000; //70%
 	car_specs.front_drive_percentage = 0; //RWD
@@ -59,6 +94,43 @@ void tnfs_reset() {
 	car_specs.max_speed = 0x47c000; //71m/s
 	car_specs.max_tire_lateral_force = 0x150000;
 	car_specs.thrust_to_acc_factor = 0x66; //1577kg TNFS scale
+	car_specs.final_drive_torque_ratio = 0x240;
+
+	car_specs.rpm_idle = 500;
+	car_specs.rpm_redline = 6000;
+	car_specs.unknown_const_drag = 10;
+	car_specs.gear_shift_delay = 16;
+	car_specs.rev_speed_idle = 300;
+	car_specs.rev_speed_neutral = 600;
+	car_specs.rev_clutch_drop_rpm_dec = 180;
+	car_specs.rev_clutch_drop_rpm_inc = 400;
+	car_specs.negative_torque = 0xd;
+	car_specs.torque_table_entries = 60; //0x33;
+
+	car_specs.number_of_gears = 6;
+	car_specs.final_drive_speed_ratio = 0x59947a; //3.07 * 29,18
+
+	car_specs.gear_ratio_table_2[0] = 0x100;
+	car_specs.gear_ratio_table_2[1] = 0x100;
+	car_specs.gear_ratio_table_2[2] = 0x100;
+	car_specs.gear_ratio_table_2[3] = 0xdc;
+	car_specs.gear_ratio_table_2[4] = 0x10e;
+	car_specs.gear_ratio_table_2[5] = 0x113;
+	car_specs.gear_ratio_table_2[6] = 0x113;
+	car_specs.gear_ratio_table_2[7] = 0x113;
+	car_specs.gear_ratio_table_2[8] = 0;
+	car_specs.gear_ratio_table_2[9] = 0;
+
+	car_specs.gear_upshift_rpm[0] = 5900;
+	car_specs.gear_upshift_rpm[1] = 5900;
+	car_specs.gear_upshift_rpm[2] = 5900;
+	car_specs.gear_upshift_rpm[3] = 5900;
+	car_specs.gear_upshift_rpm[4] = 5900;
+	car_specs.gear_upshift_rpm[5] = 5900;
+	car_specs.gear_upshift_rpm[6] = 5900;
+	car_specs.gear_upshift_rpm[7] = 5900;
+	car_specs.gear_upshift_rpm[8] = 5900;
+	car_specs.gear_upshift_rpm[9] = 5900;
 
 	car_data.is_crashed = 0;
 	car_data.car_data_pointer = &car_data;
@@ -71,9 +143,10 @@ void tnfs_reset() {
 	car_data.wheel_track = 0x3d5; //1.50m TNFS scale
 	car_data.front_yaw_factor = 0x107a77;
 	car_data.rear_yaw_factor = 0x107a77;
-	car_data.gear_speed = 1;
-	car_data.gear_speed_selected = 1;
-	car_data.gear_RND = 3;
+	car_data.gear_selected = -1; //-2 Reverse, -1 Neutral, 0..8 Forward gears
+	car_data.gear_shift_current = -1;
+	car_data.gear_shift_previous = -1;
+	car_data.gear_RND = 2; //1 Reverse, 2 Neutral, 3 Drive
 	car_data.throttle = 0;
 	car_data.tcs_on = 0;
 	car_data.tcs_enabled = 0;
@@ -81,7 +154,7 @@ void tnfs_reset() {
 	car_data.abs_on = 0;
 	car_data.abs_enabled = 0;
 	car_data.wheels_on_ground = 1;
-	car_data.surface_type = 0;
+	car_data.surface_type_a = 0;
 	car_data.tire_grip_front = 0xe469a;
 	car_data.tire_grip_rear = 0xd10de;
 	car_data.slope_force_lat = 0;
@@ -102,10 +175,15 @@ void tnfs_reset() {
 	car_data.speed_local_lon = 0;
 	car_data.speed_local_lat = 0;
 	car_data.steer_angle = 0; //int32 -1769472 to +1769472
+	car_data.slide = 0;
 	car_data.road_segment_a = 0;
 	car_data.road_segment_b = 0;
 	car_data.game_status = 1;
 	car_data.unknown_flag_475 = 0;
+
+	car_data.rpm_vehicle = car_specs.rpm_idle;
+	car_data.rpm_engine = car_specs.rpm_idle;
+	car_data.rpm_redline = car_specs.rpm_redline;
 
 	car_data.road_fence_normal.x = 65532;
 	car_data.road_fence_normal.y = -46;
@@ -156,6 +234,13 @@ void tnfs_reset() {
 
 	road_segment_pos_x = 0;
 	road_segment_pos_z = 0;
+
+	car_data.throttle_previous_pos = 0;
+	car_data.is_gear_engaged = 0;
+	car_data.is_engine_cutoff = 0;
+	car_data.is_shifting_gears = -1;
+	car_data.unknown_flag_479 = 0;
+	car_data.surface_type_b = 0;
 }
 
 void tnfs_change_camera() {
@@ -164,16 +249,65 @@ void tnfs_change_camera() {
 		selected_camera = 0;
 }
 
+void tnfs_change_gear_automatic(int shift) {
+	car_data.gear_RND += shift;
+
+	switch (car_data.gear_RND) {
+	case 1:
+		car_data.gear_selected = -2;
+		car_data.is_gear_engaged = 1;
+		printf("Gear: Reverse\n");
+		break;
+	case 2:
+		car_data.gear_selected = -1;
+		car_data.is_gear_engaged = 0;
+		printf("Gear: Neutral\n");
+		break;
+	case 3:
+		car_data.gear_selected = 0;
+		car_data.is_gear_engaged = 1;
+		printf("Gear: Drive\n");
+		break;
+	}
+}
+
+void tnfs_change_gear_manual(int shift) {
+	car_data.gear_selected += shift;
+
+	switch (car_data.gear_selected) {
+	case -2:
+		car_data.is_gear_engaged = 1;
+		printf("Gear: Reverse\n");
+		break;
+	case -1:
+		car_data.is_gear_engaged = 0;
+		printf("Gear: Neutral\n");
+		break;
+	default:
+		car_data.is_gear_engaged = 1;
+		printf("Gear: %d\n", car_data.gear_selected + 1);
+		break;
+	}
+}
+
 void tnfs_change_gear_up() {
-	car_data.gear_RND = 3;
-	car_data.gear_speed = 0;
-	printf("Gear: Drive\n");
+	if (car_data.gear_RND == 0) {
+		if (car_data.gear_selected < car_specs.number_of_gears - 1)
+			tnfs_change_gear_manual(+1);
+	} else {
+		if (car_data.gear_RND < 3)
+			tnfs_change_gear_automatic(+1);
+	}
 }
 
 void tnfs_change_gear_down() {
-	car_data.gear_RND = 1;
-	car_data.gear_speed = -2;
-	printf("Gear: Reverse\n");
+	if (car_data.gear_RND == 0) {
+		if (car_data.gear_selected > -2)
+			tnfs_change_gear_manual(-1);
+	} else {
+		if (car_data.gear_RND > 1)
+			tnfs_change_gear_automatic(-1);
+	}
 }
 
 void tnfs_abs() {
@@ -193,6 +327,18 @@ void tnfs_tcs() {
 	} else {
 		car_data.tcs_enabled = 1;
 		printf("Traction control on\n");
+	}
+}
+
+void tnfs_change_transmission_type() {
+	if (car_data.gear_RND == 0) {
+		printf("Automatic Transmission mode\n");
+		car_data.gear_RND = 2;
+		tnfs_change_gear_automatic(0);
+	} else {
+		printf("Manual Transmission mode\n");
+		car_data.gear_RND = 0;
+		tnfs_change_gear_manual(0);
 	}
 }
 
@@ -223,21 +369,20 @@ void tnfs_crash_car() {
 	tnfs_collision_rollover_start(&car_data, 0, 0, -0xa0000);
 }
 
-
 void tnfs_update() {
 
 	// update camera
 	switch (selected_camera) {
-		case 1: //chase cam
-			camera_position.x = car_data.position.x;
-			camera_position.y = 0x60000;
-			camera_position.z = car_data.position.z - 0x100000;
-			break;
-		default: //fixed cam
-			camera_position.x = 0;
-			camera_position.y = 0x60000;
-			camera_position.z = -0x120000;
-			break;
+	case 1: //chase cam
+		camera_position.x = car_data.position.x;
+		camera_position.y = 0x60000;
+		camera_position.z = car_data.position.z - 0x100000;
+		break;
+	default: //fixed cam
+		camera_position.x = 0;
+		camera_position.y = 0x60000;
+		camera_position.z = -0x120000;
+		break;
 	}
 
 	if (car_data.collision_data.crashed_time == 0) {

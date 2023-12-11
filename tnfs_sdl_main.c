@@ -123,34 +123,34 @@ void renderVehicle() {
 	glBegin(GL_QUADS);
 
 	// front bumper
-	glVertex3f(-1, 0, 2);
-	glVertex3f(1, 0, 2);
-	glVertex3f(1, 0.5f, 2);
-	glVertex3f(-1, 0.5f, 2);
+	glVertex3f(-1, 0, 2.2f);
+	glVertex3f(1, 0, 2.2f);
+	glVertex3f(1, 0.5f, 2.2f);
+	glVertex3f(-1, 0.5f, 2.2f);
 
 	// hood
-	glVertex3f(-1, 0.5f, 2);
-	glVertex3f(1, 0.5f, 2);
+	glVertex3f(-1, 0.5f, 2.2f);
+	glVertex3f(1, 0.5f, 2.2f);
 	glVertex3f(1, 1.3f, 0);
 	glVertex3f(-1, 1.3f, 0);
 
 	// roof/trunk
 	glVertex3f(-1, 1.3f, 0);
 	glVertex3f(1, 1.3f, 0);
-	glVertex3f(1, 1.0f, -2);
-	glVertex3f(-1, 1.0f, -2);
+	glVertex3f(1, 1.0f, -2.2f);
+	glVertex3f(-1, 1.0f, -2.2f);
 
 	// rear bumper
-	glVertex3f(-1, 0, -2);
-	glVertex3f(1, 0, -2);
-	glVertex3f(1, 1.0f, -2);
-	glVertex3f(-1, 1.0f, -2);
+	glVertex3f(-1, 0, -2.2f);
+	glVertex3f(1, 0, -2.2f);
+	glVertex3f(1, 1.0f, -2.2f);
+	glVertex3f(-1, 1.0f, -2.2f);
 
 	// bottom
-	glVertex3f(-1, 0, -2);
-	glVertex3f(1, 0, -2);
-	glVertex3f(1, 0, 2);
-	glVertex3f(-1, 0, 2);
+	glVertex3f(-1, 0, -2.2f);
+	glVertex3f(1, 0, -2.2f);
+	glVertex3f(1, 0, 2.2f);
+	glVertex3f(-1, 0, 2.2f);
 
 	glEnd();
 }

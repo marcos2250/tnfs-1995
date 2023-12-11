@@ -408,11 +408,11 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	iVar4 = 2;
 	if (DAT_800eae18 > 0) {
 		if (sound_flag == 0) {
-			tnfs_physics_car_vector(car->car_data_pointer, &local_28, &local_24);
+			tnfs_physics_car_vector(car->car_data_ptr, &local_28, &local_24);
 		}
 		if (car->collision_data.field6_0x60 > 0x80000) {
-			tnfs_physics_car_vector(car->car_data_pointer, &local_28, &local_24);
-			if (car->car_flag_0x480 == 0) {
+			tnfs_physics_car_vector(car->car_data_ptr, &local_28, &local_24);
+			if (car->unknown_flag_480 == 0) {
 				local_24 = 1;
 				local_28 = 0x400000;
 			} else {

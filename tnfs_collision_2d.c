@@ -4,6 +4,8 @@
  */
 #include "tnfs_math.h"
 #include "tnfs_base.h"
+#include "tnfs_fiziks.h"
+#include "tnfs_collision_3d.h"
 
 int crash_pitch = 0;
 int DAT_8010d1c4 = 0;
@@ -63,7 +65,7 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int a3, int fence
 			crash_pitch = fix6(v10 * (collisionAngle >> 16));
 		}
 		if (crash_yaw != 0) {
-			tnfs_collision_rollover_start(car_data->car_data_pointer, fix2(crash_yaw), fix2(3 * crash_roll), fix2(3 * crash_pitch));
+			tnfs_collision_rollover_start(car_data->car_data_ptr, fix2(crash_yaw), fix2(3 * crash_roll), fix2(3 * crash_pitch));
 		}
 	} else {
 		if (abs(collisionAngle) < 0x130000 && car_data->speed_local_lon > 0) {
@@ -80,6 +82,23 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int a3, int fence
 			}
 		}
 	}
+}
+
+
+int tnfs_collision_car_size(tnfs_car_data *car_data, int fence_angle) {
+	int x;
+
+	// fast cosine
+	x = abs(fence_angle - car_data->angle_y) >> 0x10;
+	if (x > 0xc1) {
+		x = 0x100 - x;
+	} else if (x > 0x80) {
+		x = x - 0x80;
+	} else if (x > 0x40) {
+		x = 0x80 - x;
+	}
+
+	return (((car_data->car_length - car_data->car_width) * x) >> 8) + car_data->car_width;
 }
 
 void tnfs_track_fence_collision(tnfs_car_data *car_data) {

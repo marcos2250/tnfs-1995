@@ -36,7 +36,7 @@ typedef struct tnfs_car_specs {
 	int number_of_gears;
 	//  ...
 	int gear_ratio_table[10]; //00000070
-	int gear_ratio_table_2[10];
+	int gear_torque_table[10];
 	//  ...
 	int torque_table_entries; //0x88
 	//  ...
@@ -57,8 +57,8 @@ typedef struct tnfs_car_specs {
 	int thrust_to_acc_factor; //0000032C
 	//  ...
 	int gear_shift_delay; //00000354
-	int rev_speed_idle; //00000358
-	int rev_speed_neutral; //0000035C
+	int rev_speed_no_gas; //00000358
+	int rev_speed_gas_inc; //0000035C
 	int rev_clutch_drop_rpm_dec; //00000360
 	int rev_clutch_drop_rpm_inc; //00000364
 	int negative_torque; //00000368
@@ -87,8 +87,10 @@ typedef struct tnfs_car_data {
 	int speed_drivetrain; //0000006C
 	int speed; //00000070
 	int angular_speed; //00000074
+	int car_length; //00000078
+	int car_width; //0000007C
 	// ...
-	struct tnfs_car_data * car_data_pointer; //00000088
+	struct tnfs_car_data * car_data_ptr; //00000088
 	tnfs_vec3 road_fence_normal;
 	tnfs_vec3 road_normal;
 	tnfs_vec3 road_heading;
@@ -151,8 +153,7 @@ typedef struct tnfs_car_data {
 	struct tnfs_car_specs *car_specs_ptr; //00000471
 	int unknown_flag_475; //00000475
 	int unknown_flag_479; //00000479
-	//...
-	int car_flag_0x480;
+	int unknown_flag_480; //00000480
 	// ...
 	int tcs_enabled; //00000491
 	int abs_enabled; //00000495
@@ -175,6 +176,8 @@ typedef struct tnfs_car_data {
 // global variables
 extern struct tnfs_car_data car_data;
 extern struct tnfs_car_specs car_specs;
+extern char is_drifting;
+extern int g_game_time;
 extern tnfs_vec3 camera_position;
 extern int selected_camera;
 extern int cheat_mode;
@@ -190,7 +193,7 @@ extern int road_segment_pos_z;
 extern int road_segment_slope;
 extern int road_segment_heading;
 extern int sound_flag;
-static signed int g_gear_ratios[10];
+extern signed int g_gear_ratios[10];
 
 // common functions
 void tnfs_reset();

@@ -39,7 +39,7 @@ typedef struct {
 #define fix3(a)  (((a)<0 ? (a) + 0x7 : (a)) >> 3)
 #define fix2(a)  (((a)<0 ? (a) + 3 : (a)) >> 2)
 
-#define abs(a) ((a)<0 ? (-a) : (a))
+#define abs(a) ((a)<0 ? -(a) : (a))
 
 
 int math_mul(int x, int y);

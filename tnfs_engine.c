@@ -158,7 +158,8 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 	gear = car->gear_selected + 2;
 
 	if (car->is_gear_engaged) {
-		if (car->rpm_engine >= car->rpm_vehicle) {
+		//if (car->rpm_engine >= car->rpm_vehicle) {
+		if (car->throttle > 0) { //FIXME
 			// acceleration
 			max_rpm = car->throttle * specs->rpm_redline >> 8;
 
@@ -200,7 +201,8 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 
 		} else {
 			// decceleration
-			thrust = specs->gear_ratio_table[gear] * (car->rpm_vehicle - car->rpm_engine) * -8 * specs->negative_torque;
+			//thrust = specs->gear_ratio_table[gear] * (car->rpm_vehicle - car->rpm_engine) * specs->negative_torque * -8;
+			thrust = specs->gear_ratio_table[gear] * specs->negative_torque * -0x10000;
 		}
 	} else {
 		// neutral

@@ -347,7 +347,17 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	car->is_crashed = 1;
 	collision_data = &car->collision_data;
 
-	// ...
+	if (car->car_data_ptr == (tnfs_car_data*) 0x0) {
+		aux = -car->rpm_engine + 1500;
+		if (aux < 0) {
+			aux += 1507;
+		}
+		car->rpm_engine += (aux >> 3);
+	}
+
+	if (tnfs_road_segment_update(car)) {
+		tnfs_track_segment_boundaries(car);
+	}
 
 	roadNormal.x = car->road_normal.x;
 	roadNormal.y = car->road_normal.y;
@@ -355,9 +365,9 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	fenceNormal.x = car->road_fence_normal.x;
 	fenceNormal.y = car->road_fence_normal.y;
 	fenceNormal.z = -car->road_fence_normal.z;
-	roadPosition.x = car->road_position.x;
-	roadPosition.y = car->road_position.y;
-	roadPosition.z = -car->road_position.z;
+	roadPosition.x = car->road_ground_position.x;
+	roadPosition.y = car->road_ground_position.y;
+	roadPosition.z = -car->road_ground_position.z;
 	roadHeading.x = car->road_heading.x;
 	roadHeading.y = car->road_heading.y;
 	roadHeading.z = -car->road_heading.z;

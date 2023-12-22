@@ -155,30 +155,39 @@ void renderVehicle() {
 	glEnd();
 }
 
-void renderPanel(int x, int y, int z, int width, int a) {
+void drawRoad() {
 	glMatrixMode(GL_MODELVIEW);
-	if (a) { //front
-		matrix[0] = 1; matrix[1] = 0; matrix[2] = 0; matrix[3] = 0;
-		matrix[4] = 0; matrix[5] = 1; matrix[6] = 0; matrix[7] = 0;
-		matrix[8] = 0; matrix[9] = 0; matrix[10] = 1; matrix[11] = 0;
-	} else { //side
-		matrix[0] = 0; matrix[1] = 0; matrix[2] = 1; matrix[3] = 0;
-		matrix[4] = 0; matrix[5] = 1; matrix[6] = 0; matrix[7] = 0;
-		matrix[8] = 1; matrix[9] = 0; matrix[10] = 0; matrix[11] = 0;
-	}
-	matrix[12] = ((float) -camera_position.x) / 0x10000 + x;
-	matrix[13] = ((float) -camera_position.y) / 0x10000 + y;
-	matrix[14] = ((float) camera_position.z) / 0x10000 + z;
+	matrix[0] = 1; matrix[1] = 0; matrix[2] = 0; matrix[3] = 0;
+	matrix[4] = 0; matrix[5] = 1; matrix[6] = 0; matrix[7] = 0;
+	matrix[8] = 0; matrix[9] = 0; matrix[10] = 1; matrix[11] = 0;
+	matrix[12] = ((float) -camera_position.x) / 0x10000;
+	matrix[13] = ((float) -camera_position.y) / 0x10000;
+	matrix[14] = ((float) camera_position.z) / 0x10000;
 	matrix[15] = 1;
 	glLoadMatrixf(matrix);
-
 	glColor3f(0.0f, 0.0f, 0.0);
-
 	glBegin(GL_QUADS);
-	glVertex3f(-width, 0, 0);
-	glVertex3f( width, 0, 0);
-	glVertex3f( width, 1, 0);
-	glVertex3f(-width, 1, 0);
+
+	int j = 0;
+	for (int i = 0; i < road_segment_count - 2; i++) {
+		j = i + 1;
+		// road
+		glVertex3f(track_data[i].pointL.x, track_data[i].pointL.y, track_data[i].pointL.z);
+		glVertex3f(track_data[j].pointL.x, track_data[j].pointL.y, track_data[j].pointL.z);
+		glVertex3f(track_data[j].pointR.x, track_data[j].pointR.y, track_data[j].pointR.z);
+		glVertex3f(track_data[i].pointR.x, track_data[i].pointR.y, track_data[i].pointR.z);
+		// left fence
+		glVertex3f(track_data[i].pointL.x, track_data[i].pointL.y, track_data[i].pointL.z);
+		glVertex3f(track_data[i].pointL.x, track_data[i].pointL.y+1, track_data[i].pointL.z);
+		glVertex3f(track_data[j].pointL.x, track_data[j].pointL.y+1, track_data[j].pointL.z);
+		glVertex3f(track_data[j].pointL.x, track_data[j].pointL.y, track_data[j].pointL.z);
+		// right fence
+		glVertex3f(track_data[j].pointR.x, track_data[j].pointR.y, track_data[j].pointR.z);
+		glVertex3f(track_data[j].pointR.x, track_data[j].pointR.y+1, track_data[j].pointR.z);
+		glVertex3f(track_data[i].pointR.x, track_data[i].pointR.y+1, track_data[i].pointR.z);
+		glVertex3f(track_data[i].pointR.x, track_data[i].pointR.y, track_data[i].pointR.z);
+	}
+
 	glEnd();
 }
 
@@ -212,10 +221,7 @@ void renderGl() {
 	glLoadIdentity();
 	gluPerspective(90.0, 1, 0.1, 1000);
 
-	renderPanel(-20, 0, 0, 100, 0);
-	renderPanel(+20, 0, 0, 100, 0);
-	renderPanel( 0, 0, 100, 20, 1);
-	renderPanel( 0, 0, -100, 20, 1);
+	drawRoad();
 	renderVehicle();
 	renderTach();
 }

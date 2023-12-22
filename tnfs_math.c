@@ -45,6 +45,21 @@ int math_cos_2(int input) {
 	return cos(a) * 0xFFFF;
 }
 
+int math_sin_3(int input) {
+	double a = (double) input / 2670178;
+	return sin(a) * 0xFFFF;
+}
+
+int math_cos_3(int input) {
+	double a = (double) input / 2670178;
+	return cos(a) * 0xFFFF;
+}
+
+int math_tan_3(int input) {
+	double a = (double) input / 2670178;
+	return tan(a) * 0xFFFF;
+}
+
 int math_atan2(int x, int y) {
 	return atan2(y, x) * 2670217;
 }
@@ -217,4 +232,52 @@ int math_vec3_length_XZ(tnfs_vec3 *vector) {
 	x = math_mul(vector->x, vector->x);
 	z = math_mul(vector->z, vector->z);
 	return sqrt(x + z) * 0xFF;
+}
+
+void math_vec3_cross_product(tnfs_vec3 *result, tnfs_vec3 *v1, tnfs_vec3 *v2) {
+	result->x = fixmul(v2->z, v1->y) - fixmul(v2->y, v1->z);
+	result->y = fixmul(v2->x, v1->z) - fixmul(v2->z, v1->x);
+	result->z = fixmul(v2->y, v1->x) - fixmul(v2->x, v1->y);
+}
+
+int math_vec2_dot_product(tnfs_vec3 *v1, tnfs_vec3 *v2) {
+	  int x, z;
+	  x = (v2->x - v1->x) >> 8;
+	  z = (v2->z - v1->z) >> 8;
+	  return x * x + z * z;
+}
+
+/*
+ * Find Y point for (X,Z) coordinates (r1, r2, r3) projected over a triangle (tA, tB, tC) surface.
+ */
+void math_barycentric_coordinates(tnfs_vec3 *r3, tnfs_vec3 *r2, tnfs_vec3 *r1, tnfs_vec3 *tC, tnfs_vec3 *tB, tnfs_vec3 *tA) {
+	tnfs_vec3 vecAB;
+	tnfs_vec3 vecCB;
+	tnfs_vec3 cross;
+	int denominator;
+
+	// vectors AB and CB
+	vecCB.x = tC->x - tB->x;
+	vecCB.y = tC->y - tB->y;
+	vecCB.z = tC->z - tB->z;
+	vecAB.x = tA->x - tB->x;
+	vecAB.y = tA->y - tB->y;
+	vecAB.z = tA->z - tB->z;
+
+	math_vec3_cross_product(&cross, &vecCB, &vecAB);
+	denominator = math_inverse_value(cross.y);
+
+	r3->y = fixmul(-fixmul(cross.z, r3->z) - fixmul(cross.x, r3->x), denominator);
+	r2->y = fixmul(-fixmul(cross.z, r2->z) - fixmul(cross.x, r2->x), denominator);
+	r1->y = fixmul(-fixmul(cross.z, r1->z - tC->z) - fixmul(cross.x, r1->x - tC->x), denominator) + tC->y;
+}
+
+void math_normalize(tnfs_vec3 *v) {
+	int d;
+	d = fixmul(v->x, v->x) + fixmul(v->y, v->y) + fixmul(v->z, v->x);
+	if (d != 0) {
+		v->x /= d;
+		v->y /= d;
+		v->z /= d;
+	}
 }

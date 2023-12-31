@@ -69,7 +69,7 @@ void tnfs_engine_rev_limiter(tnfs_car_data *car) {
 		}
 	}
 
-	if (car->gear_RND != 0 && car->gear_selected == 0 && car->rpm_engine < specs->rpm_idle) {
+	if (car->gear_auto_selected != 0 && car->gear_selected == 0 && car->rpm_engine < specs->rpm_idle) {
 		car->rpm_engine = specs->rpm_idle;
 	}
 	if (car->rpm_engine > 11000) {

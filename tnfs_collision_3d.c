@@ -359,9 +359,9 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		tnfs_track_segment_boundaries(car);
 	}
 
-	roadNormal.x = car->road_normal.x;
-	roadNormal.y = car->road_normal.y;
-	roadNormal.z = -car->road_normal.z;
+	roadNormal.x = car->road_surface_normal.x;
+	roadNormal.y = car->road_surface_normal.y;
+	roadNormal.z = -car->road_surface_normal.z;
 	fenceNormal.x = car->road_fence_normal.x;
 	fenceNormal.y = car->road_fence_normal.y;
 	fenceNormal.z = -car->road_fence_normal.z;
@@ -385,7 +385,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		//if ((bRam00000005 >> 4 != 0) && (cRam00000007 != '\x05')) {
 		//  aux = DAT_800eae10;
 		//}
-		roadWidth = (roadLeftFence * -0x2000 - aux) >> 16;
+		roadWidth = (track_data[car_data.road_segment_a].roadLeftFence * -0x2000 - aux) >> 16;
 
 		fencePosition.y = roadWidth * fenceNormal.y + roadPosition.y;
 		fencePosition.x = roadWidth * fenceNormal.x + roadPosition.x;
@@ -395,7 +395,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		//if (((bRam00000005 & 0xf) != 0) && (cRam00000007 != '\x05')) {
 		//  aux = DAT_800eae10;
 		//}
-		roadWidth = (roadRightFence * -0x2000 - aux) >> 16;
+		roadWidth = (track_data[car_data.road_segment_a].roadRightFence * -0x2000 - aux) >> 16;
 
 		fenceNormal.x = -fenceNormal.x;
 		fenceNormal.z = -fenceNormal.z;
@@ -411,17 +411,17 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	/* car collision to ground */
 	tnfs_collision_detect(collision_data, &roadNormal, &roadPosition);
 
-	/* ... lots of code goes here ... */
+	/* ... lots of code goes here -- crash recovery ... */
 
 
  	// play crashing sounds
 	iVar4 = 2;
 	if (DAT_800eae18 > 0) {
 		if (sound_flag == 0) {
-			tnfs_physics_car_vector(car->car_data_ptr, &local_28, &local_24);
+			tnfs_car_size_vector(car->car_data_ptr, &local_28, &local_24);
 		}
 		if (car->collision_data.field6_0x60 > 0x80000) {
-			tnfs_physics_car_vector(car->car_data_ptr, &local_28, &local_24);
+			tnfs_car_size_vector(car->car_data_ptr, &local_28, &local_24);
 			if (car->unknown_flag_480 == 0) {
 				local_24 = 1;
 				local_28 = 0x400000;

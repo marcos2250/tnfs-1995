@@ -8,6 +8,7 @@ This project aims to reconstitute accurately as possible the physics formulas us
 * 2D car driving simulation, with a 2-wheel tire grip model;
 * 3D box rigid body collision physics;
 * Engine, clutch and transmission simulation;
+* Now supports loading TNFS "TRI" track files, or it will auto generate a random track, if not supplied;
 * Fixed point math for vectors and matrices;
 * No assets required;
 * SDL2/OpenGL 3D in pure C.
@@ -16,7 +17,7 @@ This project aims to reconstitute accurately as possible the physics formulas us
 1. clone/download repo;
 2. install `libsdl2`;
 3. `make`
-4. run `./build/tnfs`
+4. run `./build/tnfs [<optional_track_file.tri>]`
 
 Use the keys to drive around the parking lot area:
 * Up/Down - Accel and brake

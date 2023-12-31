@@ -92,7 +92,7 @@ typedef struct tnfs_car_data {
 	// ...
 	struct tnfs_car_data * car_data_ptr; //00000088
 	tnfs_vec3 road_fence_normal;
-	tnfs_vec3 road_normal;
+	tnfs_vec3 road_surface_normal;
 	tnfs_vec3 road_heading;
 	tnfs_vec3 road_position;
 	// ...
@@ -106,8 +106,8 @@ typedef struct tnfs_car_data {
 	int body_roll; //00000365
 	int body_pitch; //00000369
 	tnfs_vec3 road_ground_position;
-	tnfs_vec3 angle_e;
-	tnfs_vec3 angle_f;
+	tnfs_vec3 front_edge;
+	tnfs_vec3 side_edge;
 	// ...
 	int throttle; //000003B1
 	int throttle_previous_pos; //000003B5
@@ -125,7 +125,7 @@ typedef struct tnfs_car_data {
 	// ...
 	int slope_force_lon; //000003E1
 	int thrust; //000003E5
-	int gear_RND; //000003E9
+	int gear_auto_selected; //000003E9
 	int gear_selected; //000003ED
 	int is_gear_engaged; //000003F1
 	int handbrake; //000003F5
@@ -182,19 +182,32 @@ typedef struct tnfs_car_data {
 
 
 typedef struct tnfs_track_data {
-	int road_segment_pos_x;
-	int road_segment_pos_y;
-	int road_segment_pos_z;
-	int road_segment_slope;
-	int road_segment_slant;
-	int road_segment_heading;
+	// ...
+	int pos_x;
+	int pos_y;
+	int pos_z;
+	int slope;
+	int slant;
+	int heading;
+	int pointC_x;
+	int pointC_y;
+	int pointC_z;
+
+	int wall_normal_x;
+	int wall_normal_y;
+	int wall_normal_z;
+
+	// ...
 	int roadLeftMargin;
 	int roadRightMargin;
 	int roadLeftFence;
 	int roadRightFence;
+	// added
 	vector3f pointL;
 	vector3f pointR;
-};
+	vector3f pointLF;
+	vector3f pointRF;
+} tnfs_track_data;
 
 // global variables
 extern struct tnfs_car_data car_data;
@@ -203,32 +216,24 @@ extern char is_drifting;
 extern int g_game_time;
 extern tnfs_vec3 camera_position;
 extern int selected_camera;
-extern int cheat_mode;
 extern int road_surface_type_array[10];
-extern int roadLeftMargin;
-extern int roadRightMargin;
-extern int roadLeftFence;
-extern int roadRightFence;
 extern char roadConstantA;
 extern char roadConstantB;
 extern int road_segment_count;
-extern int road_segment_pos_x;
-extern int road_segment_pos_y;
-extern int road_segment_pos_z;
-extern int road_segment_slope;
-extern int road_segment_slant;
-extern int road_segment_heading;
 extern int sound_flag;
+extern int cheat_mode;
+extern int DAT_8010d1c4;
 extern signed int g_gear_ratios[10];
-extern struct tnfs_track_data track_data[32];
+extern struct tnfs_track_data track_data[2400];
 
 // common functions
-void tnfs_debug_000502AB(char a);
-void tnfs_reset();
+void tnfs_replay_highlight_000502AB(char a);
+void tnfs_init_track();
+void tnfs_reset_car();
 void tnfs_update();
 void tnfs_crash_car();
 void tnfs_sfx_play(int a, int b, int c, int d, int e, int f);
-void tnfs_physics_car_vector(tnfs_car_data * car_data, int * angle, int * length);
+void tnfs_car_size_vector(tnfs_car_data * car_data, int * angle, int * length);
 int tnfs_road_segment_find(tnfs_car_data *car_data, int *current);
 int tnfs_road_segment_update(tnfs_car_data *car);
 void tnfs_track_segment_boundaries(tnfs_car_data *car);

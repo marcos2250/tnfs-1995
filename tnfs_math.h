@@ -55,6 +55,7 @@ int math_sin(int input);
 int math_cos(int input);
 int math_sin_2(int input);
 int math_cos_2(int input);
+int math_tan_2(int input);
 int math_sin_3(int input);
 int math_cos_3(int input);
 int math_tan_3(int input);
@@ -72,8 +73,8 @@ int math_sqrt(int param_1);
 int math_vec3_length_squared(tnfs_vec3 *car_size);
 int math_vec3_length(tnfs_vec3 *car_size);
 int math_vec3_length_XZ(tnfs_vec3 *param_1);
-int math_vec2_dot_product(tnfs_vec3 *v1, tnfs_vec3 *v2);
-void math_barycentric_coordinates(tnfs_vec3 *r3, tnfs_vec3 *r2, tnfs_vec3 *r1, tnfs_vec3 *tC, tnfs_vec3 *tB, tnfs_vec3 *tA);
-void math_normalize(tnfs_vec3 *v);
+int math_vec3_distance_squared_XZ(tnfs_vec3 *v1, tnfs_vec3 *v2);
+void math_height_coordinates(tnfs_vec3 *r3, tnfs_vec3 *r2, tnfs_vec3 *r1, tnfs_vec3 *tC, tnfs_vec3 *tB, tnfs_vec3 *tA);
+void math_vec3_normalize(tnfs_vec3 *v);
 
 #endif /* TNFS_MATH_H_ */

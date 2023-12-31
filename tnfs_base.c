@@ -8,7 +8,7 @@
 
 tnfs_car_specs car_specs;
 tnfs_car_data car_data;
-int cheat_mode = 0;
+struct tnfs_track_data track_data[2400];
 int road_surface_type_array[10];
 
 // settings/flags
@@ -20,17 +20,10 @@ int roadLeftFence = 150;
 int roadRightFence = 150;
 char roadConstantA = 0x20;
 char roadConstantB = 0x22;
-int road_segment_pos_x = 0;
-int road_segment_pos_y = 0;
-int road_segment_pos_z = 0;
-int road_segment_slope = 0;
-int road_segment_slant = 0;
-int road_segment_heading = 0;
-int road_segment_count = 20;
+int road_segment_count = 0;
 int sound_flag = 0;
-
-struct tnfs_track_data track_data[32];
-int track_design[20] = { 0, 0, 1, 2, 1, 0, 4, 8, 4, 0, 5, 9, 5, 0, 1, 5, 6, 0 };
+int cheat_mode = 0;
+int DAT_8010d1c4 = 0;
 
 int selected_camera = 0;
 tnfs_vec3 camera_position;
@@ -62,23 +55,26 @@ void tnfs_sfx_play(int a, int b, int c, int d, int e, int f) {
 	printf("sound %i\n", f);
 }
 
-void tnfs_debug_000502AB(char a) {
-	//TODO
+void tnfs_replay_highlight_000502AB(char a) {
+	// not used
 }
 
-void tnfs_physics_car_vector(tnfs_car_data *car_data, int *angle, int *length) {
+void tnfs_car_size_vector(tnfs_car_data *car_data, int *angle, int *length) {
 	int x;
 	int y;
 	int z;
+	int heading;
 
-	x = car_data->position.x - road_segment_pos_x;
-	y = car_data->position.y - road_segment_pos_y;
-	z = car_data->position.z - road_segment_pos_x;
+	x = car_data->position.x - track_data[car_data->road_segment_a].pos_x;
+	y = car_data->position.y - track_data[car_data->road_segment_a].pos_y;
+	z = car_data->position.z - track_data[car_data->road_segment_a].pos_z;
 
-	if (road_segment_heading < 0) {
-		road_segment_heading = road_segment_heading + 0x1000000;
+	heading = track_data[car_data->road_segment_a].heading * 0x400;
+
+	if (heading < 0) {
+		heading = heading + 0x1000000;
 	}
-	*angle = road_segment_heading - math_atan2(z, x);
+	*angle = heading - math_atan2(z, x);
 	if (*angle < 0) {
 		*angle += 0x1000000;
 	}
@@ -107,70 +103,169 @@ void tnfs_physics_car_vector(tnfs_car_data *car_data, int *angle, int *length) {
 	}
 }
 
-void initialize_track() {
-	int height = 0;
+void auto_generate_track() {
+	int pos_x = 0;
+	int pos_y = 0;
+	int pos_z = 0;
+	int slope = 0;
 	int slant = 0;
-	int distance = 0;
-	int c = 0;
 
-	for (int i = 0; i < road_segment_count; i++) {
-		track_data[i].road_segment_heading = 0;
+	road_segment_count = 2400;
 
-		c = track_design[i];
+	for (int i = 0; i < 2400; i++) {
 
-		if (c & 1) {
-			track_data[i].road_segment_slope = -0x30000;
-		} else if (c & 2) {
-			track_data[i].road_segment_slope = 0x30000;
+		if (i & 128) {
+			if (i & 64) {
+				slope -= 10;
+			} else {
+				slope += 10;
+			}
 		} else {
-			track_data[i].road_segment_slope = 0;
+			slope >>= 1;
+		}
+		if (i & 32) {
+			if (i & 16) {
+				slant -= 10;
+			} else {
+				slant += 10;
+			}
+		} else {
+			slant >>= 1;
 		}
 
-		if (c & 4) {
-			track_data[i].road_segment_slant = 0x10000;
-		} else if (c & 8) {
-			track_data[i].road_segment_slant = -0x10000;
-		} else {
-			track_data[i].road_segment_slant = 0;
-		}
+		if (slope > 0x3FF) slope = 0x3FF;
+		if (slope < -0x3FF) slope = -0x3FF;
+		if (slant > 0x3FF) slant = 0x3FF;
+		if (slant < -0x3FF) slant = -0x3FF;
 
-		track_data[i].roadLeftFence = 80;
-		track_data[i].roadRightFence = 80;
-		track_data[i].roadLeftMargin = 80;
-		track_data[i].roadRightMargin = 80;
+		track_data[i].roadLeftFence = 0x50;
+		track_data[i].roadRightFence = 0x50;
+		track_data[i].roadLeftMargin = 0x45;
+		track_data[i].roadRightMargin = 0x45;
 
-		track_data[i].road_segment_pos_x = 0;
-		track_data[i].road_segment_pos_y = height;
-		track_data[i].road_segment_pos_z = distance;
-
-		// prepare road mesh (float arrays) for renderer
-		slant = fixmul(math_sin_3(-track_data[i].road_segment_slant), 0x600000);
-		track_data[i].pointL.x = (float) (track_data[i].road_segment_pos_x - (track_data[i].roadLeftFence * 0x2000) - 0x10000) / 0x10000;
-		track_data[i].pointL.y = (float) (track_data[i].road_segment_pos_y - slant) / 0x10000;
-		track_data[i].pointL.z = -(float) (track_data[i].road_segment_pos_z) / 0x10000;
-		track_data[i].pointR.x = (float) (track_data[i].road_segment_pos_x + (track_data[i].roadRightFence * 0x2000) + 0x10000) / 0x10000;
-		track_data[i].pointR.y = (float) (track_data[i].road_segment_pos_y + slant) / 0x10000;
-		track_data[i].pointR.z = -(float) (track_data[i].road_segment_pos_z) / 0x10000;
+		track_data[i].slope = slope;
+		track_data[i].heading = -slant << 2;
+		track_data[i].slant = slant;
+		track_data[i].pos_x = pos_x;
+		track_data[i].pos_y = pos_y;
+		track_data[i].pos_z = pos_z;
 
 		// next segment
-		height += fixmul(math_sin_3(-track_data[i].road_segment_slope), 0x600000);
-		distance += 0x600000;
+		pos_x += fixmul(math_sin_3(track_data[i].heading * 0x400), 0x80000);
+		pos_y += fixmul(math_tan_3(track_data[i].slope * 0x400), 0x80000);
+		pos_z += fixmul(math_cos_3(track_data[i].heading * 0x400), 0x80000);
 	}
 }
 
-void tnfs_reset() {
+int readFixed32(char *buffer, int pos) {
+	return (int)(buffer[pos + 3] & 0xFF) << 24 //
+		| (int)(buffer[pos + 2] & 0xFF) << 16 //
+		| (int)(buffer[pos + 1] & 0xFF) << 8 //
+		| (int)(buffer[pos] & 0xFF);
+}
+
+int readAngle16(char *buffer, int pos) {
+	int a = (int)(buffer[pos + 1] & 0xFF) << 8 | (int)(buffer[pos] & 0xFF);
+	if (a > 8192) {
+		a -= 16384;
+	}
+	return a;
+}
+
+/*
+ * Import a TNFS TRI track file
+ */
+void read_tri_file(char * file) {
+	const int chunk_size = 2400 * 36;
+	char buffer[chunk_size];
+	FILE *ptr;
+	int i, offset;
+
+	ptr = fopen(file,"rb");
+	if (!ptr) {
+		printf("File not found: %s\n", file);
+		return;
+	}
+	fread(buffer, chunk_size, 1, ptr);
+
+	road_segment_count = 0;
+	for (i = 0; i < 2400; i++) {
+		offset = i * 36 + 2444;
+
+		track_data[i].roadLeftMargin = (int)(buffer[offset] & 0xFF);
+		track_data[i].roadRightMargin = (int)(buffer[offset + 1] & 0xFF);
+		track_data[i].roadLeftFence = (int)(buffer[offset + 2] & 0xFF);
+		track_data[i].roadRightFence = (int)(buffer[offset + 3] & 0xFF);
+
+		track_data[i].pos_x = readFixed32(buffer, offset + 8);
+		track_data[i].pos_y = readFixed32(buffer, offset + 12);
+		track_data[i].pos_z = readFixed32(buffer, offset + 16);
+		track_data[i].slope = -readAngle16(buffer, offset + 20);
+		track_data[i].slant = -readAngle16(buffer, offset + 22);
+		track_data[i].heading = readAngle16(buffer, offset + 24);
+
+		road_segment_count++;
+		if (i > 0 && track_data[i].pos_x == 0 && track_data[i].pos_y == 0 && track_data[i].pos_z == 0) {
+			break;
+		}
+	}
+	fclose(ptr);
+}
+
+void tnfs_init_track(char * tri_file) {
+	int i;
+	int heading, s, c, t, dL, dR;
+
+	// try to read a TRI file if given, if not, generate a random track
+	if (tri_file) {
+		read_tri_file(tri_file);
+	}
+	if (road_segment_count == 0) {
+		auto_generate_track();
+	}
+
+	// model track for rendering
+	for (i = 0; i < road_segment_count; i++) {
+		heading = track_data[i].heading * -0x400;
+		s = math_sin_3(heading);
+		c = math_cos_3(heading);
+		t = math_tan_3(track_data[i].slant * 0x400);
+
+		dL = -track_data[i].roadLeftMargin * 0x2000;
+		dR = track_data[i].roadRightMargin * 0x2000;
+
+		track_data[i].pointC_x = fixmul(c, dR);
+		track_data[i].pointC_y = fixmul(t, dR);
+		track_data[i].pointC_z = fixmul(s, dR);
+
+		track_data[i].wall_normal_x = c;
+		track_data[i].wall_normal_y = fixmul(t, 0x10000);
+		track_data[i].wall_normal_z = s;
+
+		track_data[i].pointL.x = (float) (track_data[i].pos_x + fixmul(c, dL)) / 0x10000;
+		track_data[i].pointL.y = (float) (track_data[i].pos_y + fixmul(t, dL)) / 0x10000;
+		track_data[i].pointL.z = -(float) (track_data[i].pos_z + fixmul(s, dL)) / 0x10000;
+		track_data[i].pointR.x = (float) (track_data[i].pos_x + fixmul(c, dR)) / 0x10000;
+		track_data[i].pointR.y = (float) (track_data[i].pos_y + fixmul(t, dR)) / 0x10000;
+		track_data[i].pointR.z = -(float) (track_data[i].pos_z + fixmul(s, dR)) / 0x10000;
+
+		dL = -track_data[i].roadLeftFence * 0x2000;
+		dR = track_data[i].roadRightFence * 0x2000;
+
+		track_data[i].pointLF.x = (float) (track_data[i].pos_x + fixmul(c, dL)) / 0x10000;
+		track_data[i].pointLF.y = (float) (track_data[i].pos_y + fixmul(t, dL)) / 0x10000;
+		track_data[i].pointLF.z = -(float) (track_data[i].pos_z + fixmul(s, dL)) / 0x10000;
+		track_data[i].pointRF.x = (float) (track_data[i].pos_x + fixmul(c, dR)) / 0x10000;
+		track_data[i].pointRF.y = (float) (track_data[i].pos_y + fixmul(t, dR)) / 0x10000;
+		track_data[i].pointRF.z = -(float) (track_data[i].pos_z + fixmul(s, dR)) / 0x10000;
+	}
+}
+
+void tnfs_reset_car() {
 	int i;
 
 	cheat_mode = 0;
-	road_segment_pos_x = 0;
-	road_segment_pos_y = 0;
-	road_segment_pos_z = 0;
-	road_segment_slope = 0;
-	road_segment_slant = 0;
-	road_segment_heading = 0;
 	sound_flag = 0;
-
-	initialize_track();
 
 	for (i = 0; i < 10; ++i) {
 		road_surface_type_array[i] = 0x100;
@@ -236,8 +331,8 @@ void tnfs_reset() {
 	car_data.car_data_ptr = &car_data;
 	car_data.car_specs_ptr = &car_specs;
 
-	car_data.car_length = 0x47333; //4.45m
-	car_data.car_width = 0x1EB8; //1.92m
+	car_data.car_length = 0x485fc; //4.45m
+	car_data.car_width = 0x1ec8a; //1.92m
 	car_data.weight_distribution = 0x7e49; //49% front
 	car_data.weight_transfer_factor = 0x3028;
 	car_data.front_friction_factor = 0xe469a;
@@ -250,9 +345,9 @@ void tnfs_reset() {
 	car_data.tire_grip_rear = 0xd10de;
 
 	car_data.gear_selected = -1; //-2 Reverse, -1 Neutral, 0..8 Forward gears
+	car_data.gear_auto_selected = 2; //0 Manual mode, 1 Reverse, 2 Neutral, 3 Drive
 	car_data.gear_shift_current = -1;
 	car_data.gear_shift_previous = -1;
-	car_data.gear_RND = 2; //1 Reverse, 2 Neutral, 3 Drive
 	car_data.is_gear_engaged = 0;
 	car_data.is_engine_cutoff = 0;
 	car_data.is_shifting_gears = -1;
@@ -269,16 +364,16 @@ void tnfs_reset() {
 	car_data.wheels_on_ground = 1;
 	car_data.surface_type_a = 0;
 	car_data.surface_type_b = 0;
-	car_data.road_segment_a = 0;
-	car_data.road_segment_b = 0;
+	//car_data.road_segment_a = 0;
+	//car_data.road_segment_b = 0;
 	car_data.slope_force_lat = 0;
 	car_data.slope_force_lon = 0;
-	car_data.position.x = 0;
-	car_data.position.y = 150;
-	car_data.position.z = 0;
-	car_data.angle_x = 0;
-	car_data.angle_y = 0; //uint32 0 to 16777215(0xFFFFFF)
-	car_data.angle_z = 0;
+	car_data.position.x = track_data[car_data.road_segment_a].pos_x;
+	car_data.position.y = track_data[car_data.road_segment_a].pos_y + 150;
+	car_data.position.z = track_data[car_data.road_segment_a].pos_z;
+	car_data.angle_x = track_data[car_data.road_segment_a].slope * 0x400;
+	car_data.angle_y = track_data[car_data.road_segment_a].heading * 0x400; //uint32 0 to 16777215(0xFFFFFF)
+	car_data.angle_z = track_data[car_data.road_segment_a].slant * 0x400;
 	car_data.angle_dx = 0;
 	car_data.angular_speed = 0;
 	car_data.speed_x = 0;
@@ -313,9 +408,9 @@ void tnfs_reset() {
 	car_data.road_fence_normal.z = 0;
 
 	//surface normal (up)
-	car_data.road_normal.x = 0;
-	car_data.road_normal.y = 0x10000;
-	car_data.road_normal.z = 0;
+	car_data.road_surface_normal.x = 0;
+	car_data.road_surface_normal.y = 0x10000;
+	car_data.road_surface_normal.z = 0;
 
 	car_data.road_heading.x = 0;
 	car_data.road_heading.y = 0;
@@ -325,6 +420,13 @@ void tnfs_reset() {
 	car_data.road_position.x = 0;
 	car_data.road_position.y = 0;
 	car_data.road_position.z = 0;
+
+	car_data.front_edge.x = 0;
+	car_data.front_edge.y = 0;
+	car_data.front_edge.z = 0;
+	car_data.side_edge.x = 0;
+	car_data.side_edge.y = 0;
+	car_data.side_edge.z = 0;
 
 	math_matrix_identity(&car_data.matrix);
 	math_matrix_identity(&car_data.collision_data.matrix);
@@ -358,9 +460,9 @@ void tnfs_change_camera() {
 }
 
 void tnfs_change_gear_automatic(int shift) {
-	car_data.gear_RND += shift;
+	car_data.gear_auto_selected += shift;
 
-	switch (car_data.gear_RND) {
+	switch (car_data.gear_auto_selected) {
 	case 1:
 		car_data.gear_selected = -2;
 		car_data.is_gear_engaged = 1;
@@ -399,21 +501,21 @@ void tnfs_change_gear_manual(int shift) {
 }
 
 void tnfs_change_gear_up() {
-	if (car_data.gear_RND == 0) {
+	if (car_data.gear_auto_selected == 0) {
 		if (car_data.gear_selected < car_specs.number_of_gears - 1)
 			tnfs_change_gear_manual(+1);
 	} else {
-		if (car_data.gear_RND < 3)
+		if (car_data.gear_auto_selected < 3)
 			tnfs_change_gear_automatic(+1);
 	}
 }
 
 void tnfs_change_gear_down() {
-	if (car_data.gear_RND == 0) {
+	if (car_data.gear_auto_selected == 0) {
 		if (car_data.gear_selected > -2)
 			tnfs_change_gear_manual(-1);
 	} else {
-		if (car_data.gear_RND > 1)
+		if (car_data.gear_auto_selected > 1)
 			tnfs_change_gear_automatic(-1);
 	}
 }
@@ -439,13 +541,13 @@ void tnfs_tcs() {
 }
 
 void tnfs_change_transmission_type() {
-	if (car_data.gear_RND == 0) {
+	if (car_data.gear_auto_selected == 0) {
 		printf("Automatic Transmission mode\n");
-		car_data.gear_RND = 2;
+		car_data.gear_auto_selected = 2;
 		tnfs_change_gear_automatic(0);
 	} else {
 		printf("Manual Transmission mode\n");
-		car_data.gear_RND = 0;
+		car_data.gear_auto_selected = 0;
 		tnfs_change_gear_manual(0);
 	}
 }
@@ -479,14 +581,14 @@ void tnfs_crash_car() {
 
 int tnfs_road_segment_find(tnfs_car_data *car_data, int *current) {
 	int node;
-	int dot1;
-	int dot2;
-	int found;
+	int dist1;
+	int dist2;
+	int changed;
 	tnfs_vec3 position;
 	struct tnfs_track_data *tracknode1;
 	struct tnfs_track_data *tracknode2;
 
-	found = 0;
+	changed = 0;
 
 	if (*current != -1) {
 		do {
@@ -494,33 +596,33 @@ int tnfs_road_segment_find(tnfs_car_data *car_data, int *current) {
 
 			tracknode1 = &track_data[node];
 			tracknode2 = &track_data[node + 1];
-			position.x = (tracknode1->road_segment_pos_x + tracknode2->road_segment_pos_x) >> 1;
-			position.z = (tracknode1->road_segment_pos_z + tracknode2->road_segment_pos_z) >> 1;
-			dot1 = math_vec2_dot_product(&position, &car_data->position);
+			position.x = (tracknode1->pos_x + tracknode2->pos_x) >> 1;
+			position.z = (tracknode1->pos_z + tracknode2->pos_z) >> 1;
+			dist1 = math_vec3_distance_squared_XZ(&position, &car_data->position);
 
 			tracknode1 = &track_data[node + 1];
 			tracknode2 = &track_data[node + 2];
-			position.x = (tracknode1->road_segment_pos_x + tracknode2->road_segment_pos_x) >> 1;
-			position.z = (tracknode1->road_segment_pos_z + tracknode2->road_segment_pos_z) >> 1;
-			dot2 = math_vec2_dot_product(&position, &car_data->position);
+			position.x = (tracknode1->pos_x + tracknode2->pos_x) >> 1;
+			position.z = (tracknode1->pos_z + tracknode2->pos_z) >> 1;
+			dist2 = math_vec3_distance_squared_XZ(&position, &car_data->position);
 
-			if (dot2 < dot1) {
-				found = 1;
+			if (dist2 < dist1) {
+				changed = 1;
 				*current = *current + 1;
 			} else if (0 < *current) {
 				tracknode1 = &track_data[node - 1];
 				tracknode2 = &track_data[node];
-				position.x = (tracknode1->road_segment_pos_x + tracknode2->road_segment_pos_x) >> 1;
-				position.z = (tracknode1->road_segment_pos_z + tracknode2->road_segment_pos_z) >> 1;
-				dot2 = math_vec2_dot_product(&position, &car_data->position);
+				position.x = (tracknode1->pos_x + tracknode2->pos_x) >> 1;
+				position.z = (tracknode1->pos_z + tracknode2->pos_z) >> 1;
+				dist2 = math_vec3_distance_squared_XZ(&position, &car_data->position);
 
-				if (dot2 < dot1) {
+				if (dist2 < dist1) {
 					node = *current;
 					*current = node + -1;
 					if (node + -1 < 0) {
 						*current = 0;
 					} else {
-						found = 1;
+						changed = 1;
 					}
 				}
 			}
@@ -529,22 +631,16 @@ int tnfs_road_segment_find(tnfs_car_data *car_data, int *current) {
 
 	// added part
 	node = *current;
-	road_segment_pos_x = track_data[node].road_segment_pos_x;
-	road_segment_pos_y = track_data[node].road_segment_pos_y;
-	road_segment_pos_z = track_data[node].road_segment_pos_z;
-	road_segment_slope = track_data[node].road_segment_slope;
-	road_segment_slant = track_data[node].road_segment_slant;
-	road_segment_heading = track_data[node].road_segment_heading;
 	roadLeftMargin = track_data[node].roadLeftMargin;
 	roadRightMargin = track_data[node].roadRightMargin;
 	roadLeftFence = track_data[node].roadLeftFence;
 	roadRightFence = track_data[node].roadRightFence;
-
-	if (car_data->road_segment_a != node)
-		printf("segment %d %d %d\n", node, road_segment_slope, road_segment_slant);
+	car_data->road_ground_position.x = track_data[node].pos_x;
+	car_data->road_ground_position.y = track_data[node].pos_y;
+	car_data->road_ground_position.z = track_data[node].pos_z;
 	// end
 
-	return found;
+	return changed;
 }
 
 int tnfs_road_segment_update(tnfs_car_data *car) {
@@ -558,34 +654,35 @@ int tnfs_road_segment_update(tnfs_car_data *car) {
 }
 
 void tnfs_track_segment_boundaries(tnfs_car_data *car) {
-	int node;
+	int node, next;
 	tnfs_vec3 heading;
 	tnfs_vec3 wall_normal;
 
 	node = car->road_segment_a;
+	next = node + 1;
 
-	car->road_position.x = track_data[node].road_segment_pos_x;
-	car->road_position.y = track_data[node].road_segment_pos_y;
-	car->road_position.z = track_data[node].road_segment_pos_z;
+	car->road_position.x = track_data[node].pos_x;
+	car->road_position.y = track_data[node].pos_y;
+	car->road_position.z = track_data[node].pos_z;
 
-	heading.x = track_data[node].road_segment_slope;
-	heading.y = track_data[node].road_segment_heading;
-	heading.z = track_data[node].road_segment_slant;
+	heading.x = track_data[next].pos_x - car->road_position.x;
+	heading.y = track_data[next].pos_y - car->road_position.y;
+	heading.z = track_data[next].pos_z - car->road_position.z;
 
-	// stub values
-	wall_normal.x = 0x10000;
-	wall_normal.y = 0;
-	wall_normal.z = 0;
+	wall_normal.x = track_data[node].wall_normal_x;
+	wall_normal.y = track_data[node].wall_normal_y;
+	wall_normal.z = track_data[node].wall_normal_z;
 
-	math_normalize(&heading);
+	math_vec3_normalize(&heading);
 
 	car->road_fence_normal.x = wall_normal.x;
 	car->road_fence_normal.y = wall_normal.y;
 	car->road_fence_normal.z = wall_normal.z;
 
-	car->road_normal.x = fixmul(heading.y, wall_normal.z) - fixmul(heading.z, wall_normal.y);
-	car->road_normal.y = fixmul(heading.z, wall_normal.x) - fixmul(heading.x, wall_normal.z);
-	car->road_normal.z = fixmul(heading.x, wall_normal.y) - fixmul(heading.y, wall_normal.x);
+	// 0, 0x10000, 0 => up
+	car->road_surface_normal.x = fixmul(heading.y, wall_normal.z) - fixmul(heading.z, wall_normal.y);
+	car->road_surface_normal.y = fixmul(heading.z, wall_normal.x) - fixmul(heading.x, wall_normal.z);
+	car->road_surface_normal.z = fixmul(heading.x, wall_normal.y) - fixmul(heading.y, wall_normal.x);
 
 	car->road_heading.x = heading.x;
 	car->road_heading.y = heading.y;
@@ -595,18 +692,17 @@ void tnfs_track_segment_boundaries(tnfs_car_data *car) {
 }
 
 void tnfs_update() {
-
 	// update camera
 	switch (selected_camera) {
-	case 1: //chase cam
+	case 1: //heli cam
 		camera_position.x = car_data.position.x;
 		camera_position.y = car_data.position.y + 0x60000;
 		camera_position.z = car_data.position.z - 0x100000;
 		break;
-	default: //fixed cam
-		camera_position.x = 0;
-		camera_position.y = 0x60000;
-		camera_position.z = -0x120000;
+	default: //chase cam
+		camera_position.x = car_data.position.x;
+		camera_position.y = car_data.position.y + 0x50000;
+		camera_position.z = car_data.position.z - 0x96000;
 		break;
 	}
 

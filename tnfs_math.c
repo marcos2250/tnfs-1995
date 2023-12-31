@@ -12,12 +12,8 @@ int math_mul(int x, int y) {
 	return (((long long) x) * y + 0x8000) >> 16;
 }
 
-int math_mul_10(int x, int y) {
-	return (((long long) x) * y + 0x8000) >> 10;
-}
-
 /*
- * fixed division, eg. 0x4b2 / 0x2800 => 0x884e6
+ * weird fixed division, eg. 0x4b2 / 0x2800 => 0x884e6
  */
 int math_div(int x, int y) {
 	if (y == 0)
@@ -25,26 +21,27 @@ int math_div(int x, int y) {
 	return (((long long) x) << 14) / y;
 }
 
-int math_sin(int input) {
-	double a = (double) input / 0x3FFFF;
-	return sin(a) * 0x3FFFF;
-}
-
-int math_cos(int input) {
-	double a = (double) input / 0x3FFFF;
-	return cos(a) * 0x3FFFF;
-}
-
+/*
+ * trigonometric functions, 2 byte precision  (360 = 0xFFFF)
+ */
 int math_sin_2(int input) {
-	double a = (double) input / 0xFFFF;
+	double a = (double) input / 10430;
 	return sin(a) * 0xFFFF;
 }
 
 int math_cos_2(int input) {
-	double a = (double) input / 0xFFFF;
+	double a = (double) input / 10430;
 	return cos(a) * 0xFFFF;
 }
 
+int math_tan_2(int input) {
+	double a = (double) input / 10430;
+	return tan(a) * 0xFFFF;
+}
+
+/*
+ * trigonometric functions, 3 byte precision (360 = 0xFFFFFF)
+ */
 int math_sin_3(int input) {
 	double a = (double) input / 2670178;
 	return sin(a) * 0xFFFF;
@@ -61,7 +58,7 @@ int math_tan_3(int input) {
 }
 
 int math_atan2(int x, int y) {
-	return atan2(y, x) * 2670217;
+	return atan2(y, x) * 2670178;
 }
 
 /*
@@ -234,29 +231,43 @@ int math_vec3_length_XZ(tnfs_vec3 *vector) {
 	return sqrt(x + z) * 0xFF;
 }
 
-void math_vec3_cross_product(tnfs_vec3 *result, tnfs_vec3 *v1, tnfs_vec3 *v2) {
-	result->x = fixmul(v2->z, v1->y) - fixmul(v2->y, v1->z);
-	result->y = fixmul(v2->x, v1->z) - fixmul(v2->z, v1->x);
-	result->z = fixmul(v2->y, v1->x) - fixmul(v2->x, v1->y);
-}
-
-int math_vec2_dot_product(tnfs_vec3 *v1, tnfs_vec3 *v2) {
+int math_vec3_distance_squared_XZ(tnfs_vec3 *v1, tnfs_vec3 *v2) {
 	  int x, z;
 	  x = (v2->x - v1->x) >> 8;
 	  z = (v2->z - v1->z) >> 8;
 	  return x * x + z * z;
 }
 
+void math_vec3_cross_product(tnfs_vec3 *result, tnfs_vec3 *v1, tnfs_vec3 *v2) {
+	result->x = fixmul(v2->z, v1->y) - fixmul(v2->y, v1->z);
+	result->y = fixmul(v2->x, v1->z) - fixmul(v2->z, v1->x);
+	result->z = fixmul(v2->y, v1->x) - fixmul(v2->x, v1->y);
+}
+
+void math_vec3_normalize(tnfs_vec3 *v) {
+	int d;
+	d = fixmul(v->x, v->x) + fixmul(v->y, v->y) + fixmul(v->z, v->z);
+	d = math_sqrt(d);
+	if (d != 0) {
+		d = math_inverse_value(d);
+		v->x = fixmul(v->x, d);
+		v->y = fixmul(v->y, d);
+		v->z = fixmul(v->z, d);
+	}
+}
+
 /*
- * Find Y point for (X,Z) coordinates (r1, r2, r3) projected over a triangle (tA, tB, tC) surface.
+ * Find Y-heights for 3 (X,Z) points (p1, p2, p3) projected over a triangle (tA, tB, tC) surface.
+ * TNFS uses this to locate the points for: car center (p1), car front bumper (p2), car side edge (p3);
+ * tA, tB, tC are the vertices of the current terrain triangle the car is at.
  */
-void math_barycentric_coordinates(tnfs_vec3 *r3, tnfs_vec3 *r2, tnfs_vec3 *r1, tnfs_vec3 *tC, tnfs_vec3 *tB, tnfs_vec3 *tA) {
+void math_height_coordinates(tnfs_vec3 *p3, tnfs_vec3 *p2, tnfs_vec3 *p1, tnfs_vec3 *tC, tnfs_vec3 *tB, tnfs_vec3 *tA) {
 	tnfs_vec3 vecAB;
 	tnfs_vec3 vecCB;
 	tnfs_vec3 cross;
 	int denominator;
 
-	// vectors AB and CB
+	// define vectors AB and CB
 	vecCB.x = tC->x - tB->x;
 	vecCB.y = tC->y - tB->y;
 	vecCB.z = tC->z - tB->z;
@@ -264,20 +275,13 @@ void math_barycentric_coordinates(tnfs_vec3 *r3, tnfs_vec3 *r2, tnfs_vec3 *r1, t
 	vecAB.y = tA->y - tB->y;
 	vecAB.z = tA->z - tB->z;
 
+	// use the barycentric coordinates formula
 	math_vec3_cross_product(&cross, &vecCB, &vecAB);
 	denominator = math_inverse_value(cross.y);
 
-	r3->y = fixmul(-fixmul(cross.z, r3->z) - fixmul(cross.x, r3->x), denominator);
-	r2->y = fixmul(-fixmul(cross.z, r2->z) - fixmul(cross.x, r2->x), denominator);
-	r1->y = fixmul(-fixmul(cross.z, r1->z - tC->z) - fixmul(cross.x, r1->x - tC->x), denominator) + tC->y;
+	// calculate y for the 3 requested points
+	p3->y = fixmul(-fixmul(cross.z, p3->z) - fixmul(cross.x, p3->x), denominator);
+	p2->y = fixmul(-fixmul(cross.z, p2->z) - fixmul(cross.x, p2->x), denominator);
+	p1->y = fixmul(-fixmul(cross.z, p1->z - tC->z) - fixmul(cross.x, p1->x - tC->x), denominator) + tC->y;
 }
 
-void math_normalize(tnfs_vec3 *v) {
-	int d;
-	d = fixmul(v->x, v->x) + fixmul(v->y, v->y) + fixmul(v->z, v->x);
-	if (d != 0) {
-		v->x /= d;
-		v->y /= d;
-		v->z /= d;
-	}
-}

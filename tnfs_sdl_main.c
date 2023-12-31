@@ -42,7 +42,7 @@ void handleKeys() {
 			tnfs_change_gear_down();
 			break;
 		case SDLK_r:
-			tnfs_reset();
+			tnfs_reset_car();
 			break;
 		case SDLK_c:
 			tnfs_change_camera();
@@ -97,7 +97,7 @@ void handleKeys() {
  * position X+ right Y+ up Z+ north
  * angle X+ pitch down Y+ yaw clockwise Z+ roll left
  */
-void renderVehicle() {
+void drawVehicle() {
 	// TNFS uses LHS, convert to OpenGL's RHS
 	glMatrixMode(GL_MODELVIEW);
 	matrix[0] = (float) car_data.matrix.ax / 0x10000;
@@ -156,6 +156,8 @@ void renderVehicle() {
 }
 
 void drawRoad() {
+	int max, i, j;
+
 	glMatrixMode(GL_MODELVIEW);
 	matrix[0] = 1; matrix[1] = 0; matrix[2] = 0; matrix[3] = 0;
 	matrix[4] = 0; matrix[5] = 1; matrix[6] = 0; matrix[7] = 0;
@@ -168,30 +170,37 @@ void drawRoad() {
 	glColor3f(0.0f, 0.0f, 0.0);
 	glBegin(GL_QUADS);
 
-	int j = 0;
-	for (int i = 0; i < road_segment_count - 2; i++) {
+	max = road_segment_count - 2;
+	for (int n = 0; n < 100; n++) {
+
+		i = car_data.road_segment_a - 50 + n;
+		if (i < 0) {
+			i = i + max;
+		} else if (i > max) {
+			i = max - i - 1;
+		}
 		j = i + 1;
+
 		// road
 		glVertex3f(track_data[i].pointL.x, track_data[i].pointL.y, track_data[i].pointL.z);
 		glVertex3f(track_data[j].pointL.x, track_data[j].pointL.y, track_data[j].pointL.z);
 		glVertex3f(track_data[j].pointR.x, track_data[j].pointR.y, track_data[j].pointR.z);
 		glVertex3f(track_data[i].pointR.x, track_data[i].pointR.y, track_data[i].pointR.z);
 		// left fence
-		glVertex3f(track_data[i].pointL.x, track_data[i].pointL.y, track_data[i].pointL.z);
-		glVertex3f(track_data[i].pointL.x, track_data[i].pointL.y+1, track_data[i].pointL.z);
-		glVertex3f(track_data[j].pointL.x, track_data[j].pointL.y+1, track_data[j].pointL.z);
-		glVertex3f(track_data[j].pointL.x, track_data[j].pointL.y, track_data[j].pointL.z);
+		glVertex3f(track_data[i].pointLF.x, track_data[i].pointLF.y, track_data[i].pointLF.z);
+		glVertex3f(track_data[i].pointLF.x, track_data[i].pointLF.y+1, track_data[i].pointLF.z);
+		glVertex3f(track_data[j].pointLF.x, track_data[j].pointLF.y+1, track_data[j].pointLF.z);
+		glVertex3f(track_data[j].pointLF.x, track_data[j].pointLF.y, track_data[j].pointLF.z);
 		// right fence
-		glVertex3f(track_data[j].pointR.x, track_data[j].pointR.y, track_data[j].pointR.z);
-		glVertex3f(track_data[j].pointR.x, track_data[j].pointR.y+1, track_data[j].pointR.z);
-		glVertex3f(track_data[i].pointR.x, track_data[i].pointR.y+1, track_data[i].pointR.z);
-		glVertex3f(track_data[i].pointR.x, track_data[i].pointR.y, track_data[i].pointR.z);
+		glVertex3f(track_data[j].pointRF.x, track_data[j].pointRF.y, track_data[j].pointRF.z);
+		glVertex3f(track_data[j].pointRF.x, track_data[j].pointRF.y+1, track_data[j].pointRF.z);
+		glVertex3f(track_data[i].pointRF.x, track_data[i].pointRF.y+1, track_data[i].pointRF.z);
+		glVertex3f(track_data[i].pointRF.x, track_data[i].pointRF.y, track_data[i].pointRF.z);
 	}
-
 	glEnd();
 }
 
-void renderTach() {
+void drawTach() {
 	float c,s,r;
 	r = ((float) car_data.rpm_engine / (float) car_data.rpm_redline) * 3.14 - 1.56;
 	c = -cosf(r);
@@ -222,8 +231,8 @@ void renderGl() {
 	gluPerspective(90.0, 1, 0.1, 1000);
 
 	drawRoad();
-	renderVehicle();
-	renderTach();
+	drawVehicle();
+	drawTach();
 }
 
 int main(int argc, char **argv) {
@@ -260,7 +269,14 @@ int main(int argc, char **argv) {
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glColor3f(0.0f, 0.0f, 0.0f);
 
-	tnfs_reset();
+	if (argc > 1) {
+		// command usage: tnfs tr1.tri (read a track file)
+		tnfs_init_track(argv[1]);
+	} else {
+		// if track file not supplied, auto generate a track
+		tnfs_init_track(0);
+	}
+	tnfs_reset_car();
 
 	while (!quit) {
 		while (SDL_PollEvent(&event)) {

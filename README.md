@@ -11,11 +11,12 @@ This project aims to reconstitute accurately as possible the physics formulas us
 * Now supports loading TNFS "TRI" track files, or it will auto generate a random track, if not supplied;
 * Fixed point math for vectors and matrices;
 * No assets required;
+* Basic wireframe 3D graphics; 
 * SDL2/OpenGL 3D in pure C.
 
 ## How to play
 1. clone/download repo;
-2. install `libsdl2`;
+2. install `libsdl2-dev`;
 3. `make`
 4. run `./build/tnfs [<optional_track_file.tri>]`
 

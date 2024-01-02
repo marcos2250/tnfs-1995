@@ -182,20 +182,20 @@ void drawRoad() {
 		j = i + 1;
 
 		// road
-		glVertex3f(track_data[i].pointL.x, track_data[i].pointL.y, track_data[i].pointL.z);
-		glVertex3f(track_data[j].pointL.x, track_data[j].pointL.y, track_data[j].pointL.z);
-		glVertex3f(track_data[j].pointR.x, track_data[j].pointR.y, track_data[j].pointR.z);
-		glVertex3f(track_data[i].pointR.x, track_data[i].pointR.y, track_data[i].pointR.z);
+		glVertex3f(track_data[i].vf_margin_L.x, track_data[i].vf_margin_L.y, track_data[i].vf_margin_L.z);
+		glVertex3f(track_data[j].vf_margin_L.x, track_data[j].vf_margin_L.y, track_data[j].vf_margin_L.z);
+		glVertex3f(track_data[j].vf_margin_R.x, track_data[j].vf_margin_R.y, track_data[j].vf_margin_R.z);
+		glVertex3f(track_data[i].vf_margin_R.x, track_data[i].vf_margin_R.y, track_data[i].vf_margin_R.z);
 		// left fence
-		glVertex3f(track_data[i].pointLF.x, track_data[i].pointLF.y, track_data[i].pointLF.z);
-		glVertex3f(track_data[i].pointLF.x, track_data[i].pointLF.y+1, track_data[i].pointLF.z);
-		glVertex3f(track_data[j].pointLF.x, track_data[j].pointLF.y+1, track_data[j].pointLF.z);
-		glVertex3f(track_data[j].pointLF.x, track_data[j].pointLF.y, track_data[j].pointLF.z);
+		glVertex3f(track_data[i].vf_fence_L.x, track_data[i].vf_fence_L.y, track_data[i].vf_fence_L.z);
+		glVertex3f(track_data[i].vf_fence_L.x, track_data[i].vf_fence_L.y+1, track_data[i].vf_fence_L.z);
+		glVertex3f(track_data[j].vf_fence_L.x, track_data[j].vf_fence_L.y+1, track_data[j].vf_fence_L.z);
+		glVertex3f(track_data[j].vf_fence_L.x, track_data[j].vf_fence_L.y, track_data[j].vf_fence_L.z);
 		// right fence
-		glVertex3f(track_data[j].pointRF.x, track_data[j].pointRF.y, track_data[j].pointRF.z);
-		glVertex3f(track_data[j].pointRF.x, track_data[j].pointRF.y+1, track_data[j].pointRF.z);
-		glVertex3f(track_data[i].pointRF.x, track_data[i].pointRF.y+1, track_data[i].pointRF.z);
-		glVertex3f(track_data[i].pointRF.x, track_data[i].pointRF.y, track_data[i].pointRF.z);
+		glVertex3f(track_data[j].vf_fence_R.x, track_data[j].vf_fence_R.y, track_data[j].vf_fence_R.z);
+		glVertex3f(track_data[j].vf_fence_R.x, track_data[j].vf_fence_R.y+1, track_data[j].vf_fence_R.z);
+		glVertex3f(track_data[i].vf_fence_R.x, track_data[i].vf_fence_R.y+1, track_data[i].vf_fence_R.z);
+		glVertex3f(track_data[i].vf_fence_R.x, track_data[i].vf_fence_R.y, track_data[i].vf_fence_R.z);
 	}
 	glEnd();
 }

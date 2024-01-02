@@ -13,12 +13,12 @@ int math_mul(int x, int y) {
 }
 
 /*
- * weird fixed division, eg. 0x4b2 / 0x2800 => 0x884e6
+ * fixed division, eg. 0x2800 / 0x4b2 => 0x884e6
  */
 int math_div(int x, int y) {
 	if (y == 0)
 		return 0;
-	return (((long long) x) << 14) / y;
+	return (((long long) x) << 16) / y;
 }
 
 /*
@@ -232,10 +232,10 @@ int math_vec3_length_XZ(tnfs_vec3 *vector) {
 }
 
 int math_vec3_distance_squared_XZ(tnfs_vec3 *v1, tnfs_vec3 *v2) {
-	  int x, z;
-	  x = (v2->x - v1->x) >> 8;
-	  z = (v2->z - v1->z) >> 8;
-	  return x * x + z * z;
+	int x, z;
+	x = (v2->x - v1->x) >> 8;
+	z = (v2->z - v1->z) >> 8;
+	return x * x + z * z;
 }
 
 void math_vec3_cross_product(tnfs_vec3 *result, tnfs_vec3 *v1, tnfs_vec3 *v2) {
@@ -261,27 +261,27 @@ void math_vec3_normalize(tnfs_vec3 *v) {
  * TNFS uses this to locate the points for: car center (p1), car front bumper (p2), car side edge (p3);
  * tA, tB, tC are the vertices of the current terrain triangle the car is at.
  */
-void math_height_coordinates(tnfs_vec3 *p3, tnfs_vec3 *p2, tnfs_vec3 *p1, tnfs_vec3 *tC, tnfs_vec3 *tB, tnfs_vec3 *tA) {
-	tnfs_vec3 vecAB;
+void math_height_coordinates(tnfs_vec3 *p3, tnfs_vec3 *p2, tnfs_vec3 *p1, tnfs_vec3 *tA, tnfs_vec3 *tB, tnfs_vec3 *tC) {
 	tnfs_vec3 vecCB;
+	tnfs_vec3 vecAB;
 	tnfs_vec3 cross;
 	int denominator;
 
 	// define vectors AB and CB
-	vecCB.x = tC->x - tB->x;
-	vecCB.y = tC->y - tB->y;
-	vecCB.z = tC->z - tB->z;
 	vecAB.x = tA->x - tB->x;
 	vecAB.y = tA->y - tB->y;
 	vecAB.z = tA->z - tB->z;
+	vecCB.x = tC->x - tB->x;
+	vecCB.y = tC->y - tB->y;
+	vecCB.z = tC->z - tB->z;
 
 	// use the barycentric coordinates formula
-	math_vec3_cross_product(&cross, &vecCB, &vecAB);
+	math_vec3_cross_product(&cross, &vecAB, &vecCB);
 	denominator = math_inverse_value(cross.y);
 
 	// calculate y for the 3 requested points
 	p3->y = fixmul(-fixmul(cross.z, p3->z) - fixmul(cross.x, p3->x), denominator);
 	p2->y = fixmul(-fixmul(cross.z, p2->z) - fixmul(cross.x, p2->x), denominator);
-	p1->y = fixmul(-fixmul(cross.z, p1->z - tC->z) - fixmul(cross.x, p1->x - tC->x), denominator) + tC->y;
+	p1->y = fixmul(-fixmul(cross.z, p1->z - tA->z) - fixmul(cross.x, p1->x - tA->x), denominator) + tA->y;
 }
 

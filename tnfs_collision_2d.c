@@ -122,8 +122,8 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	int roadLeftFence;
 	int roadRightFence;
 
-	road_segment_pos_x = track_data[car_data->road_segment_a].pos_x;
-	road_segment_pos_z = track_data[car_data->road_segment_a].pos_z;
+	road_segment_pos_x = track_data[car_data->road_segment_a].pos.x;
+	road_segment_pos_z = track_data[car_data->road_segment_a].pos.z;
 
 	roadLeftFence = track_data[car_data->road_segment_a].roadLeftFence;
 	roadRightFence = track_data[car_data->road_segment_a].roadRightFence;

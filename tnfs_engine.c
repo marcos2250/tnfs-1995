@@ -26,7 +26,7 @@ void tnfs_engine_rev_limiter(tnfs_car_data *car) {
 	if (car->is_gear_engaged) {
 		if (car->rpm_vehicle > car->rpm_engine) {
 			if (car->rpm_vehicle + 500 <= car->rpm_engine) {
-				car->rpm_engine += fixmul(g_gear_ratios[car->gear_selected], specs->rev_clutch_drop_rpm_inc);
+				car->rpm_engine += fixmul(car_data.car_specs_ptr->gear_ratio_table[car->gear_selected], specs->rev_clutch_drop_rpm_inc);
 			} else {
 				car->rpm_engine += specs->rev_clutch_drop_rpm_inc;
 			}
@@ -167,7 +167,7 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 				// engine rpm range
 				torque = tnfs_engine_torque(specs, car->rpm_engine);
 				torque = fixmul(torque, specs->gear_ratio_table[gear]);
-				torque = torque * specs->gear_torque_table[gear] >> 8;
+				torque = torque * specs->gear_efficiency[gear] >> 8;
 
 				if (torque > 0x70000)
 					torque = 0x70000;
@@ -202,7 +202,7 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 		} else {
 			// decceleration
 			//thrust = specs->gear_ratio_table[gear] * (car->rpm_vehicle - car->rpm_engine) * specs->negative_torque * -8;
-			thrust = specs->gear_ratio_table[gear] * specs->negative_torque * -0x10000;
+			thrust = fixmul(specs->gear_ratio_table[gear], specs->negative_torque * -0x10000);
 		}
 	} else {
 		// neutral

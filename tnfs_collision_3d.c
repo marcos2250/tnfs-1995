@@ -356,7 +356,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	}
 
 	if (tnfs_road_segment_update(car)) {
-		tnfs_track_segment_boundaries(car);
+		tnfs_track_update_vectors(car);
 	}
 
 	roadNormal.x = car->road_surface_normal.x;

@@ -172,7 +172,7 @@ int tnfs_tire_slide_table(tnfs_car_data *a1, unsigned int slip_angle, int is_rea
 	//original
 	//return *(a1->car_specs_ptr + (is_rear_wheels << 9) + (v4 >> 12) + 884) << 9;
 	//smaller array
-	return a1->car_specs_ptr->slide_table[(is_rear_wheels << 5) + (v4 >> 16)] << 9;
+	return a1->car_specs_ptr->grip_table[(is_rear_wheels << 5) + (v4 >> 16)] << 9;
 }
 
 void tnfs_tire_limit_max_grip(tnfs_car_data *car_data, //
@@ -618,6 +618,7 @@ void tnfs_physics_update(tnfs_car_data *a1) {
 	// aero/drag forces
 	drag_lat = tnfs_drag_force(car_data, car_data->speed_local_lat);
 	drag_lon = tnfs_drag_force(car_data, car_data->speed_local_lon);
+
 	if (car_data->speed_local_lon > car_specs->max_speed && selected_track != 6) {
 		if (drag_lon > 0 && drag_lon < thrust_force) {
 			drag_lon = abs(thrust_force);
@@ -955,9 +956,9 @@ void tnfs_height_3B6AB(tnfs_car_data *a1) {
 }
 
 void tnfs_height_road_position(tnfs_car_data *car_data, int mode) {
-	tnfs_vec3 pA;
-	tnfs_vec3 pB;
 	tnfs_vec3 pC;
+	tnfs_vec3 pB;
+	tnfs_vec3 pA;
 	tnfs_vec3 *pR;
 	int node;
 
@@ -975,20 +976,20 @@ void tnfs_height_road_position(tnfs_car_data *car_data, int mode) {
 
 	// get 3 surface points to triangulate surface position
 	node = car_data->road_segment_a;
-	pC.x = track_data[node].pos_x;
-	pC.y = track_data[node].pos_y;
-	pC.z = track_data[node].pos_z;
+	pA.x = track_data[node].pos.x;
+	pA.y = track_data[node].pos.y;
+	pA.z = track_data[node].pos.z;
 
-	pB.x = pC.x + (track_data[node].pointC_x >> 10) * 2;
-	pB.y = pC.y + (track_data[node].pointC_y >> 10) * 2;
-	pB.z = pC.z + (track_data[node].pointC_z >> 10) * 2;
+	pB.x = pA.x + (track_data[node].side_point.x >> 10) * 2;
+	pB.y = pA.y + (track_data[node].side_point.y >> 10) * 2;
+	pB.z = pA.z + (track_data[node].side_point.z >> 10) * 2;
 
 	node += 1;
-	pA.x = track_data[node].pos_x;
-	pA.y = track_data[node].pos_y;
-	pA.z = track_data[node].pos_z;
+	pC.x = track_data[node].pos.x;
+	pC.y = track_data[node].pos.y;
+	pC.z = track_data[node].pos.z;
 
-	math_height_coordinates(&car_data->front_edge, &car_data->side_edge, pR, &pC, &pB, &pA);
+	math_height_coordinates(&car_data->front_edge, &car_data->side_edge, pR, &pA, &pB, &pC);
 }
 
 void tnfs_height_car_inclination(tnfs_car_data *car, int rX, int rZ) {
@@ -1078,7 +1079,7 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
 		}
 
 		if (car_data->time_off_ground > 10) {
-			//tnfs_physics_debug(84);
+			tnfs_replay_highlight_000502AB(84);
 			car_data->time_off_ground = -2;
 			car_data->angle_x = angleX;
 			car_data->angle_z = angleZ;

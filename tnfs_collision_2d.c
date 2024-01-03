@@ -10,8 +10,8 @@
 int crash_pitch = 0;
 int DAT_80111a40 = 0;
 
-void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int a3, int fence_side, int road_flag, int fence_angle) {
-	int v9;
+void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int lon_speed, int fence_side, int road_flag, int fence_angle) {
+	int d_angle;
 	int v10;
 	int v12;
 	int crash_roll;
@@ -21,13 +21,13 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int a3, int fence
 	int v17;
 
 	if (fence_side <= 0)
-		v9 = fence_angle + angle;
+		d_angle = fence_angle + angle;
 	else
-		v9 = angle - fence_angle;
+		d_angle = angle - fence_angle;
 
-	rotAngle = v9 - car_data->angle_y + (-(v9 - car_data->angle_y < 0) & 0x1000000);
+	rotAngle = d_angle - car_data->angle_y + (-(d_angle - car_data->angle_y < 0) & 0x1000000);
 	if (rotAngle <= 0x800000)
-		collisionAngle = v9 - car_data->angle_y + (-(v9 - car_data->angle_y < 0) & 0x1000000);
+		collisionAngle = d_angle - car_data->angle_y + (-(d_angle - car_data->angle_y < 0) & 0x1000000);
 	else
 		collisionAngle = 0x1000000 - rotAngle;
 	if (collisionAngle > 0x400000) {
@@ -37,8 +37,8 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int a3, int fence
 	if (rotAngle > 0x1000000)
 		rotAngle -= 0x1000000;
 
-	if (a3 >= 0x1000000 && car_data->speed > 0x230000) {
-		v10 = a3 - 0x60000;
+	if (lon_speed >= 0x180000 && car_data->speed > 0x230000) {
+		v10 = lon_speed - 0x60000;
 		if (rotAngle >= 0x800000)
 			v17 = 0x1000000 - fix3(0x1000000 - rotAngle);
 		else
@@ -97,7 +97,7 @@ int tnfs_collision_car_size(tnfs_car_data *car_data, int fence_angle) {
 		x = 0x80 - x;
 	}
 
-	return (((car_data->car_length - car_data->car_width) * x) >> 8) + car_data->car_width;
+	return ((((car_data->car_length - car_data->car_width) * x) >> 6) + car_data->car_width) >> 1;
 }
 
 void tnfs_track_fence_collision(tnfs_car_data *car_data) {
@@ -119,12 +119,16 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	int lm_speed;
 	int road_segment_pos_x;
 	int road_segment_pos_z;
+	int roadLeftMargin;
+	int roadRightMargin;
 	int roadLeftFence;
 	int roadRightFence;
 
 	road_segment_pos_x = track_data[car_data->road_segment_a].pos.x;
 	road_segment_pos_z = track_data[car_data->road_segment_a].pos.z;
 
+	roadLeftMargin = track_data[car_data->road_segment_a].roadLeftMargin;
+	roadRightMargin = track_data[car_data->road_segment_a].roadRightMargin;
 	roadLeftFence = track_data[car_data->road_segment_a].roadLeftFence;
 	roadRightFence = track_data[car_data->road_segment_a].roadRightFence;
 
@@ -136,25 +140,25 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	distance = fixmul(fence_sin, road_segment_pos_z - car_data->position.z) - fixmul(fence_cos, road_segment_pos_x - car_data->position.x);
 
 	rebound_speed_x = 0;
-	if (distance < 0) { //roadLeftMargin * -0x2000) { //FIXME
+	if (distance < roadLeftMargin * -0x2000) {
 		// left road side
 		car_data->surface_type_a = roadConstantB >> 4;
 		aux = tnfs_collision_car_size(car_data, fence_angle);
 		aux = roadLeftFence * -0x2000 + aux;
 		if (distance < aux) {
 			fenceSide = -0x100;
-			rebound_speed_x = aux - distance - 0x8000;
+			rebound_speed_x = aux - distance - 0x4ccc;
 			road_flag = roadConstantA >> 4;
 		}
 
-	} else if (distance > 0) { //roadRightMargin * 0x2000) {
+	} else if (distance > roadRightMargin * 0x2000) {
 		// right road side
 		car_data->surface_type_a = roadConstantB & 0xf;
 		aux = tnfs_collision_car_size(car_data, fence_angle);
 		aux = roadRightFence * 0x2000 - aux;
 		if (distance > aux) {
 			fenceSide = 0x100;
-			rebound_speed_x = distance + 0x8000 - aux;
+			rebound_speed_x = distance + 0x4ccc - aux;
 			road_flag = roadConstantA & 0xf;
 		}
 	} else {
@@ -245,10 +249,10 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 		re_speed = 0xa0000;
 	}
 	if (fenceSide < 1) {
-		//fence_angle += 0x800000; //+180
+		fence_angle += 0x20000;
 		car_data->collision_x = -re_speed;
 	} else {
-		//fence_angle -= 0x800000; //-180
+		fence_angle -= 0x20000;
 		car_data->collision_x = re_speed;
 	}
 

@@ -170,14 +170,14 @@ void drawRoad() {
 	glColor3f(0.0f, 0.0f, 0.0);
 	glBegin(GL_QUADS);
 
-	max = road_segment_count - 2;
+	max = road_segment_count - 1;
 	for (int n = 0; n < 100; n++) {
 
 		i = car_data.road_segment_a - 50 + n;
 		if (i < 0) {
 			i = i + max;
-		} else if (i > max) {
-			i = max - i - 1;
+		} else if (i >= max) {
+			i = i - max;
 		}
 		j = i + 1;
 

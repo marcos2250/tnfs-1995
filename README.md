@@ -20,7 +20,7 @@ This project aims to reconstitute accurately as possible the physics formulas us
 3. `make`
 4. run `./build/tnfs [<optional_track_file.tri>]`
 
-Use the keys to drive around the parking lot area:
+Use the keys to drive:
 * Up/Down - Accel and brake
 * Left/Right - Steer
 * Space - Handbrake

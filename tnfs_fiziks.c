@@ -642,7 +642,7 @@ void tnfs_physics_update(tnfs_car_data *a1) {
 	// sideslip
 	v3 = fixmul(car_data->wheel_base, car_data->scale_b * car_data->angular_speed);
 
-	// front and rear moment of inertia, inverted
+	// split front and rear momentum, inverted
 	fLat = -fixmul(car_data->weight_distribution, sLat) - (drag_lat / 2) + v3;
 	rLat = -(sLat - fixmul(car_data->weight_distribution, sLat)) - (drag_lat / 2) - v3;
 	rLon = -(sLon - fixmul(car_data->weight_distribution, sLon)) - (drag_lon / 2);
@@ -801,8 +801,8 @@ void tnfs_physics_update(tnfs_car_data *a1) {
 			v26 -= 0x1000000;
 
 		body_roll_sine = math_sin_3(car_data->angle_z);// >> 14);
-		iVar2 = fix8(car_data->speed_local_lon) * (v26 - v27);
-		iVar2 = math_mul(body_roll_sine, fix8(iVar2));
+		iVar2 = (car_data->speed_local_lon >> 8) * (v26 - v27);
+		iVar2 = math_mul(body_roll_sine, iVar2 >> 8);
 		car_data->angle_y -= fix7(iVar2);
 	}
 
@@ -843,7 +843,7 @@ void tnfs_physics_update(tnfs_car_data *a1) {
 		v51[113] = abs(car_data->speed_local_lon);
 	}
 
-	// only PC DEMO - used for debug - Rusty Springs track
+	// Performance test - only PC version and Rusty Springs track
 	if (!debug_mode_pc_version && selected_track == 3) {
 		if (car_data->road_segment_a <= 97 || car_data->road_segment_a >= 465) {
 			if (car_data->speed_local_lon < 13107) {

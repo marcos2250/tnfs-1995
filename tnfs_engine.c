@@ -21,12 +21,12 @@ void tnfs_engine_rev_limiter(tnfs_car_data *car) {
 	if (car->rpm_vehicle < 700)
 		car->rpm_vehicle = 700;
 
-	max_rpm = car->throttle * specs->rpm_redline >> 8;
+	max_rpm = specs->rpm_redline * car->throttle >> 8;
 
 	if (car->is_gear_engaged) {
 		if (car->rpm_vehicle > car->rpm_engine) {
 			if (car->rpm_vehicle + 500 <= car->rpm_engine) {
-				car->rpm_engine += fixmul(car_data.car_specs_ptr->gear_ratio_table[car->gear_selected], specs->rev_clutch_drop_rpm_inc);
+				car->rpm_engine += fix8(car_data.car_specs_ptr->gear_ratio_table[car->gear_selected] * specs->rev_clutch_drop_rpm_inc);
 			} else {
 				car->rpm_engine += specs->rev_clutch_drop_rpm_inc;
 			}
@@ -158,8 +158,7 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 	gear = car->gear_selected + 2;
 
 	if (car->is_gear_engaged) {
-		//if (car->rpm_engine >= car->rpm_vehicle) {
-		if (car->throttle > 0) { //FIXME
+		if (car->rpm_engine >= car->rpm_vehicle) {
 			// acceleration
 			max_rpm = car->throttle * specs->rpm_redline >> 8;
 
@@ -184,25 +183,21 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 				}
 
 			} else {
-				// out of rpm range
+				// decceleration
 				torque = abs((car->rpm_engine - max_rpm) * specs->negative_torque);
-				thrust = abs(fixmul(specs->gear_ratio_table[gear], torque));
+				thrust = -fixmul(specs->gear_ratio_table[gear], torque);
 
-				if (abs(car->speed_local_lon) * 16 >= thrust) {
-					if (car->speed_local_lon == 0) {
-						thrust = 0;
-					} else if (car->speed_local_lon < 0) {
-						thrust = -thrust;
-					}
-				} else {
+				if (car->speed_local_lon == 0) {
+					thrust = 0;
+				} else if (abs(car->speed_local_lon) * 16 >= abs(thrust)) {
 					thrust = car->speed_local_lon * -16;
+				} else if (car->speed_local_lon < 0) {
+					thrust = -thrust;
 				}
 			}
-
 		} else {
 			// decceleration
-			//thrust = specs->gear_ratio_table[gear] * (car->rpm_vehicle - car->rpm_engine) * specs->negative_torque * -8;
-			thrust = fixmul(specs->gear_ratio_table[gear], specs->negative_torque * -0x10000);
+			thrust = fixmul(specs->gear_ratio_table[gear],  specs->negative_torque) * (car->rpm_vehicle - car->rpm_engine) * -8;
 		}
 	} else {
 		// neutral
@@ -210,7 +205,7 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 	}
 
 	// final ratio
-	thrust = fix2(thrust * (specs->final_drive_torque_ratio >> 6));
+	thrust = fix2(thrust * fix6(specs->final_drive_torque_ratio));
 
 	if ((car->throttle > 0xf0) // full throttle
 			&& (abs(thrust) > car->tire_grip_rear - car->slide) // tire grip slipping

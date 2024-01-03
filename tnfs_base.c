@@ -24,7 +24,7 @@ int DAT_8010d1c4 = 0;
 int selected_camera = 0;
 tnfs_vec3 camera_position;
 
-/* tire grip slide table - default values for front engine RWD cars */
+/* tire grip slide table - default values for front engine RWD cars - original table has 1024 entries*/
 static const unsigned char g_slide_table[64] = {
 // front values
 		2, 14, 26, 37, 51, 65, 101, 111, 120, 126, 140, 150, 160, 165, 174, 176, 176, 176, 176, 176, 176, 177, 177, 177, 200, 200, 200, 174, 167, 161, 152, 142,
@@ -35,58 +35,6 @@ static const unsigned char g_slide_table[64] = {
 static const unsigned int g_torque_table[120] = { 1000, 0x1dc4f, 1200, 0x1e837, 1400, 0x20008, 1600, 0x22fa9, 1800, 0x23b92, 2000, 0x2477a, 2200, 0x2771b, 2400, 0x29ad5,
 		2600, 0x2a6bd, 2800, 0x22ba5, 3000, 0x2be8e, 3200, 0x2c0ef, 3400, 0x2ca76, 3600, 0x2d65e, 3800, 0x2ca76, 4000, 0x2b2a5, 4200, 0x2a6bd, 4400, 0x2a6bd, 4600, 0x29ad5,
 		4800, 0x29ad5, 5000, 0x29ad5, 5200, 0x28eec, 5400, 0x28eec, 5600, 0x2771b, 5800, 0x25f4b, 6000, 0x25362, 6200, 0x2477a, 6400, 0x23b92, 6600, 0x22fa9, 6800, 0x223c1 };
-
-void tnfs_sfx_play(int a, int b, int c, int d, int e, int f) {
-	printf("sound %i\n", f);
-}
-
-void tnfs_replay_highlight_000502AB(char a) {
-	printf("replay highlight %i\n", a);
-}
-
-void tnfs_car_size_vector(tnfs_car_data *car_data, int *angle, int *length) {
-	int x;
-	int y;
-	int z;
-	int heading;
-
-	x = car_data->position.x - track_data[car_data->road_segment_a].pos.x;
-	y = car_data->position.y - track_data[car_data->road_segment_a].pos.y;
-	z = car_data->position.z - track_data[car_data->road_segment_a].pos.z;
-
-	heading = track_data[car_data->road_segment_a].heading * 0x400;
-
-	if (heading < 0) {
-		heading = heading + 0x1000000;
-	}
-	*angle = heading - math_atan2(z, x);
-	if (*angle < 0) {
-		*angle += 0x1000000;
-	}
-	if (*angle > 0x1000000) {
-		*angle -= 0x1000000;
-	}
-
-	if (x < 0) {
-		x = -x;
-	}
-	if (y < 0) {
-		y = -y;
-	}
-	if (z < 0) {
-		z = -z;
-	}
-	if (z < x) {
-		x = (z >> 2) + x;
-	} else {
-		x = (x >> 2) + z;
-	}
-	if (x < y) {
-		*length = (x >> 2) + y;
-	} else {
-		*length = (y >> 2) + x;
-	}
-}
 
 void auto_generate_track() {
 	int pos_x = 0;
@@ -171,11 +119,13 @@ void read_tri_file(char * file) {
 		printf("File not found: %s\n", file);
 		return;
 	}
+
+	fseek(ptr, 2444, SEEK_SET);
 	fread(buffer, chunk_size, 1, ptr);
 
 	road_segment_count = 0;
 	for (i = 0; i < 2400; i++) {
-		offset = i * 36 + 2444;
+		offset = i * 36;
 
 		track_data[i].roadLeftMargin = (int)(buffer[offset] & 0xFF);
 		track_data[i].roadRightMargin = (int)(buffer[offset + 1] & 0xFF);
@@ -189,12 +139,13 @@ void read_tri_file(char * file) {
 		track_data[i].slant = -readAngle16(buffer, offset + 22);
 		track_data[i].heading = readAngle16(buffer, offset + 24);
 
-		road_segment_count++;
 		if (i > 0 && track_data[i].pos.x == 0 && track_data[i].pos.y == 0 && track_data[i].pos.z == 0) {
 			break;
 		}
+		road_segment_count++;
 	}
 	fclose(ptr);
+	printf("Loaded track %s with %d segments.\n", file, road_segment_count);
 }
 
 void tnfs_init_track(char * tri_file) {
@@ -575,6 +526,60 @@ void tnfs_crash_car() {
 	tnfs_collision_rollover_start(&car_data, 0, 0, -0xa0000);
 }
 
+void tnfs_sfx_play(int a, int b, int c, int d, int e, int f) {
+	printf("sound %i\n", f);
+}
+
+void tnfs_replay_highlight_000502AB(char a) {
+	printf("replay highlight %i\n", a);
+}
+
+/* common TNFS functions */
+
+void tnfs_car_size_vector(tnfs_car_data *car_data, int *angle, int *length) {
+	int x;
+	int y;
+	int z;
+	int heading;
+
+	x = car_data->position.x - track_data[car_data->road_segment_a].pos.x;
+	y = car_data->position.y - track_data[car_data->road_segment_a].pos.y;
+	z = car_data->position.z - track_data[car_data->road_segment_a].pos.z;
+
+	heading = track_data[car_data->road_segment_a].heading * 0x400;
+
+	if (heading < 0) {
+		heading = heading + 0x1000000;
+	}
+	*angle = heading - math_atan2(z, x);
+	if (*angle < 0) {
+		*angle += 0x1000000;
+	}
+	if (*angle > 0x1000000) {
+		*angle -= 0x1000000;
+	}
+
+	if (x < 0) {
+		x = -x;
+	}
+	if (y < 0) {
+		y = -y;
+	}
+	if (z < 0) {
+		z = -z;
+	}
+	if (z < x) {
+		x = (z >> 2) + x;
+	} else {
+		x = (x >> 2) + z;
+	}
+	if (x < y) {
+		*length = (x >> 2) + y;
+	} else {
+		*length = (y >> 2) + x;
+	}
+}
+
 int tnfs_road_segment_find(tnfs_car_data *car_data, int *current) {
 	int node;
 	int dist1;
@@ -642,11 +647,15 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	tnfs_vec3 heading;
 	tnfs_vec3 wall_normal;
 
+	// current node
 	node = car->road_segment_a;
-
 	car->road_position.x = track_data[node].pos.x;
 	car->road_position.y = track_data[node].pos.y;
 	car->road_position.z = track_data[node].pos.z;
+
+	wall_normal.x = track_data[node].wall_normal.x;
+	wall_normal.y = track_data[node].wall_normal.y;
+	wall_normal.z = track_data[node].wall_normal.z;
 
 	// next node vector
 	node++;
@@ -655,10 +664,6 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	heading.z = track_data[node].pos.z - car->road_position.z;
 
 	math_vec3_normalize(&heading);
-
-	wall_normal.x = track_data[node].wall_normal.x;
-	wall_normal.y = track_data[node].wall_normal.y;
-	wall_normal.z = track_data[node].wall_normal.z;
 
 	// 0x10000, 0, 0 => points to right side of road
 	car->road_fence_normal.x = wall_normal.x;
@@ -670,6 +675,7 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	car->road_surface_normal.y = fixmul(heading.z, wall_normal.x) - fixmul(heading.x, wall_normal.z);
 	car->road_surface_normal.z = fixmul(heading.x, wall_normal.y) - fixmul(heading.y, wall_normal.x);
 
+	// 0, 0, 0x10000 => north
 	car->road_heading.x = heading.x;
 	car->road_heading.y = heading.y;
 	car->road_heading.z = heading.z;
@@ -677,6 +683,9 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	// ...
 }
 
+/*
+ * basic main loop
+ */
 void tnfs_update() {
 	// update camera
 	switch (selected_camera) {
@@ -700,6 +709,12 @@ void tnfs_update() {
 	} else {
 		// crash mode loop
 		tnfs_collision_main(&car_data);
+	}
+
+
+	// tweak to allow circuit track lap
+	if (car_data.road_segment_a == road_segment_count) {
+		car_data.road_segment_a = 0;
 	}
 
 	int node = car_data.road_segment_a;

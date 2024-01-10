@@ -16,7 +16,7 @@ void tnfs_engine_rev_limiter(tnfs_car_data *car) {
 	}
 
 	// speed to RPM
-	car->rpm_vehicle = fixmul(fixmul(specs->gear_ratio_table[car->gear_selected + 2], specs->final_drive_speed_ratio), car->speed_drivetrain) >> 16;
+	car->rpm_vehicle = fixmul(fixmul(specs->gear_ratio_table[car->gear_selected + 2], specs->mps_to_rpm_factor), car->speed_drivetrain) >> 16;
 
 	if (car->rpm_vehicle < 700)
 		car->rpm_vehicle = 700;
@@ -26,43 +26,43 @@ void tnfs_engine_rev_limiter(tnfs_car_data *car) {
 	if (car->is_gear_engaged) {
 		if (car->rpm_vehicle > car->rpm_engine) {
 			if (car->rpm_vehicle + 500 <= car->rpm_engine) {
-				car->rpm_engine += fix8(car_data.car_specs_ptr->gear_ratio_table[car->gear_selected] * specs->rev_clutch_drop_rpm_inc);
+				car->rpm_engine += fix8(car_data.car_specs_ptr->gear_ratio_table[car->gear_selected] * specs->clutchDropRpmInc);
 			} else {
-				car->rpm_engine += specs->rev_clutch_drop_rpm_inc;
+				car->rpm_engine += specs->clutchDropRpmInc;
 			}
 			if (car->rpm_engine > car->rpm_vehicle)
 				car->rpm_engine = car->rpm_vehicle;
 		} else {
 			if ((car->tire_skid_rear & 2) && car->throttle > 220) {
-				car->rpm_engine -= fix3(specs->rev_clutch_drop_rpm_dec);
+				car->rpm_engine -= fix3(specs->clutchDropRpmDec);
 			} else {
-				car->rpm_engine -= specs->rev_clutch_drop_rpm_dec;
+				car->rpm_engine -= specs->clutchDropRpmDec;
 			}
 			if (car->rpm_engine < car->rpm_vehicle)
 				car->rpm_engine = car->rpm_vehicle;
 		}
 	} else if (car->throttle >= 13) {
 		if (car->gear_selected == -1) {
-			car->rpm_engine += car->car_specs_ptr->rev_speed_gas_inc * car->throttle / 2 >> 8;
+			car->rpm_engine += car->car_specs_ptr->garRpmInc * car->throttle / 2 >> 8;
 		} else {
-			car->rpm_engine += car->car_specs_ptr->rev_speed_gas_inc * car->throttle >> 8;
+			car->rpm_engine += car->car_specs_ptr->garRpmInc * car->throttle >> 8;
 		}
 		if (car->rpm_engine > max_rpm)
 			car->rpm_engine = max_rpm;
 	} else if (specs->rpm_idle > car->rpm_engine) {
 		if (car->gear_selected == -1) {
-			car->rpm_engine += car->car_specs_ptr->rev_speed_no_gas >> 1;
+			car->rpm_engine += car->car_specs_ptr->noGasRpmDec >> 1;
 		} else {
-			car->rpm_engine += car->car_specs_ptr->rev_speed_no_gas;
+			car->rpm_engine += car->car_specs_ptr->noGasRpmDec;
 		}
 		if (car->rpm_engine > specs->rpm_idle) {
 			car->rpm_engine = specs->rpm_idle;
 		}
 	} else {
 		if (car->gear_selected == -1) {
-			car->rpm_engine -= car->car_specs_ptr->rev_speed_no_gas >> 1;
+			car->rpm_engine -= car->car_specs_ptr->noGasRpmDec >> 1;
 		} else {
-			car->rpm_engine -= car->car_specs_ptr->rev_speed_no_gas >> 1;
+			car->rpm_engine -= car->car_specs_ptr->noGasRpmDec >> 1;
 		}
 		if (car->rpm_engine < specs->rpm_idle) {
 			car->rpm_engine = specs->rpm_idle;
@@ -88,7 +88,7 @@ void tnfs_engine_auto_shift_change(tnfs_car_data *car_data, tnfs_car_specs *car_
 	gear = car_data->gear_selected;
 
 	// speed to RPM
-	rpm_vehicle = fixmul(fixmul(car_specs->gear_ratio_table[gear + 2], car_specs->final_drive_speed_ratio), car_data->speed_local_lon) >> 16;
+	rpm_vehicle = fixmul(fixmul(car_specs->gear_ratio_table[gear + 2], car_specs->mps_to_rpm_factor), car_data->speed_local_lon) >> 16;
 
 	if (gear < car_specs->number_of_gears && rpm_vehicle > car_specs->gear_upshift_rpm[gear]) {
 		// upshift
@@ -118,9 +118,9 @@ void tnfs_engine_auto_shift_control(tnfs_car_data *car) {
 			car->is_engine_cutoff = 1;
 			car->is_gear_engaged = 0;
 			if (car->unknown_flag_479 == 4 && (g_game_time & 0x31) == 16) {
-				car->is_shifting_gears = car->car_specs_ptr->gear_shift_delay + 3;
+				car->is_shifting_gears = car->car_specs_ptr->shift_timer + 3;
 			} else {
-				car->is_shifting_gears = car->car_specs_ptr->gear_shift_delay;
+				car->is_shifting_gears = car->car_specs_ptr->shift_timer;
 			}
 		}
 	}
@@ -171,7 +171,7 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 				if (torque > 0x70000)
 					torque = 0x70000;
 
-				tireslip = abs((car->rpm_engine << 16) / (fixmul(specs->gear_ratio_table[gear], specs->final_drive_speed_ratio) >> 16) - car->speed_local_lon);
+				tireslip = abs((car->rpm_engine << 16) / (fixmul(specs->gear_ratio_table[gear], specs->mps_to_rpm_factor) >> 16) - car->speed_local_lon);
 
 				if (tireslip > 0x30000 && car->throttle > 250 && car->gear_selected == 0) {
 					// engine overpower, doing burnouts
@@ -184,7 +184,7 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 
 			} else {
 				// decceleration
-				torque = abs((car->rpm_engine - max_rpm) * specs->negative_torque);
+				torque = abs((car->rpm_engine - max_rpm) * specs->negTorque);
 				thrust = -fixmul(specs->gear_ratio_table[gear], torque);
 
 				if (car->speed_local_lon == 0) {
@@ -197,7 +197,7 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 			}
 		} else {
 			// decceleration
-			thrust = fixmul(specs->gear_ratio_table[gear],  specs->negative_torque) * (car->rpm_vehicle - car->rpm_engine) * -8;
+			thrust = fixmul(specs->gear_ratio_table[gear],  specs->negTorque) * (car->rpm_vehicle - car->rpm_engine) * -8;
 		}
 	} else {
 		// neutral
@@ -213,7 +213,7 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 			&& (car->car_specs_ptr->front_drive_percentage == 0)) { // RWD car
 
 		// RPM to speed
-		car->speed_drivetrain = 0x100000000 / fixmul(specs->gear_ratio_table[gear], specs->final_drive_speed_ratio) * car->rpm_engine;
+		car->speed_drivetrain = 0x100000000 / fixmul(specs->gear_ratio_table[gear], specs->mps_to_rpm_factor) * car->rpm_engine;
 
 		// wheel spin faster than car speed
 		if (car->speed_drivetrain > abs(car->speed_local_lon)) {

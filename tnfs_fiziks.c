@@ -45,7 +45,6 @@ void tnfs_debug_000343C2(int a, int b) {
 }
 
 int tnfs_drag_force(tnfs_car_data *a1, signed int speed) {
-	signed int v2;
 	int max;
 	int incl_angle;
 	int drag;
@@ -55,8 +54,8 @@ int tnfs_drag_force(tnfs_car_data *a1, signed int speed) {
 	else
 		a1->surface_type_b = 0;
 
-	v2 = const_drag_array[a1->surface_type_a * 4 + 4] * a1->car_specs_ptr->unknown_const_drag;
-	drag = const_drag_array[a1->surface_type_a * 4] + ((speed >> 8) * (speed >> 8) >> 16) * fix8(v2);
+	drag = fix8(const_drag_array[a1->surface_type_a * 4] * a1->car_specs_ptr->drag) //
+			* ((speed >> 16) * (speed >> 16));
 
 	incl_angle = a1->angle_z;
 	if (incl_angle > 0x800000)
@@ -321,8 +320,8 @@ void tnfs_tire_forces(tnfs_car_data *_car_data, //
 	else
 		slip_angle = math_atan2(force_lon_local, force_lat_local_abs);
 
-	if (slip_angle > car_specs->max_slip_angle) {
-		slip_angle = car_specs->max_slip_angle;
+	if (slip_angle > car_specs->cutoff_slip_angle) {
+		slip_angle = car_specs->cutoff_slip_angle;
 		*skid |= 1u;
 	}
 
@@ -619,7 +618,7 @@ void tnfs_physics_update(tnfs_car_data *a1) {
 	drag_lat = tnfs_drag_force(car_data, car_data->speed_local_lat);
 	drag_lon = tnfs_drag_force(car_data, car_data->speed_local_lon);
 
-	if (car_data->speed_local_lon > car_specs->max_speed && selected_track != 6) {
+	if (car_data->speed_local_lon > car_specs->top_speed && selected_track != 6) {
 		if (drag_lon > 0 && drag_lon < thrust_force) {
 			drag_lon = abs(thrust_force);
 		} else if (drag_lon < 0) {
@@ -707,7 +706,7 @@ void tnfs_physics_update(tnfs_car_data *a1) {
 	}
 
 	// tire lateral force limit
-	v61 = car_data->road_grip_increment + car_specs->max_tire_lateral_force;
+	v61 = car_data->road_grip_increment + car_specs->lateral_accel_cutoff;
 	if (v61 < 0)
 		v61 = 0;
 	if (abs(force_Lat) > v61) {

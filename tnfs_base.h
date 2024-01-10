@@ -21,76 +21,99 @@ typedef struct {
 	tnfs_vec3 angular_speed;
 } tnfs_collision_data;
 
+
+/*
+ * Uncompressed PBS car specs file
+ */
 typedef struct tnfs_car_specs {
+	int mass_front; //0x000
+	int mass_rear; //0x000
+	int mass_total; //0x000
 	//  ...
-	int front_drive_percentage; //00000018
-	int front_brake_percentage; //0000001C
+	int unknown_const; //0x014
+	int front_drive_percentage; //0x018
+	int front_brake_percentage; //0x01C
 	//  ...
-	int max_brake_force_1; //00000028
-	int max_brake_force_2; //0000002C
+	int centre_of_gravity_height;
+	int max_brake_force_1; //0x028
+	int max_brake_force_2; //0x02C
 	//  ...
-	int unknown_const_drag; //00000034
-	int max_speed; //00000038
+	int drag; //0x034
+	int top_speed; //0x038
+	int efficiency; //0x03C
+	int wheelbase; //0x040
+	int burnOutDiv; //0x044
+	int wheeltrack; //0x048
 	//  ...
-	int final_drive_speed_ratio; //00000054
+	int mps_to_rpm_factor; //0x054
 	int number_of_gears;
 	//  ...
-	int gear_ratio_table[10]; //00000070
-	int gear_efficiency[10];
+	int gear_ratio_table[8]; //0x070
 	//  ...
-	int torque_table_entries; //0x88
+	int torque_table_entries; //0x088
 	//  ...
-	int max_slip_angle; //000000a4
+	int front_roll_stiffness;
+	int rear_roll_stiffness;
+	int roll_axis_height;
 	// ...
-	int rpm_redline; //000000ac
-	int rpm_idle; //000000b0
-	unsigned int torque_table[120]; //000000b4
+	int weight_transfer_factor; //0x0a0
+	int cutoff_slip_angle; //0x0a4
+	int normal_coefficient_loss; //0x0a8
+	int rpm_redline; //0x0ac
+	int rpm_idle; //0x0b0
+	unsigned int torque_table[120]; //0x0b4
 	//  ...
-	int gear_upshift_rpm[10]; // 0x290
+	int gear_upshift_rpm[7]; //0x290
+	int gear_efficiency[8]; //0x2B8
+	int inertia_factor; //0x2D0
+	int body_roll_factor; //0x2D4
+	int body_pitch_factor; //0x2D8
+	int front_friction_factor; //0x2DC
+	int rear_friction_factor; //0x2E0
+	int body_length; //0x2E4
+	int body_width; //0x2E8
 	//  ...
-	int body_roll_factor; //000002D4
-	int body_pitch_factor; //000002D8
+	int lateral_accel_cutoff; //0x31C
+	/// ...
+	int final_drive_torque_ratio; //0x328
+	int thrust_to_acc_factor; //0x32c
 	//  ...
-	int max_tire_lateral_force; //0000031C
-	//  ...
-	int final_drive_torque_ratio; //00000328
-	int thrust_to_acc_factor; //0000032C
-	//  ...
-	int gear_shift_delay; //00000354
-	int rev_speed_no_gas; //00000358
-	int rev_speed_gas_inc; //0000035C
-	int rev_clutch_drop_rpm_dec; //00000360
-	int rev_clutch_drop_rpm_inc; //00000364
-	int negative_torque; //00000368
-	// ...
-	unsigned char grip_table[1024]; //00000374
+	int shift_timer; //0x354
+	int noGasRpmDec; //0x358
+	int garRpmInc; //0x35C
+	int clutchDropRpmDec; //0x360
+	int clutchDropRpmInc; //0x364
+	int negTorque; //0x368
+	int ride_height; //0x36c
+	int centre_y; //0x370
+	unsigned char grip_table[1024]; //0x374
 } tnfs_car_specs;
 
 typedef struct tnfs_car_data {
-	tnfs_vec3 position; //00000000
-	int angle_x; //0000000C
-	int angle_y; //00000010
-	int angle_z; //00000014
-	int steer_angle; //00000018
+	tnfs_vec3 position; //0x000
+	int angle_x; //0x00C
+	int angle_y; //0x010
+	int angle_z; //0x014
+	int steer_angle; //0x018
 	// ...
 	int is_crashed;
 	tnfs_vec9 matrix;
-	int road_segment_a; //00000048
-	int road_segment_b; //0000004C
-	int lap_number; //00000050
-	int speed_x; //00000054
-	int speed_y; //00000058
-	int speed_z; //0000005C
-	int speed_local_lat; //00000060
-	int speed_local_vert; //00000064
-	int speed_local_lon; //00000068
-	int speed_drivetrain; //0000006C
-	int speed; //00000070
-	int angular_speed; //00000074
-	int car_length; //00000078
-	int car_width; //0000007C
+	int road_segment_a; //0x048
+	int road_segment_b; //0x04C
+	int lap_number; //0x050
+	int speed_x; //0x054
+	int speed_y; //0x058
+	int speed_z; //0x05C
+	int speed_local_lat; //0x060
+	int speed_local_vert; //0x064
+	int speed_local_lon; //0x068
+	int speed_drivetrain; //0x06C
+	int speed; //0x070
+	int angular_speed; //0x074
+	int car_length; //0x078
+	int car_width; //0x07C
 	// ...
-	struct tnfs_car_data * car_data_ptr; //00000088
+	struct tnfs_car_data * car_data_ptr; //0x088
 	tnfs_vec3 road_fence_normal;
 	tnfs_vec3 road_surface_normal;
 	tnfs_vec3 road_heading;
@@ -103,77 +126,77 @@ typedef struct tnfs_car_data {
 	int angle_dx;
 	// ...
 	tnfs_vec3 world_position;
-	int body_roll; //00000365
-	int body_pitch; //00000369
+	int body_roll; //0x365
+	int body_pitch; //0x369
 	tnfs_vec3 road_ground_position;
 	tnfs_vec3 front_edge;
 	tnfs_vec3 side_edge;
 	// ...
-	int throttle; //000003B1
-	int throttle_previous_pos; //000003B5
-	int brake; //000003B9
-	int is_shifting_gears; //000003BD
-	short rpm_engine; //000003C1
-	short rpm_vehicle; //000003C2
-	short rpm_redline; //000003C2
-	int road_grip_increment; //000003C9
-	int tire_grip_rear; //000003CD
-	int tire_grip_front; //000003D1
+	int throttle; //0x3B1
+	int throttle_previous_pos; //0x3B5
+	int brake; //0x3B9
+	int is_shifting_gears; //0x3BD
+	short rpm_engine; //0x3C1
+	short rpm_vehicle; //0x3C2
+	short rpm_redline; //0x3C2
+	int road_grip_increment; //0x3C9
+	int tire_grip_rear; //0x3CD
+	int tire_grip_front; //0x3D1
 	// ...
-	int slope_force_lat; //000003D9
-	int unknown_flag_3DD; //000003DD
+	int slope_force_lat; //0x3D9
+	int unknown_flag_3DD; //0x3DD
 	// ...
-	int slope_force_lon; //000003E1
-	int thrust; //000003E5
-	int gear_auto_selected; //000003E9
-	int gear_selected; //000003ED
-	int is_gear_engaged; //000003F1
-	int handbrake; //000003F5
-	int is_engine_cutoff; //000003F9
+	int slope_force_lon; //0x3E1
+	int thrust; //0x3E5
+	int gear_auto_selected; //0x3E9
+	int gear_selected; //0x3ED
+	int is_gear_engaged; //0x3F1
+	int handbrake; //0x3F5
+	int is_engine_cutoff; //0x3F9
 	char wheels_on_ground;
-	int time_off_ground; //00000401
-	int slide_front; //00000405
-	int slide_rear; //00000409
-	int slide; //0000040D
-	int susp_incl_lat; //00000411
-	int susp_incl_lon; //00000415
-	int gear_shift_current; //00000419
-	int gear_shift_previous; //0000041D
-	int gear_shift_interval; //00000421
-	char tire_skid_front; //00000425
-	char tire_skid_rear; //00000426
+	int time_off_ground; //0x401
+	int slide_front; //0x405
+	int slide_rear; //0x409
+	int slide; //0x40D
+	int susp_incl_lat; //0x411
+	int susp_incl_lon; //0x415
+	int gear_shift_current; //0x419
+	int gear_shift_previous; //0x41D
+	int gear_shift_interval; //0x421
+	char tire_skid_front; //0x425
+	char tire_skid_rear; //0x426
 	// ...
 	char collision_a; //collision flags added in PSX version
 	char collision_b;
 	int collision_x;
 	int collision_y;
 	// ...
-	int weight_distribution; //00000435
+	int weight_distribution; //0x435
 	// ...
-	int weight_transfer_factor; //00000445
-	int rear_friction_factor; //00000449
-	int front_friction_factor; //0000044D
-	int wheel_base; //00000451
-	int wheel_track; //00000455
-	int front_yaw_factor; //00000459
-	int rear_yaw_factor; //0000045D
+	int weight_transfer_factor; //0x445
+	int rear_friction_factor; //0x449
+	int front_friction_factor; //0x44D
+	int wheel_base; //0x451
+	int wheel_track; //0x455
+	int front_yaw_factor; //0x459
+	int rear_yaw_factor; //0x45D
 	// ...
-	struct tnfs_car_specs *car_specs_ptr; //00000471
-	int unknown_flag_475; //00000475
-	int unknown_flag_479; //00000479
-	int unknown_flag_480; //00000480
+	struct tnfs_car_specs *car_specs_ptr; //0x471
+	int unknown_flag_475; //0x475
+	int unknown_flag_479; //0x479
+	int unknown_flag_480; //0x480
 	// ...
-	int tcs_enabled; //00000491
-	int abs_enabled; //00000495
+	int tcs_enabled; //0x491
+	int abs_enabled; //0x495
 	// ...
-	int surface_type_a; //0000049D
-	int surface_type_b; //000004A1
+	int surface_type_a; //0x49D
+	int surface_type_b; //0x4A1
 	//..
-	int tcs_on; //000004AD
-	int abs_on; //000004B1
+	int tcs_on; //0x4AD
+	int abs_on; //0x4B1
 	// ...
-	int scale_a; //000004D5
-	int scale_b; //000004D9
+	int scale_a; //0x4D5
+	int scale_b; //0x4D9
 	//..
 	int is_wrecked;
 	int field444_0x520;

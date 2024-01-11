@@ -22,7 +22,7 @@ int math_div(int x, int y) {
 }
 
 /*
- * trigonometric functions, 2 byte precision  (360 = 0xFFFF)
+ * trigonometric functions, 2 byte angle  (360 = 0xFFFF)
  */
 int math_sin_2(int input) {
 	double a = (double) input / 10430;
@@ -40,7 +40,7 @@ int math_tan_2(int input) {
 }
 
 /*
- * trigonometric functions, 3 byte precision (360 = 0xFFFFFF)
+ * trigonometric functions, 3 byte angle (360 = 0xFFFFFF)
  */
 int math_sin_3(int input) {
 	double a = (double) input / 2670178;
@@ -181,7 +181,7 @@ void matrix_create_from_pitch_yaw_roll(tnfs_vec9 *result, int pitch, int yaw, in
 }
 
 /*
- * inverse value f(x) = 1/v
+ * inverse value f(x) = 1/x
  * 0x2260 => 0x77280
  * 0x15266 => 0xc1aa
  * 0x3a97a => 0x45e8

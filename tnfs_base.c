@@ -9,7 +9,7 @@
 tnfs_car_specs car_specs;
 tnfs_car_data car_data;
 struct tnfs_track_data track_data[2400];
-int road_surface_type_array[10];
+int road_surface_type_array[12] = { 0x100, 0x100, 0x3333, 0, 0x100, 0x1400, 0x3333, 1, 0x100, 0x1400, 0x3333, 1 };
 
 // settings/flags
 char is_drifting;
@@ -42,13 +42,17 @@ void auto_generate_track() {
 	int pos_z = 0;
 	int slope = 0;
 	int slant = 0;
+	int rnd = 0;
 
 	road_segment_count = 2400;
 
 	for (int i = 0; i < 2400; i++) {
 
-		if (i & 128) {
-			if (i & 64) {
+		if (i % 50 == 0)
+			rnd = rand();
+
+		if (rnd & 128) {
+			if (rnd & 64) {
 				slope -= 10;
 			} else {
 				slope += 10;
@@ -56,8 +60,8 @@ void auto_generate_track() {
 		} else {
 			slope >>= 1;
 		}
-		if (i & 32) {
-			if (i & 16) {
+		if (rnd & 32) {
+			if (rnd & 16) {
 				slant -= 10;
 			} else {
 				slant += 10;
@@ -200,14 +204,10 @@ void tnfs_init_track(char * tri_file) {
 void tnfs_reset_car() {
 	int i;
 	int iVar2;
-	int iVar5;
 
 	cheat_mode = 0;
 	sound_flag = 0;
 
-	for (i = 0; i < 10; ++i) {
-		road_surface_type_array[i] = 0x100;
-	}
 	for (i = 0; i < 120; ++i) {
 		car_specs.torque_table[i] = 0;
 	}
@@ -230,7 +230,7 @@ void tnfs_reset_car() {
 	//  ...
 	car_specs.drag = 0x8000; //0.5
 	car_specs.top_speed = 0x47cccc; //71m/s
-	car_specs.efficiency = 0xB333; //0.70
+	//  ...
 	car_specs.wheelbase = 0x270A3; //2.44m
 	car_specs.burnOutDiv = 0x68EB; //0.4
 	car_specs.wheeltrack = 0x18000; //1.50m
@@ -252,9 +252,7 @@ void tnfs_reset_car() {
 	car_specs.rear_roll_stiffness = 0x2710000; //10000
 	car_specs.roll_axis_height = 0x476C; //0.279
 	// ...
-	car_specs.weight_transfer_factor = 0x2e15;
 	car_specs.cutoff_slip_angle = 0x1fe667; //~45deg
-	car_specs.normal_coefficient_loss = 0x2d; //.0007
 	// ...
 	car_specs.rpm_redline = 6000;
 	car_specs.rpm_idle = 500;
@@ -281,12 +279,13 @@ void tnfs_reset_car() {
 	car_specs.inertia_factor = 0x8000; //0.5
 	car_specs.body_roll_factor = 0x2666; //0.15
 	car_specs.body_pitch_factor = 0x2666; //0.15
-	car_specs.front_friction_factor = 0x2b331; //1.05
-	car_specs.rear_friction_factor = 0x2f332; //1.18
+	car_specs.front_friction_factor = 0x2b331;
+	car_specs.rear_friction_factor = 0x2f332;
 	car_specs.body_length = 0x47333; //4.45m
 	car_specs.body_width = 0x1eb85; //1.92m
 	//  ...
 	car_specs.lateral_accel_cutoff = 0x158000;
+	//  ...
 	car_specs.final_drive_torque_ratio = 0x280;
 	car_specs.thrust_to_acc_factor = 0x66;
 	//  ...
@@ -309,19 +308,18 @@ void tnfs_reset_car() {
 
 	// calculated specs
 	car_specs.drag = fixmul(car_specs.drag, car_specs.unknown_const);
-	car_data.weight_distribution = fixmul(car_specs.mass_front, car_specs.unknown_const);
+	car_data.weight_distribution_front = fixmul(car_specs.mass_front, car_specs.unknown_const);
+	car_data.weight_distribution_rear = fixmul(car_specs.mass_rear, car_specs.unknown_const);
 	car_data.weight_transfer_factor = fixmul(car_specs.centre_of_gravity_height, car_specs.burnOutDiv);
 
 	iVar2 = fixmul(fixmul(car_specs.wheelbase, car_specs.wheelbase), 0x324); // => 0x12B2
-	iVar5 = fixmul(iVar2, car_specs.inertia_factor); //=> 0x959
 
 	car_data.wheel_base = math_div(iVar2, car_specs.wheelbase);
-	car_data.wheel_track = math_div(iVar5, car_specs.wheelbase);
-	car_data.front_yaw_factor = math_div(fixmul(car_specs.wheelbase, car_data.weight_distribution), iVar2);
-	car_data.rear_yaw_factor = math_div(fixmul(car_specs.wheelbase, car_data.weight_distribution), iVar2);
+	car_data.front_yaw_factor = math_div(fixmul(car_specs.wheelbase, car_data.weight_distribution_front), iVar2);
+	car_data.rear_yaw_factor = math_div(fixmul(car_specs.wheelbase, car_data.weight_distribution_rear), iVar2);
 
-	car_data.front_friction_factor = fixmul(0x9cf5c, fixmul(car_specs.front_friction_factor, car_data.weight_distribution));
-	car_data.rear_friction_factor = fixmul(0x9cf5c, fixmul(car_specs.rear_friction_factor, car_data.weight_distribution));
+	car_data.front_friction_factor = fixmul(0x9cf5c, fixmul(car_specs.front_friction_factor, car_data.weight_distribution_rear));
+	car_data.rear_friction_factor = fixmul(0x9cf5c, fixmul(car_specs.rear_friction_factor, car_data.weight_distribution_front));
 
 	car_data.tire_grip_front = car_data.front_friction_factor;
 	car_data.tire_grip_rear = car_data.rear_friction_factor;

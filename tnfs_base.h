@@ -40,7 +40,7 @@ typedef struct tnfs_car_specs {
 	//  ...
 	int drag; //0x034
 	int top_speed; //0x038
-	int efficiency; //0x03C
+	//  ...
 	int wheelbase; //0x040
 	int burnOutDiv; //0x044
 	int wheeltrack; //0x048
@@ -56,9 +56,8 @@ typedef struct tnfs_car_specs {
 	int rear_roll_stiffness;
 	int roll_axis_height;
 	// ...
-	int weight_transfer_factor; //0x0a0
 	int cutoff_slip_angle; //0x0a4
-	int normal_coefficient_loss; //0x0a8
+	// ...
 	int rpm_redline; //0x0ac
 	int rpm_idle; //0x0b0
 	unsigned int torque_table[120]; //0x0b4
@@ -171,13 +170,14 @@ typedef struct tnfs_car_data {
 	int collision_x;
 	int collision_y;
 	// ...
-	int weight_distribution; //0x435
+	int weight_distribution_front; //0x435
+	int weight_distribution_rear; //0x439
 	// ...
 	int weight_transfer_factor; //0x445
 	int rear_friction_factor; //0x449
 	int front_friction_factor; //0x44D
 	int wheel_base; //0x451
-	int wheel_track; //0x455
+	// ...
 	int front_yaw_factor; //0x459
 	int rear_yaw_factor; //0x45D
 	// ...
@@ -195,8 +195,8 @@ typedef struct tnfs_car_data {
 	int tcs_on; //0x4AD
 	int abs_on; //0x4B1
 	// ...
-	int scale_a; //0x4D5
-	int scale_b; //0x4D9
+	int delta_time; //0x4D5
+	int fps; //0x4D9
 	//..
 	int is_wrecked;
 	int field444_0x520;
@@ -229,7 +229,7 @@ typedef struct tnfs_track_data {
 extern struct tnfs_car_specs car_specs;
 extern struct tnfs_car_data car_data;
 extern struct tnfs_track_data track_data[2400];
-extern int road_surface_type_array[10];
+extern int road_surface_type_array[12];
 
 extern char is_drifting;
 extern int g_game_time;

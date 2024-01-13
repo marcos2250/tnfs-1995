@@ -142,7 +142,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	rebound_speed_x = 0;
 	if (distance < roadLeftMargin * -0x2000) {
 		// left road side
-		car_data->surface_type_a = roadConstantB >> 4;
+		car_data->surface_type = roadConstantB >> 4;
 		aux = tnfs_collision_car_size(car_data, fence_angle);
 		aux = roadLeftFence * -0x2000 + aux;
 		if (distance < aux) {
@@ -153,7 +153,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 
 	} else if (distance > roadRightMargin * 0x2000) {
 		// right road side
-		car_data->surface_type_a = roadConstantB & 0xf;
+		car_data->surface_type = roadConstantB & 0xf;
 		aux = tnfs_collision_car_size(car_data, fence_angle);
 		aux = roadRightFence * 0x2000 - aux;
 		if (distance > aux) {
@@ -162,7 +162,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 			road_flag = roadConstantA & 0xf;
 		}
 	} else {
-		car_data->surface_type_a = 0;
+		car_data->surface_type = 0;
 	}
 	if (fenceSide == 0) {
 		return;

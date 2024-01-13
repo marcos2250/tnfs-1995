@@ -41,30 +41,37 @@ void tnfs_debug_000343C2(int a, int b) {
 	//TODO
 }
 
-int tnfs_drag_force(tnfs_car_data *a1, signed int speed) {
+int tnfs_drag_force(tnfs_car_data *car, signed int speed, char longitudinal) {
 	int max;
 	int incl_angle;
 	int drag;
 	int sq_speed;
 
-	if (road_surface_type_array[a1->surface_type_a * 4 + 3])
-		a1->surface_type_b = 4;
+	if (road_surface_type_array[car->surface_type].is_not_asphalt)
+		car->surface_type_b = 4;
 	else
-		a1->surface_type_b = 0;
+		car->surface_type_b = 0;
 
 	sq_speed = speed >> 16;
 	sq_speed *= sq_speed;
 
-	drag = fix8(road_surface_type_array[a1->surface_type_a * 4 + 1] * a1->car_specs_ptr->drag) * sq_speed;
+	drag = fix8(road_surface_type_array[car->surface_type].drag_factor * car->car_specs_ptr->drag) * sq_speed;
 
-	incl_angle = a1->angle_z;
+	//only PSX
+	//if (longitudinal) {
+	//	drag += (car->drag_const_0x4ac + car->drag_const_0x4ae) * sq_speed;
+	//}
+
+	drag += road_surface_type_array[car->surface_type].add_drag;
+
+	incl_angle = car->angle_z;
 	if (incl_angle > 0x800000)
 		incl_angle -= 0x1000000;
 
 	if (selected_track > 2 && abs(incl_angle) > 0x9FFFF)
 		drag = fix3(drag);
 
-	max = abs(speed * a1->fps);
+	max = abs(speed * car->fps);
 	if (drag > max)
 		drag = max;
 
@@ -151,7 +158,7 @@ void tnfs_road_surface_modifier(tnfs_car_data *car_data) {
  read grip table for a given slip angle
  original array from car_specs offset 884, table size 2 x 512 bytes
  */
-int tnfs_tire_slide_table(tnfs_car_data *a1, unsigned int slip_angle, int is_rear_wheels) {
+int tnfs_tire_slide_table(tnfs_car_data *car, unsigned int slip_angle, int is_rear_wheels) {
 	signed int angle;
 
 	angle = slip_angle;
@@ -161,7 +168,7 @@ int tnfs_tire_slide_table(tnfs_car_data *a1, unsigned int slip_angle, int is_rea
 	//original
 	//return *(a1->car_specs_ptr + (is_rear_wheels << 9) + (angle >> 12) + 884) << 9;
 	//smaller array
-	return a1->car_specs_ptr->grip_table[(is_rear_wheels << 5) + (angle >> 16)] << 9;
+	return car->car_specs_ptr->grip_table[(is_rear_wheels << 5) + (angle >> 16)] << 9;
 }
 
 void tnfs_tire_limit_max_grip(tnfs_car_data *car_data, //
@@ -590,8 +597,8 @@ void tnfs_physics_update(tnfs_car_data *a1) {
 	}
 
 	// aero/drag forces
-	drag_lat = tnfs_drag_force(car_data, car_data->speed_local_lat);
-	drag_lon = tnfs_drag_force(car_data, car_data->speed_local_lon);
+	drag_lat = tnfs_drag_force(car_data, car_data->speed_local_lat, 0);
+	drag_lon = tnfs_drag_force(car_data, car_data->speed_local_lon, 1);
 
 	if (car_data->speed_local_lon > car_specs->top_speed && selected_track != 6) {
 		if (drag_lon > 0 && drag_lon < thrust_force) {
@@ -692,9 +699,9 @@ void tnfs_physics_update(tnfs_car_data *a1) {
 	// calculate grip forces
 	tr_weight = fixmul(force_Lon, car_data->weight_transfer_factor);
 
-	car_data->tire_grip_front = fix8((car_data->front_friction_factor - tr_weight) * road_surface_type_array[4 * car_data->surface_type_a]);
+	car_data->tire_grip_front = fix8((car_data->front_friction_factor - tr_weight) * road_surface_type_array[car_data->surface_type].friction_factor);
 
-	car_data->tire_grip_rear = fix8((tr_weight + car_data->rear_friction_factor) * road_surface_type_array[4 * car_data->surface_type_a]);
+	car_data->tire_grip_rear = fix8((tr_weight + car_data->rear_friction_factor) * road_surface_type_array[car_data->surface_type].friction_factor);
 
 	tnfs_road_surface_modifier(car_data);
 
@@ -1098,6 +1105,7 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
 
 /*
  * Main simulation loop
+ * Offsets: PSX 8002df18, 3DO 0xf8d8, PC DOS DEMO 0x3b4f6
  */
 void tnfs_driving_main() {
 	tnfs_physics_update(&car_data);

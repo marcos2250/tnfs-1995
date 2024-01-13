@@ -9,7 +9,7 @@
 tnfs_car_specs car_specs;
 tnfs_car_data car_data;
 struct tnfs_track_data track_data[2400];
-int road_surface_type_array[12] = { 0x100, 0x100, 0x3333, 0, 0x100, 0x1400, 0x3333, 1, 0x100, 0x1400, 0x3333, 1 };
+struct tnfs_surface_type road_surface_type_array[3] = { { 0x100, 0x100, 0x3333, 0 }, { 0x100, 0x1400, 0x3333, 1}, { 0x100, 0x1400, 0x3333, 1} };
 
 // settings/flags
 char is_drifting;
@@ -215,6 +215,8 @@ void tnfs_reset_car() {
 		car_specs.grip_table[i] = 0;
 	}
 
+	//tnfs_surface_type_array = { { 0x100, 0x100, 0x3333, 0 }, { 0x100, 0x1400, 0x3333, 1}, { 0x100, 0x1400, 0x3333, 1} };
+
 	//***** begin of car specs (PBS file)
 	car_specs.mass_front = 0x3148000; //788kg
 	car_specs.mass_rear = 0x3148000; //788kg
@@ -303,8 +305,8 @@ void tnfs_reset_car() {
 
 
 	// begin of car data
-	car_data.car_length = 0x485fc; //4.45m
-	car_data.car_width = 0x1ec8a; //1.92m
+	car_data.car_length = car_specs.body_length;
+	car_data.car_width = car_specs.body_width;
 
 	// calculated specs
 	car_specs.drag = fixmul(car_specs.drag, car_specs.unknown_const);
@@ -327,9 +329,9 @@ void tnfs_reset_car() {
 	car_data.collision_height_offset = 0x92f1;
 	car_data.collision_data.linear_acc_factor = 0xf646;
 	car_data.collision_data.angular_acc_factor = 0x7dd4;
-	car_data.collision_data.size.x = 0Xf645;
+	car_data.collision_data.size.x = car_specs.body_width / 2;
 	car_data.collision_data.size.y = 0x92f1;
-	car_data.collision_data.size.z = 0x242fe;
+	car_data.collision_data.size.z = car_specs.body_length / 2;
 
 	car_data.car_data_ptr = &car_data;
 	car_data.car_specs_ptr = &car_specs;
@@ -352,7 +354,7 @@ void tnfs_reset_car() {
 	car_data.is_wrecked = 0;
 	car_data.time_off_ground = 0;
 	car_data.wheels_on_ground = 1;
-	car_data.surface_type_a = 0;
+	car_data.surface_type = 0;
 	car_data.surface_type_b = 0;
 	//car_data.road_segment_a = 0;
 	//car_data.road_segment_b = 0;

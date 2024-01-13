@@ -189,7 +189,7 @@ typedef struct tnfs_car_data {
 	int tcs_enabled; //0x491
 	int abs_enabled; //0x495
 	// ...
-	int surface_type_a; //0x49D
+	int surface_type; //0x49D
 	int surface_type_b; //0x4A1
 	//..
 	int tcs_on; //0x4AD
@@ -225,11 +225,18 @@ typedef struct tnfs_track_data {
 	vector3f vf_fence_R;
 } tnfs_track_data;
 
+typedef struct tnfs_surface_type {
+	int friction_factor;
+	int drag_factor;
+	int add_drag;
+	int is_not_asphalt;
+};
+
 // global variables
 extern struct tnfs_car_specs car_specs;
 extern struct tnfs_car_data car_data;
 extern struct tnfs_track_data track_data[2400];
-extern int road_surface_type_array[12];
+extern struct tnfs_surface_type road_surface_type_array[3];
 
 extern char is_drifting;
 extern int g_game_time;

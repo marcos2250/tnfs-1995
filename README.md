@@ -36,4 +36,5 @@ Use the keys to drive:
 
 ## Resources
 * https://ghidra-sre.org/
+* https://github.com/grumpycoders/pcsx-redux
 * https://github.com/AndyGura/nfs-resources-converter

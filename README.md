@@ -8,7 +8,7 @@ This project aims to reconstitute accurately as possible the physics formulas us
 * 2D car driving simulation, with a 2-wheel tire grip model;
 * 3D box rigid body collision physics;
 * Engine, clutch and transmission simulation;
-* Now supports loading TNFS "TRI" track files, or it will auto generate a random track, if not supplied;
+* Now supports loading TNFSSE "TRI" track files, or it will auto generate a random track, if not supplied;
 * Fixed point math for vectors and matrices;
 * No assets required;
 * Basic wireframe 3D graphics; 
@@ -33,3 +33,7 @@ Use the keys to drive:
 * F3 - Change traction (RWD/AWD/FWD)
 * F4 - Change Auto/Manual transmission mode
 * F5 - Enable crash car easter egg
+
+## Resources
+* https://ghidra-sre.org/
+* https://github.com/AndyGura/nfs-resources-converter

@@ -143,8 +143,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	if (distance < roadLeftMargin * -0x2000) {
 		// left road side
 		car_data->surface_type = roadConstantB >> 4;
-		aux = tnfs_collision_car_size(car_data, fence_angle);
-		aux = roadLeftFence * -0x2000 + aux;
+		aux = roadLeftFence * -0x2000 + tnfs_collision_car_size(car_data, fence_angle);
 		if (distance < aux) {
 			fenceSide = -0x100;
 			rebound_speed_x = aux - distance - 0x4ccc;
@@ -154,8 +153,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	} else if (distance > roadRightMargin * 0x2000) {
 		// right road side
 		car_data->surface_type = roadConstantB & 0xf;
-		aux = tnfs_collision_car_size(car_data, fence_angle);
-		aux = roadRightFence * 0x2000 - aux;
+		aux = roadRightFence * 0x2000 - tnfs_collision_car_size(car_data, fence_angle);
 		if (distance > aux) {
 			fenceSide = 0x100;
 			rebound_speed_x = distance + 0x4ccc - aux;
@@ -168,16 +166,12 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 		return;
 	}
 
-	// impact bounce off
-	rebound_speed_x = fixmul(fenceSide, abs(rebound_speed_x));
-	rebound_speed_z = 0;
-
 	// reposition the car back off the fence
-	math_rotate_2d(rebound_speed_x, 0, fence_angle, &rebound_x, &rebound_z);
+	math_rotate_2d(fix8(fenceSide *  abs(rebound_speed_x)), 0, fence_angle, &rebound_x, &rebound_z);
 	car_data->position.x = car_data->position.x - rebound_x;
 	car_data->position.z = car_data->position.z + rebound_z;
 
-	// change speed direction
+	// rotate speed vector to fence reference
 	math_rotate_2d(-car_data->speed_x, car_data->speed_z, fence_angle, &rebound_speed_x, &rebound_speed_z);
 
 	abs_speed = abs(rebound_speed_x);
@@ -209,7 +203,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 		}
 	}
 
-	// limit collision speed
+	// dampen collision rebound speed
 	if (abs_speed > 0x180000) {
 		if (rebound_speed_x > +0x20000)
 			rebound_speed_x = +0x20000;
@@ -271,6 +265,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 		local_angle = 0x18000;
 	}
 	tnfs_collision_rotate(car_data, fence_angle, abs_speed, fenceSide, road_flag, local_angle);
+
 	if (car_data->speed_y > 0) {
 		car_data->speed_y = 0;
 	}

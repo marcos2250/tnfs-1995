@@ -123,34 +123,40 @@ void drawVehicle() {
 	glBegin(GL_QUADS);
 
 	// front bumper
-	glVertex3f(-1, 0, 2.2f);
-	glVertex3f(1, 0, 2.2f);
-	glVertex3f(1, 0.5f, 2.2f);
-	glVertex3f(-1, 0.5f, 2.2f);
+	glVertex3f(-1, 0, 2.1f);
+	glVertex3f(1, 0, 2.1f);
+	glVertex3f(1, 0.8f, 2.0f);
+	glVertex3f(-1, 0.8f, 2.0f);
 
 	// hood
-	glVertex3f(-1, 0.5f, 2.2f);
-	glVertex3f(1, 0.5f, 2.2f);
-	glVertex3f(1, 1.3f, 0);
-	glVertex3f(-1, 1.3f, 0);
+	glVertex3f(-1, 0.8f, 2.0f);
+	glVertex3f(1, 0.8f, 2.0f);
+	glVertex3f(1, 0.9f, 0.5f);
+	glVertex3f(-1, 0.9f, 0.5f);
+
+	// windshield
+	glVertex3f(-1, 0.9f, 0.5f);
+	glVertex3f(1, 0.9f, 0.5f);
+	glVertex3f(1, 1.4f, -0.5f);
+	glVertex3f(-1, 1.4f, -0.5f);
 
 	// roof/trunk
-	glVertex3f(-1, 1.3f, 0);
-	glVertex3f(1, 1.3f, 0);
-	glVertex3f(1, 1.0f, -2.2f);
-	glVertex3f(-1, 1.0f, -2.2f);
+	glVertex3f(-1, 1.4f, -0.5f);
+	glVertex3f(1, 1.4f, -0.5f);
+	glVertex3f(1, 1.0f, -2.3f);
+	glVertex3f(-1, 1.0f, -2.3f);
 
 	// rear bumper
-	glVertex3f(-1, 0, -2.2f);
-	glVertex3f(1, 0, -2.2f);
-	glVertex3f(1, 1.0f, -2.2f);
-	glVertex3f(-1, 1.0f, -2.2f);
+	glVertex3f(-1, 0, -2.3f);
+	glVertex3f(1, 0, -2.3f);
+	glVertex3f(1, 1.0f, -2.3f);
+	glVertex3f(-1, 1.0f, -2.3f);
 
 	// bottom
-	glVertex3f(-1, 0, -2.2f);
-	glVertex3f(1, 0, -2.2f);
-	glVertex3f(1, 0, 2.2f);
-	glVertex3f(-1, 0, 2.2f);
+	glVertex3f(-1, 0, -2.3f);
+	glVertex3f(1, 0, -2.3f);
+	glVertex3f(1, 0, 2.1f);
+	glVertex3f(-1, 0, 2.1f);
 
 	glEnd();
 }
@@ -237,6 +243,8 @@ void renderGl() {
 
 int main(int argc, char **argv) {
 	char quit = 0;
+	char * trifile = 0;
+
 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
 		printf("SDL could not be initialized! SDL_Error: %s\n", SDL_GetError());
 		return 0;
@@ -269,14 +277,12 @@ int main(int argc, char **argv) {
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glColor3f(0.0f, 0.0f, 0.0f);
 
+	// command usage: tnfs [tr1.tri] (read a track file)
 	if (argc > 1) {
-		// command usage: tnfs tr1.tri (read a track file)
-		tnfs_init_track(argv[1]);
-	} else {
-		// if track file not supplied, auto generate a track
-		tnfs_init_track(0);
+		trifile = argv[1];
 	}
-	tnfs_reset_car();
+
+	tnfs_init_sim(trifile);
 
 	while (!quit) {
 		while (SDL_PollEvent(&event)) {

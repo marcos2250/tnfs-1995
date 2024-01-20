@@ -3,13 +3,14 @@
  */
 #include "tnfs_math.h"
 #include "tnfs_base.h"
+#include "tnfs_files.h"
 #include "tnfs_fiziks.h"
 #include "tnfs_collision_3d.h"
 
 tnfs_car_specs car_specs;
 tnfs_car_data car_data;
-struct tnfs_track_data track_data[2400];
-struct tnfs_surface_type road_surface_type_array[3] = { { 0x100, 0x100, 0x3333, 0 }, { 0x100, 0x1400, 0x3333, 1}, { 0x100, 0x1400, 0x3333, 1} };
+tnfs_track_data track_data[2400];
+tnfs_surface_type road_surface_type_array[3] = { { 0x100, 0x100, 0x3333, 0 }, { 0x100, 0x1400, 0x3333, 1}, { 0x100, 0x1400, 0x3333, 1} };
 
 // settings/flags
 char is_drifting;
@@ -24,17 +25,21 @@ int DAT_8010d1c4 = 0;
 int selected_camera = 0;
 tnfs_vec3 camera_position;
 
-/* tire grip slide table - default values for front engine RWD cars - original table has 1024 entries*/
+/* tire grip slide table  */
 static const unsigned char g_slide_table[64] = {
-// front values
+		// front values
 		2, 14, 26, 37, 51, 65, 101, 111, 120, 126, 140, 150, 160, 165, 174, 176, 176, 176, 176, 176, 176, 177, 177, 177, 200, 200, 200, 174, 167, 161, 152, 142,
 		// rear values
-		174, 174, 174, 174, 175, 176, 177, 177, 200, 200, 200, 200, 177, 177, 177, 177, 177, 177, 177, 177, 177, 177, 177, 177, 200, 176, 173, 170, 165, 162, 156, 153 };
+		174, 174, 174, 174, 175, 176, 177, 177, 200, 200, 200, 200, 177, 177, 177, 177, 177, 177, 177, 177, 177, 177, 177, 177, 200, 176, 173, 170, 165, 162, 156, 153
+};
 
 /* engine torque table, for 200 rpm values */
-static const unsigned int g_torque_table[120] = { 1000, 0x1dc4f, 1200, 0x1e837, 1400, 0x20008, 1600, 0x22fa9, 1800, 0x23b92, 2000, 0x2477a, 2200, 0x2771b, 2400, 0x29ad5,
-		2600, 0x2a6bd, 2800, 0x22ba5, 3000, 0x2be8e, 3200, 0x2c0ef, 3400, 0x2ca76, 3600, 0x2d65e, 3800, 0x2ca76, 4000, 0x2b2a5, 4200, 0x2a6bd, 4400, 0x2a6bd, 4600, 0x29ad5,
-		4800, 0x29ad5, 5000, 0x29ad5, 5200, 0x28eec, 5400, 0x28eec, 5600, 0x2771b, 5800, 0x25f4b, 6000, 0x25362, 6200, 0x2477a, 6400, 0x23b92, 6600, 0x22fa9, 6800, 0x223c1 };
+static const unsigned int g_torque_table[120] = {
+		1000, 440, 1200, 450, 1400, 460, 1600, 470, 1800, 480, 2000, 490, 2200, 530, 2400, 560, 2600, 570, 2800, 580,
+		3000, 590, 3200, 592, 3400, 600, 3600, 610, 3800, 600, 4000, 580, 4200, 570, 4400, 570, 4600, 560, 4800, 560,
+		5000, 560, 5200, 550, 5400, 550, 5600, 530, 5800, 510, 6000, 500, 6200, 490, 6400, 480, 6600, 470, 6800, 460
+};
+
 
 void auto_generate_track() {
 	int pos_x = 0;
@@ -48,7 +53,7 @@ void auto_generate_track() {
 
 	for (int i = 0; i < 2400; i++) {
 
-		if (i % 50 == 0)
+		if (i % 30 == 0)
 			rnd = rand();
 
 		if (rnd & 128) {
@@ -58,16 +63,16 @@ void auto_generate_track() {
 				slope += 10;
 			}
 		} else {
-			slope >>= 1;
+			slope *= 0.9;
 		}
 		if (rnd & 32) {
 			if (rnd & 16) {
-				slant -= 10;
+				slant -= 15;
 			} else {
-				slant += 10;
+				slant += 15;
 			}
 		} else {
-			slant >>= 1;
+			slant *= 0.9;
 		}
 
 		if (slope > 0x3FF) slope = 0x3FF;
@@ -77,8 +82,8 @@ void auto_generate_track() {
 
 		track_data[i].roadLeftFence = 0x50;
 		track_data[i].roadRightFence = 0x50;
-		track_data[i].roadLeftMargin = 0x45;
-		track_data[i].roadRightMargin = 0x45;
+		track_data[i].roadLeftMargin = 0x35;
+		track_data[i].roadRightMargin = 0x35;
 
 		track_data[i].slope = slope;
 		track_data[i].heading = -slant << 2;
@@ -94,73 +99,12 @@ void auto_generate_track() {
 	}
 }
 
-int readFixed32(char *buffer, int pos) {
-	return (int)(buffer[pos + 3] & 0xFF) << 24 //
-		| (int)(buffer[pos + 2] & 0xFF) << 16 //
-		| (int)(buffer[pos + 1] & 0xFF) << 8 //
-		| (int)(buffer[pos] & 0xFF);
-}
-
-int readAngle16(char *buffer, int pos) {
-	int a = (int)(buffer[pos + 1] & 0xFF) << 8 | (int)(buffer[pos] & 0xFF);
-	if (a > 8192) {
-		a -= 16384;
-	}
-	return a;
-}
-
-/*
- * Import a TNFS TRI track file
- */
-void read_tri_file(char * file) {
-	const int chunk_size = 2400 * 36;
-	char buffer[chunk_size];
-	FILE *ptr;
-	int i, offset;
-
-	ptr = fopen(file,"rb");
-	if (!ptr) {
-		printf("File not found: %s\n", file);
-		return;
-	}
-
-	fseek(ptr, 2444, SEEK_SET);
-	fread(buffer, chunk_size, 1, ptr);
-
-	road_segment_count = 0;
-	for (i = 0; i < 2400; i++) {
-		offset = i * 36;
-
-		track_data[i].roadLeftMargin = (int)(buffer[offset] & 0xFF);
-		track_data[i].roadRightMargin = (int)(buffer[offset + 1] & 0xFF);
-		track_data[i].roadLeftFence = (int)(buffer[offset + 2] & 0xFF);
-		track_data[i].roadRightFence = (int)(buffer[offset + 3] & 0xFF);
-
-		track_data[i].pos.x = readFixed32(buffer, offset + 8);
-		track_data[i].pos.y = readFixed32(buffer, offset + 12);
-		track_data[i].pos.z = readFixed32(buffer, offset + 16);
-		track_data[i].slope = -readAngle16(buffer, offset + 20);
-		track_data[i].slant = -readAngle16(buffer, offset + 22);
-		track_data[i].heading = readAngle16(buffer, offset + 24);
-
-		if (i > 0 && track_data[i].pos.x == 0 && track_data[i].pos.y == 0 && track_data[i].pos.z == 0) {
-			break;
-		}
-		road_segment_count++;
-	}
-	fclose(ptr);
-	printf("Loaded track %s with %d segments.\n", file, road_segment_count);
-}
-
 void tnfs_init_track(char * tri_file) {
 	int i;
 	int heading, s, c, t, dL, dR;
 
 	// try to read a TRI file if given, if not, generate a random track
-	if (tri_file) {
-		read_tri_file(tri_file);
-	}
-	if (road_segment_count == 0) {
+	if (!read_tri_file(tri_file)) {
 		auto_generate_track();
 	}
 
@@ -201,23 +145,9 @@ void tnfs_init_track(char * tri_file) {
 	}
 }
 
-void tnfs_reset_car() {
+void tnfs_create_car_specs() {
 	int i;
-	int iVar2;
 
-	cheat_mode = 0;
-	sound_flag = 0;
-
-	for (i = 0; i < 120; ++i) {
-		car_specs.torque_table[i] = 0;
-	}
-	for (i = 0; i < 1024; ++i) {
-		car_specs.grip_table[i] = 0;
-	}
-
-	//tnfs_surface_type_array = { { 0x100, 0x100, 0x3333, 0 }, { 0x100, 0x1400, 0x3333, 1}, { 0x100, 0x1400, 0x3333, 1} };
-
-	//***** begin of car specs (PBS file)
 	car_specs.mass_front = 0x3148000; //788kg
 	car_specs.mass_rear = 0x3148000; //788kg
 	car_specs.mass_total = 0x6290000; //1577kg
@@ -232,14 +162,16 @@ void tnfs_reset_car() {
 	//  ...
 	car_specs.drag = 0x8000; //0.5
 	car_specs.top_speed = 0x47cccc; //71m/s
-	//  ...
+	car_specs.efficiency = 0xb333; //0.7
 	car_specs.wheelbase = 0x270A3; //2.44m
 	car_specs.burnOutDiv = 0x68EB; //0.4
 	car_specs.wheeltrack = 0x18000; //1.50m
 	//  ...
 	car_specs.mps_to_rpm_factor = 0x59947a; //conversion=rpm/speed/gear=1200/26.79/0.5= 26.79
 	car_specs.number_of_gears = 8;
-	//  ...
+	car_specs.final_drive = 0x311eb; //3.07
+	car_specs.wheel_roll_radius = 0x47ae; //28cm
+	car_specs.inverse_wheel_radius = 0x3924a; //3.57
 	car_specs.gear_ratio_table[0] = -152698; //-2.33 reverse
 	car_specs.gear_ratio_table[1] = 0x1999; //neutral
 	car_specs.gear_ratio_table[2] = 0x2a8f5; //2.66
@@ -248,19 +180,17 @@ void tnfs_reset_car() {
 	car_specs.gear_ratio_table[5] = 0x10000; //1.00
 	car_specs.gear_ratio_table[6] = 0xcccc;  //0.75
 	car_specs.gear_ratio_table[7] = 0x8000;  //0.50
-	//  ...
 	car_specs.torque_table_entries = 0x33; //60;
 	car_specs.front_roll_stiffness = 0x2710000; //10000
 	car_specs.rear_roll_stiffness = 0x2710000; //10000
 	car_specs.roll_axis_height = 0x476C; //0.279
-	// ...
 	car_specs.cutoff_slip_angle = 0x1fe667; //~45deg
-	// ...
 	car_specs.rpm_redline = 6000;
 	car_specs.rpm_idle = 500;
+
 	// torque table
 	memcpy(car_specs.torque_table, &g_torque_table, sizeof(g_torque_table));
-	//  ...
+
 	car_specs.gear_upshift_rpm[0] = 5900;
 	car_specs.gear_upshift_rpm[1] = 5900;
 	car_specs.gear_upshift_rpm[2] = 5900;
@@ -285,12 +215,9 @@ void tnfs_reset_car() {
 	car_specs.rear_friction_factor = 0x2f332;
 	car_specs.body_length = 0x47333; //4.45m
 	car_specs.body_width = 0x1eb85; //1.92m
-	//  ...
 	car_specs.lateral_accel_cutoff = 0x158000;
-	//  ...
 	car_specs.final_drive_torque_ratio = 0x280;
 	car_specs.thrust_to_acc_factor = 0x66;
-	//  ...
 	car_specs.shift_timer = 3;
 	car_specs.noGasRpmDec = 0x12c; //300
 	car_specs.garRpmInc = 0x258; //600
@@ -299,26 +226,28 @@ void tnfs_reset_car() {
 	car_specs.negTorque = 0xd; //0.0001
 	car_specs.ride_height = 0x1c0cc; //1.05
 	car_specs.centre_y = 0x4c; //76
+
 	// tire grip-slip angle tables
-	memcpy(car_specs.grip_table, &g_slide_table, sizeof(g_slide_table));
-	//***** end of PBS car specs
+	for (i = 0; i < 1024; i++) {
+		car_specs.grip_table[i] = g_slide_table[i >> 4];
+	}
+}
 
+void tnfs_reset_car() {
+	int aux;
 
-	// begin of car data
 	car_data.car_length = car_specs.body_length;
 	car_data.car_width = car_specs.body_width;
 
-	// calculated specs
-	car_specs.drag = fixmul(car_specs.drag, car_specs.unknown_const);
 	car_data.weight_distribution_front = fixmul(car_specs.mass_front, car_specs.unknown_const);
 	car_data.weight_distribution_rear = fixmul(car_specs.mass_rear, car_specs.unknown_const);
 	car_data.weight_transfer_factor = fixmul(car_specs.centre_of_gravity_height, car_specs.burnOutDiv);
 
-	iVar2 = fixmul(fixmul(car_specs.wheelbase, car_specs.wheelbase), 0x324); // => 0x12B2
+	aux = fixmul(fixmul(car_specs.wheelbase, car_specs.wheelbase), 0x324);
 
-	car_data.wheel_base = math_div(iVar2, car_specs.wheelbase);
-	car_data.front_yaw_factor = math_div(fixmul(car_specs.wheelbase, car_data.weight_distribution_front), iVar2);
-	car_data.rear_yaw_factor = math_div(fixmul(car_specs.wheelbase, car_data.weight_distribution_rear), iVar2);
+	car_data.wheel_base = math_div(aux, car_specs.wheelbase);
+	car_data.front_yaw_factor = math_div(fixmul(car_specs.wheelbase, car_data.weight_distribution_front), aux);
+	car_data.rear_yaw_factor = math_div(fixmul(car_specs.wheelbase, car_data.weight_distribution_rear), aux);
 
 	car_data.front_friction_factor = fixmul(0x9cf5c, fixmul(car_specs.front_friction_factor, car_data.weight_distribution_rear));
 	car_data.rear_friction_factor = fixmul(0x9cf5c, fixmul(car_specs.rear_friction_factor, car_data.weight_distribution_front));
@@ -439,6 +368,33 @@ void tnfs_reset_car() {
 	car_data.collision_data.angular_speed.y = 0;
 	car_data.collision_data.angular_speed.z = 0;
 	car_data.collision_data.field6_0x60 = 0;
+}
+
+void tnfs_init_car() {
+	int i;
+
+	// load car specs
+	if (!read_pbs_file("carspecs.pbs")) {
+		tnfs_create_car_specs();
+	}
+
+	// correct drag coefficient
+	car_specs.drag = fixmul(car_specs.drag, car_specs.unknown_const);
+
+	// correct torque values
+	i = 1;
+	do {
+		car_specs.torque_table[i] = //
+				math_mul(math_mul(math_mul(math_mul(
+						car_specs.torque_table[i] << 0x10,
+						car_specs.final_drive),
+						car_specs.efficiency),
+						car_specs.inverse_wheel_radius),
+						car_specs.unknown_const);
+		i += 2;
+	} while (i < car_specs.torque_table_entries);
+
+	tnfs_reset_car();
 }
 
 void tnfs_change_camera() {
@@ -722,6 +678,19 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	car->road_heading.z = heading.z;
 
 	// ...
+}
+
+/*
+ * setup everything
+ */
+void tnfs_init_sim(char * trifile) {
+	cheat_mode = 0;
+	sound_flag = 0;
+
+	tnfs_init_track(trifile);
+	tnfs_init_car();
+
+	tnfs_reset_car();
 }
 
 /*

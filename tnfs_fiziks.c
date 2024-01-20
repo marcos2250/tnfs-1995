@@ -155,20 +155,13 @@ void tnfs_road_surface_modifier(tnfs_car_data *car_data) {
 }
 
 /*
- read grip table for a given slip angle
- original array from car_specs offset 884, table size 2 x 512 bytes
+ * read grip table for a given slip angle, 2 x 512 bytes
  */
-int tnfs_tire_slide_table(tnfs_car_data *car, unsigned int slip_angle, int is_rear_wheels) {
-	signed int angle;
+int tnfs_tire_slide_table(tnfs_car_data *car, int slip_angle, int is_rear_wheels) {
+	if (slip_angle > 0x1ffffe)
+		slip_angle = 0x1ffffe;
 
-	angle = slip_angle;
-	if (slip_angle > 2097150)
-		angle = 2097150;
-
-	//original
-	//return *(a1->car_specs_ptr + (is_rear_wheels << 9) + (angle >> 12) + 884) << 9;
-	//smaller array
-	return car->car_specs_ptr->grip_table[(is_rear_wheels << 5) + (angle >> 16)] << 9;
+	return car->car_specs_ptr->grip_table[(is_rear_wheels * 512) + (slip_angle >> 12)] << 9;
 }
 
 void tnfs_tire_limit_max_grip(tnfs_car_data *car_data, //
@@ -1105,7 +1098,12 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
 
 /*
  * Main simulation loop
- * Offsets: PSX 8002df18, 3DO 0xf8d8, PC DOS DEMO 0x3b4f6
+ * EXE address:
+ * - 3DO 0xf8d8,
+ * - PC DOS DEMO 0x3b4f6
+ * - PC DOS 0x580A5
+ * - PSX 8002df18
+ * - WIN95 TNFSSE 0x4286a0
  */
 void tnfs_driving_main() {
 	tnfs_physics_update(&car_data);

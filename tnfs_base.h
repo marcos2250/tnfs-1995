@@ -4,66 +4,50 @@
 #ifndef TNFS_BASE_H_
 #define TNFS_BASE_H_
 
-typedef struct {
-	tnfs_vec9 matrix; //0
-	tnfs_vec3 position; //24
-	tnfs_vec3 speed; //30
-	tnfs_vec3 field4_0x48;
-	// ...
-	int linear_acc_factor;
-	int angular_acc_factor;
-	// ...
-	int field6_0x60;
-	// ...
-	tnfs_vec3 size; //74
-	int crashed_time; //80
-	// ...
-	tnfs_vec3 angular_speed;
-} tnfs_collision_data;
-
-
 /*
  * Uncompressed PBS car specs file
  */
 typedef struct tnfs_car_specs {
 	int mass_front; //0x000
-	int mass_rear; //0x000
-	int mass_total; //0x000
+	int mass_rear; //0x004
+	int mass_total; //0x008
 	//  ...
 	int unknown_const; //0x014
 	int front_drive_percentage; //0x018
 	int front_brake_percentage; //0x01C
 	//  ...
-	int centre_of_gravity_height;
+	int centre_of_gravity_height; //0x024
 	int max_brake_force_1; //0x028
 	int max_brake_force_2; //0x02C
 	//  ...
 	int drag; //0x034
 	int top_speed; //0x038
-	//  ...
+	int efficiency; //0x03c
 	int wheelbase; //0x040
 	int burnOutDiv; //0x044
 	int wheeltrack; //0x048
 	//  ...
-	int mps_to_rpm_factor; //0x054
-	int number_of_gears;
-	//  ...
-	int gear_ratio_table[8]; //0x070
+	int mps_to_rpm_factor; //0x54
+	int number_of_gears; //0x58
+	int final_drive; //0x05c
+	int wheel_roll_radius; //0x6c;
+	int inverse_wheel_radius; //0x64;
+	int gear_ratio_table[8]; //0x68
 	//  ...
 	int torque_table_entries; //0x088
 	//  ...
-	int front_roll_stiffness;
-	int rear_roll_stiffness;
-	int roll_axis_height;
+	int front_roll_stiffness; //0x8c
+	int rear_roll_stiffness; //0x90
+	int roll_axis_height; //0x94
 	// ...
-	int cutoff_slip_angle; //0x0a4
+	int cutoff_slip_angle; //0xa4
 	// ...
-	int rpm_redline; //0x0ac
-	int rpm_idle; //0x0b0
-	unsigned int torque_table[120]; //0x0b4
+	int rpm_redline; //0xac
+	int rpm_idle; //0xb0
+	unsigned int torque_table[120]; //0xb4
 	//  ...
-	int gear_upshift_rpm[7]; //0x290
-	int gear_efficiency[8]; //0x2B8
+	int gear_upshift_rpm[7]; //0x294
+	int gear_efficiency[8]; //0x2b0
 	int inertia_factor; //0x2D0
 	int body_roll_factor; //0x2D4
 	int body_pitch_factor; //0x2D8
@@ -87,6 +71,23 @@ typedef struct tnfs_car_specs {
 	int centre_y; //0x370
 	unsigned char grip_table[1024]; //0x374
 } tnfs_car_specs;
+
+typedef struct {
+	tnfs_vec9 matrix; //0
+	tnfs_vec3 position; //0x24
+	tnfs_vec3 speed; //0x30
+	tnfs_vec3 angular_speed; //0x3c
+	tnfs_vec3 field4_0x48;
+	// ...
+	int field6_0x60; //0x60
+	// ...
+	int linear_acc_factor; //0x68
+	int angular_acc_factor; //0x6c
+	// ...
+	tnfs_vec3 size; //0x74
+	int crashed_time; //0x80
+	// ...
+} tnfs_collision_data;
 
 typedef struct tnfs_car_data {
 	tnfs_vec3 position; //0x000
@@ -218,7 +219,7 @@ typedef struct tnfs_track_data {
 	int roadLeftFence;
 	int roadRightFence;
 	//...
-	// added
+	// added for renderer
 	vector3f vf_margin_L;
 	vector3f vf_margin_R;
 	vector3f vf_fence_L;
@@ -230,7 +231,7 @@ typedef struct tnfs_surface_type {
 	int drag_factor;
 	int add_drag;
 	int is_not_asphalt;
-};
+} tnfs_surface_type;
 
 // global variables
 extern struct tnfs_car_specs car_specs;
@@ -251,8 +252,8 @@ extern int selected_camera;
 extern tnfs_vec3 camera_position;
 
 // common functions
+void tnfs_init_sim();
 void tnfs_replay_highlight_000502AB(char a);
-void tnfs_init_track();
 void tnfs_reset_car();
 void tnfs_update();
 void tnfs_crash_car();

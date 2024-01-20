@@ -6,7 +6,7 @@ INCL=-I/usr/include/SDL2 -include/usr/include/SDL2/SDL.h
 
 O=build
 
-OBJS=$(O)/tnfs_base.o $(O)/tnfs_engine.o $(O)/tnfs_collision_2d.o $(O)/tnfs_collision_3d.o $(O)/tnfs_fiziks.o $(O)/tnfs_math.o $(O)/tnfs_sdl_main.o
+OBJS=$(O)/tnfs_base.o $(O)/tnfs_files.o $(O)/tnfs_engine.o $(O)/tnfs_collision_2d.o $(O)/tnfs_collision_3d.o $(O)/tnfs_fiziks.o $(O)/tnfs_math.o $(O)/tnfs_sdl_main.o
 
 all:	mkdir $(O)/tnfs 	
 		

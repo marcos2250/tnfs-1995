@@ -83,7 +83,7 @@ int read_pbs_file(char * file) {
 	car_specs.mass_front = readFixed32(buffer, 0);
 	car_specs.mass_rear = readFixed32(buffer, 4);
 	car_specs.mass_total = readFixed32(buffer, 8);
-	car_specs.unknown_const = readFixed32(buffer, 0x14);
+	car_specs.inverse_mass = readFixed32(buffer, 0x14);
 	car_specs.front_drive_percentage = readFixed32(buffer, 0x18);
 	car_specs.front_brake_percentage = readFixed32(buffer, 0x1c);
 	car_specs.centre_of_gravity_height = readFixed32(buffer, 0x24);

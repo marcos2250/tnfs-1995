@@ -19,8 +19,8 @@ char roadConstantA = 0x20;
 char roadConstantB = 0x22;
 int road_segment_count = 0;
 int sound_flag = 0;
-int cheat_mode = 0;
-int DAT_8010d1c4 = 0;
+int cheat_crashing_cars = 0;
+int cheat_code_8010d1c4 = 0;
 
 int selected_camera = 0;
 tnfs_vec3 camera_position;
@@ -151,22 +151,18 @@ void tnfs_create_car_specs() {
 	car_specs.mass_front = 0x3148000; //788kg
 	car_specs.mass_rear = 0x3148000; //788kg
 	car_specs.mass_total = 0x6290000; //1577kg
-	//  ...
-	car_specs.unknown_const = 0x29; //??
+	car_specs.inverse_mass = 0x29; // 1/1577
 	car_specs.front_drive_percentage = 0; //RWD
 	car_specs.front_brake_percentage = 0xc000; //70%
-	//  ...
 	car_specs.centre_of_gravity_height = 0x7581; //0.459
 	car_specs.max_brake_force_1 = 0x133fff;
 	car_specs.max_brake_force_2 = 0x133fff;
-	//  ...
 	car_specs.drag = 0x8000; //0.5
 	car_specs.top_speed = 0x47cccc; //71m/s
 	car_specs.efficiency = 0xb333; //0.7
 	car_specs.wheelbase = 0x270A3; //2.44m
 	car_specs.burnOutDiv = 0x68EB; //0.4
 	car_specs.wheeltrack = 0x18000; //1.50m
-	//  ...
 	car_specs.mps_to_rpm_factor = 0x59947a; //conversion=rpm/speed/gear=1200/26.79/0.5= 26.79
 	car_specs.number_of_gears = 8;
 	car_specs.final_drive = 0x311eb; //3.07
@@ -239,8 +235,8 @@ void tnfs_reset_car() {
 	car_data.car_length = car_specs.body_length;
 	car_data.car_width = car_specs.body_width;
 
-	car_data.weight_distribution_front = fixmul(car_specs.mass_front, car_specs.unknown_const);
-	car_data.weight_distribution_rear = fixmul(car_specs.mass_rear, car_specs.unknown_const);
+	car_data.weight_distribution_front = fixmul(car_specs.mass_front, car_specs.inverse_mass);
+	car_data.weight_distribution_rear = fixmul(car_specs.mass_rear, car_specs.inverse_mass);
 	car_data.weight_transfer_factor = fixmul(car_specs.centre_of_gravity_height, car_specs.burnOutDiv);
 
 	aux = fixmul(fixmul(car_specs.wheelbase, car_specs.wheelbase), 0x324);
@@ -269,7 +265,11 @@ void tnfs_reset_car() {
 	car_data.gear_auto_selected = 2; //0 Manual mode, 1 Reverse, 2 Neutral, 3 Drive
 	car_data.gear_shift_current = -1;
 	car_data.gear_shift_previous = -1;
+	car_data.gear_shift_interval = 16;
+	car_data.tire_skid_front = 0;
+	car_data.tire_skid_rear = 0;
 	car_data.is_gear_engaged = 0;
+	car_data.handbrake = 0;
 	car_data.is_engine_cutoff = 0;
 	car_data.is_shifting_gears = -1;
 	car_data.throttle_previous_pos = 0;
@@ -282,12 +282,15 @@ void tnfs_reset_car() {
 	car_data.is_crashed = 0;
 	car_data.is_wrecked = 0;
 	car_data.time_off_ground = 0;
+	car_data.slide_front = 0;
+	car_data.slide_rear = 0;
 	car_data.wheels_on_ground = 1;
 	car_data.surface_type = 0;
 	car_data.surface_type_b = 0;
 	//car_data.road_segment_a = 0;
 	//car_data.road_segment_b = 0;
 	car_data.slope_force_lat = 0;
+	car_data.unknown_flag_3DD = 0;
 	car_data.slope_force_lon = 0;
 	car_data.position.x = track_data[car_data.road_segment_a].pos.x;
 	car_data.position.y = track_data[car_data.road_segment_a].pos.y + 150;
@@ -295,6 +298,8 @@ void tnfs_reset_car() {
 	car_data.angle_x = track_data[car_data.road_segment_a].slope * 0x400;
 	car_data.angle_y = track_data[car_data.road_segment_a].heading * 0x400;
 	car_data.angle_z = track_data[car_data.road_segment_a].slant * 0x400;
+	car_data.body_pitch = 0;
+	car_data.body_roll = 0;
 	car_data.angle_dx = 0;
 	car_data.angular_speed = 0;
 	car_data.speed_x = 0;
@@ -302,10 +307,14 @@ void tnfs_reset_car() {
 	car_data.speed_z = 0;
 	car_data.speed = 0;
 	car_data.speed_drivetrain = 0;
-	car_data.speed_local_lon = 0;
 	car_data.speed_local_lat = 0;
+	car_data.speed_local_vert = 0;
+	car_data.speed_local_lon = 0;
 	car_data.steer_angle = 0; //int32 -1769472 to +1769472
-	car_data.slide = 0;
+	car_data.tire_grip_loss = 0;
+	car_data.susp_incl_lat = 0;
+	car_data.susp_incl_lon = 0;
+	car_data.road_grip_increment = 0;
 	car_data.lap_number = 1;
 	car_data.field203_0x174 = 0x1e0;
 	car_data.field444_0x520 = 0;
@@ -379,7 +388,7 @@ void tnfs_init_car() {
 	}
 
 	// correct drag coefficient
-	car_specs.drag = fixmul(car_specs.drag, car_specs.unknown_const);
+	car_specs.drag = fixmul(car_specs.drag, car_specs.inverse_mass);
 
 	// correct torque values
 	i = 1;
@@ -390,7 +399,7 @@ void tnfs_init_car() {
 						car_specs.final_drive),
 						car_specs.efficiency),
 						car_specs.inverse_wheel_radius),
-						car_specs.unknown_const);
+						car_specs.inverse_mass);
 		i += 2;
 	} while (i < car_specs.torque_table_entries);
 
@@ -510,11 +519,11 @@ void tnfs_change_traction() {
 }
 
 void tnfs_cheat_mode() {
-	if (cheat_mode == 4) {
-		cheat_mode = 0;
+	if (cheat_crashing_cars == 4) {
+		cheat_crashing_cars = 0;
 		printf("Crashing cars cheat enabled - Press handbrake to crash\n");
 	} else {
-		cheat_mode = 4;
+		cheat_crashing_cars = 4;
 		printf("Crashing cars cheat disabled\n");
 	}
 }
@@ -533,7 +542,7 @@ void tnfs_replay_highlight_000502AB(char a) {
 
 /* common TNFS functions */
 
-void tnfs_car_size_vector(tnfs_car_data *car_data, int *angle, int *length) {
+void tnfs_car_local_position_vector(tnfs_car_data *car_data, int *angle, int *length) {
 	int x;
 	int y;
 	int z;
@@ -684,8 +693,10 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
  * setup everything
  */
 void tnfs_init_sim(char * trifile) {
-	cheat_mode = 0;
+	cheat_crashing_cars = 0;
 	sound_flag = 0;
+	car_data.road_segment_a = 0;
+	car_data.road_segment_b = 0;
 
 	tnfs_init_track(trifile);
 	tnfs_init_car();

@@ -208,7 +208,7 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 	thrust = fix2(thrust * fix6(specs->final_drive_torque_ratio));
 
 	if ((car->throttle > 0xf0) // full throttle
-			&& (abs(thrust) > car->tire_grip_rear - car->slide) // tire grip slipping
+			&& (abs(thrust) > car->tire_grip_rear - car->tire_grip_loss) // tire grip slipping
 			&& (car->rpm_engine < car->car_specs_ptr->gear_upshift_rpm[0] - 500) // before cut off
 			&& (car->car_specs_ptr->front_drive_percentage == 0)) { // RWD car
 

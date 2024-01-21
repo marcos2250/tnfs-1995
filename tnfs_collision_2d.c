@@ -185,7 +185,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 						local_angle = 0xd70000;
 					local_length = 1;
 				} else {
-					tnfs_car_size_vector(car_data, &local_angle, &local_length);
+					tnfs_car_local_position_vector(car_data, &local_angle, &local_length);
 				}
 			}
 		} else {
@@ -213,7 +213,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 		rebound_speed_x = fix2(rebound_speed_x);
 	}
 	if (rebound_speed_z < -0x30000) {
-		if ((DAT_8010d1c4 & 0x20) == 0) {
+		if ((cheat_code_8010d1c4 & 0x20) == 0) {
 			rebound_speed_z = abs_speed + rebound_speed_z;
 			lm_speed = fix2(abs_speed);
 		} else {
@@ -224,7 +224,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 			rebound_speed_z = 0;
 		}
 	} else if (rebound_speed_z > 0x30000) {
-		if ((DAT_8010d1c4 & 0x20) == 0) {
+		if ((cheat_code_8010d1c4 & 0x20) == 0) {
 			lm_speed = fix2(abs_speed);
 			aux = abs_speed;
 		} else {

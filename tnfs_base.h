@@ -12,7 +12,7 @@ typedef struct tnfs_car_specs {
 	int mass_rear; //0x004
 	int mass_total; //0x008
 	//  ...
-	int unknown_const; //0x014
+	int inverse_mass; //0x014
 	int front_drive_percentage; //0x018
 	int front_brake_percentage; //0x01C
 	//  ...
@@ -157,7 +157,7 @@ typedef struct tnfs_car_data {
 	int time_off_ground; //0x401
 	int slide_front; //0x405
 	int slide_rear; //0x409
-	int slide; //0x40D
+	int tire_grip_loss; //0x40D
 	int susp_incl_lat; //0x411
 	int susp_incl_lon; //0x415
 	int gear_shift_current; //0x419
@@ -245,8 +245,8 @@ extern char roadConstantA;
 extern char roadConstantB;
 extern int road_segment_count;
 extern int sound_flag;
-extern int cheat_mode;
-extern int DAT_8010d1c4;
+extern int cheat_crashing_cars;
+extern int cheat_code_8010d1c4;
 
 extern int selected_camera;
 extern tnfs_vec3 camera_position;
@@ -258,7 +258,7 @@ void tnfs_reset_car();
 void tnfs_update();
 void tnfs_crash_car();
 void tnfs_sfx_play(int a, int b, int c, int d, int e, int f);
-void tnfs_car_size_vector(tnfs_car_data * car_data, int * angle, int * length);
+void tnfs_car_local_position_vector(tnfs_car_data * car_data, int * angle, int * length);
 int tnfs_road_segment_find(tnfs_car_data *car_data, int *current);
 int tnfs_road_segment_update(tnfs_car_data *car);
 void tnfs_track_update_vectors(tnfs_car_data *car);

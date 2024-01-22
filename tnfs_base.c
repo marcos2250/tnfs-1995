@@ -1,5 +1,5 @@
 /*
- * globals, structs, and stub TNFS functions
+ * globals, structs, and common TNFS functions
  */
 #include "tnfs_math.h"
 #include "tnfs_base.h"
@@ -67,9 +67,9 @@ void auto_generate_track() {
 		}
 		if (rnd & 32) {
 			if (rnd & 16) {
-				slant -= 15;
+				slant -= 20;
 			} else {
-				slant += 15;
+				slant += 20;
 			}
 		} else {
 			slant *= 0.9;
@@ -387,10 +387,10 @@ void tnfs_init_car() {
 		tnfs_create_car_specs();
 	}
 
-	// correct drag coefficient
+	// drag coefficient to deccel factor
 	car_specs.drag = fixmul(car_specs.drag, car_specs.inverse_mass);
 
-	// correct torque values
+	// net wheel torque values
 	i = 1;
 	do {
 		car_specs.torque_table[i] = //
@@ -693,6 +693,7 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
  * setup everything
  */
 void tnfs_init_sim(char * trifile) {
+	g_game_time = 1000;
 	cheat_crashing_cars = 0;
 	sound_flag = 0;
 	car_data.road_segment_a = 0;
@@ -708,6 +709,8 @@ void tnfs_init_sim(char * trifile) {
  * minimal basic main loop
  */
 void tnfs_update() {
+	g_game_time++;
+
 	// update camera
 	switch (selected_camera) {
 	case 1: //heli cam

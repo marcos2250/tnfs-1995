@@ -31,14 +31,23 @@ int stats_timer_c = 0;
 int stats_init_time = 0;
 int stats_init_road_segment = 0;
 int DAT_800f62c0 = 0;
-int debug_mode_pc_version = 0; //DAT_00146483
+int is_performance_test_off = 0; //DAT_00146483
 
-void tnfs_debug_00034309(int a, int b, int x, int y) {
-	//TODO
+void tnfs_record_best_acceleration(int a, int b, int c, int s) {
+	if (a > 0)
+		printf("Best 0-60 acceleration: %.2f\n", ((float) a) / 30);
+	else if (b > 0)
+		printf("Best 0-80 acceleration: %.2f\n", ((float) b) / 30);
+	else if (c > 0)
+		printf("Best top speed (%d m/s) acceleration: %.2f\n", s >> 16, ((float) c) / 30);
 }
 
-void tnfs_debug_000343C2(int a, int b) {
-	//TODO
+void tnfs_record_best_braking(int a, int b) {
+	if (a > 0)
+		printf("\nBest 60-0 braking: %.2f\n", ((float) a) / 30);
+	else if (b > 0)
+		printf("\nBest 80-0 braking: %.2f\n", ((float) b) / 30);
+
 }
 
 int tnfs_drag_force(tnfs_car_data *car, signed int speed, char longitudinal) {
@@ -97,8 +106,8 @@ void tnfs_tire_forces_locked(int *force_lat, int *force_lon, signed int max_grip
 	signed int force;
 
 	// total force
-	abs_f_lon = abs(*force_lat);
-	abs_f_lat = abs(*force_lon);
+	abs_f_lon = abs(*force_lon);
+	abs_f_lat = abs(*force_lat);
 	if (abs_f_lon <= abs_f_lat)
 		force = (abs_f_lon >> 2) + abs_f_lat;
 	else
@@ -116,26 +125,20 @@ void tnfs_tire_forces_locked(int *force_lat, int *force_lon, signed int max_grip
 }
 
 void tnfs_road_surface_modifier(tnfs_car_data *car_data) {
-	signed int angle;
-	signed int slope_r;
-	signed int slope_1;
-	signed int slope_0;
+	int angle;
+	int slope_r;
+	int slope_1;
+	int slope_0;
 
-	//slope_0 = *(DAT_80012DECC + 36 * (DAT_8001328E4 & car_data->road_segment_a) + 18) >> 16 << 10;
-	slope_0 = track_data[car_data->road_segment_a].slope; // >> 16; //* 0x400;
+	slope_0 = track_data[car_data->road_segment_a].slope * 0x400;
 	if (slope_0 > 0x800000)
 		slope_0 -= 0x1000000;
 
-	//if (DAT_8001328DC) {
-	//	slope_1 = *(DAT_80012DECC + 36 * (DAT_8001328E4 & DAT_8001328E4 & (car_data->road_segment_a + 1)) + 18) >> 16 << 10;
-	//} else {
-	//	slope_1 = *(DAT_80012DECC + 36 * (DAT_8001328E4 & (car_data->road_segment_a + 1)) + 18) >> 16 << 10;
-	//}
-	slope_1 = track_data[car_data->road_segment_a + 1].slope; // >> 16; //* 0x400;
+	slope_1 = track_data[car_data->road_segment_a + 1].slope * 0x400;
 	if (slope_1 > 0x800000)
 		slope_1 -= 0x1000000;
 
-	slope_r = math_mul(math_sin_3(slope_1 - slope_0), car_data->speed_local_lon) * 4;
+	slope_r = math_mul(math_sin_3((slope_1 - slope_0) >> 14), car_data->speed_local_lon) * 4;
 	if (slope_r > 0)
 		slope_r += slope_r >> 1;
 
@@ -152,6 +155,8 @@ void tnfs_road_surface_modifier(tnfs_car_data *car_data) {
 	car_data->tire_grip_rear += car_data->road_grip_increment;
 	if (car_data->tire_grip_rear < 0)
 		car_data->tire_grip_rear = 0;
+
+	// ...
 }
 
 /*
@@ -454,10 +459,9 @@ void tnfs_physics_update(tnfs_car_data *car) {
 	int body_roll_sine;
 	int track_turning;
 
-	// gather basic car data
 	car_data = car;
 
-	//v51 = &DAT_800144728[116 * car->dword475];
+	//local_50 = &g_unknown_array + car_data->car_flag_0x480 * 0x74;
 	stats_data_ptr = &unknown_stats_array[0];
 
 	is_drifting = 0;
@@ -477,7 +481,7 @@ void tnfs_physics_update(tnfs_car_data *car) {
 
 	// custom scales/framerate speeds, not using
 	if (DAT_8010d1cc > 1 && DAT_8010d2f4 != 0) {
-		//frameskip = (*(DAT_800132F84[1 - car->dword475] + 76) - car->road_segment_b) / 2;
+		//frameskip = (&tnfs_car_data_ptr)[1 - car->car_flag_0x480] + 0x4c) - car->road_segment_b) / 2;
 		frameskip = 0;
 		if (frameskip > 0) {
 			if (frameskip > DAT_8010d2f4)
@@ -810,7 +814,7 @@ void tnfs_physics_update(tnfs_car_data *car) {
 	}
 
 	// Performance test - only PC version and Rusty Springs track
-	if (!debug_mode_pc_version && selected_track == 3) {
+	if (!is_performance_test_off && selected_track == 3) {
 		if (car_data->road_segment_a <= 97 || car_data->road_segment_a >= 465) {
 			if (car_data->speed_local_lon < 13107) {
 				stats_init_time = g_game_time;
@@ -823,13 +827,13 @@ void tnfs_physics_update(tnfs_car_data *car) {
 			if (car_data->throttle > 50 && stats_elapsed_acc_time_1 < 1500 && stats_elapsed_acc_time_1 > 100) {
 				if (car_data->speed_local_lon > 1755447 && stats_timer_a > stats_elapsed_acc_time_1) {
 					stats_timer_a = g_game_time - stats_init_time;
-					tnfs_debug_00034309(stats_elapsed_acc_time_1, 0, 0, 0);
+					tnfs_record_best_acceleration(stats_elapsed_acc_time_1, 0, 0, 0);
 					if (stats_data_ptr[102] > stats_elapsed_acc_time_1)
 						stats_data_ptr[102] = stats_elapsed_acc_time_1;
 				}
 				if (car_data->speed_local_lon > 2926182 && stats_timer_b > stats_elapsed_acc_time_1) {
 					stats_timer_b = stats_elapsed_acc_time_1;
-					tnfs_debug_00034309(0, stats_elapsed_acc_time_1, 0, 0);
+					tnfs_record_best_acceleration(0, stats_elapsed_acc_time_1, 0, 0);
 					if (stats_data_ptr[103] > stats_elapsed_acc_time_1)
 						stats_data_ptr[103] = stats_elapsed_acc_time_1;
 				}
@@ -841,7 +845,7 @@ void tnfs_physics_update(tnfs_car_data *car) {
 						stats_data_ptr[107] = stats_elapsed_acc_time_2;
 						stats_data_ptr[106] = car_data->speed_local_lon;
 					}
-					tnfs_debug_00034309(0, 0, stats_elapsed_acc_time_2, car_data->speed_local_lon);
+					tnfs_record_best_acceleration(0, 0, stats_elapsed_acc_time_2, car_data->speed_local_lon);
 					stats_timer_c = stats_elapsed_acc_time_2;
 				}
 			}
@@ -854,7 +858,7 @@ void tnfs_physics_update(tnfs_car_data *car) {
 					stats_elapsed_brake_time_1 = g_game_time - stats_braking_final_time;
 
 					printf("TUNING STATS : 60-0 in seconds %d = feet %d", 100 * (g_game_time - stats_braking_final_time) / 60, stats_elapsed_brake_time_1);
-					tnfs_debug_000343C2(stats_elapsed_brake_time_1, 0);
+					tnfs_record_best_braking(stats_elapsed_brake_time_1, 0);
 					stats_braking_final_time = 0;
 					if (stats_data_ptr[105] > stats_elapsed_brake_time_1)
 						stats_data_ptr[105] = stats_elapsed_brake_time_1;
@@ -863,7 +867,7 @@ void tnfs_physics_update(tnfs_car_data *car) {
 					stats_elapsed_brake_time_2 = g_game_time - stats_braking_init_time;
 
 					printf("TUNING STATS : 80-0 in %d seconds = %d feet", 100 * (g_game_time - stats_braking_init_time) / 60, stats_elapsed_brake_time_2);
-					tnfs_debug_000343C2(0, stats_elapsed_brake_time_2);
+					tnfs_record_best_braking(0, stats_elapsed_brake_time_2);
 					stats_braking_init_time = 0;
 					if (stats_data_ptr[104] > stats_elapsed_brake_time_2)
 						stats_data_ptr[104] = stats_elapsed_brake_time_2;

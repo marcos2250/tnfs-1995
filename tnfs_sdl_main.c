@@ -131,18 +131,18 @@ void drawVehicle() {
 	// hood
 	glVertex3f(-1, 0.8f, 2.0f);
 	glVertex3f(1, 0.8f, 2.0f);
-	glVertex3f(1, 0.9f, 0.5f);
-	glVertex3f(-1, 0.9f, 0.5f);
+	glVertex3f(1, 0.9f, 0.3f);
+	glVertex3f(-1, 0.9f, 0.3f);
 
 	// windshield
-	glVertex3f(-1, 0.9f, 0.5f);
-	glVertex3f(1, 0.9f, 0.5f);
-	glVertex3f(1, 1.4f, -0.5f);
-	glVertex3f(-1, 1.4f, -0.5f);
+	glVertex3f(-1, 0.9f, 0.3f);
+	glVertex3f(1, 0.9f, 0.3f);
+	glVertex3f(1, 1.4f, -0.3f);
+	glVertex3f(-1, 1.4f, -0.3f);
 
 	// roof/trunk
-	glVertex3f(-1, 1.4f, -0.5f);
-	glVertex3f(1, 1.4f, -0.5f);
+	glVertex3f(-1, 1.4f, -0.3f);
+	glVertex3f(1, 1.4f, -0.3f);
 	glVertex3f(1, 1.0f, -2.3f);
 	glVertex3f(-1, 1.0f, -2.3f);
 

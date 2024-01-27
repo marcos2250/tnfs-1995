@@ -227,10 +227,10 @@ typedef struct tnfs_track_data {
 } tnfs_track_data;
 
 typedef struct tnfs_surface_type {
-	int friction_factor;
-	int drag_factor;
-	int add_drag;
-	int is_not_asphalt;
+	int roadFriction;
+	int velocity_drag;
+	int surface_drag;
+	int is_unpaved;
 } tnfs_surface_type;
 
 // global variables

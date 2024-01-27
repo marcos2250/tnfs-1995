@@ -10,7 +10,7 @@
 tnfs_car_specs car_specs;
 tnfs_car_data car_data;
 tnfs_track_data track_data[2400];
-tnfs_surface_type road_surface_type_array[3] = { { 0x100, 0x100, 0x3333, 0 }, { 0x100, 0x1400, 0x3333, 1}, { 0x100, 0x1400, 0x3333, 1} };
+tnfs_surface_type road_surface_type_array[3];
 
 // settings/flags
 char is_drifting;
@@ -107,6 +107,23 @@ void tnfs_init_track(char * tri_file) {
 	if (!read_tri_file(tri_file)) {
 		auto_generate_track();
 	}
+
+	// Road Traction sections (surface constants)
+	// Tarmac
+	road_surface_type_array[0].roadFriction = 0x100;
+	road_surface_type_array[0].velocity_drag = 0x100;
+	road_surface_type_array[0].surface_drag = 0x3333;
+	road_surface_type_array[0].is_unpaved = 0;
+	// Shoulder
+	road_surface_type_array[1].roadFriction = 0x100;
+	road_surface_type_array[1].velocity_drag = 0x1400;
+	road_surface_type_array[1].surface_drag = 0x3333;
+	road_surface_type_array[1].is_unpaved = 1;
+	// Shoulder2
+	road_surface_type_array[2].roadFriction = 0x100;
+	road_surface_type_array[2].velocity_drag = 0x1400;
+	road_surface_type_array[2].surface_drag = 0x3333;
+	road_surface_type_array[2].is_unpaved = 1;
 
 	// model track for rendering
 	for (i = 0; i < road_segment_count; i++) {

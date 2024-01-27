@@ -56,7 +56,7 @@ int tnfs_drag_force(tnfs_car_data *car, signed int speed, char longitudinal) {
 	int drag;
 	int sq_speed;
 
-	if (road_surface_type_array[car->surface_type].is_not_asphalt)
+	if (road_surface_type_array[car->surface_type].is_unpaved)
 		car->surface_type_b = 4;
 	else
 		car->surface_type_b = 0;
@@ -64,14 +64,14 @@ int tnfs_drag_force(tnfs_car_data *car, signed int speed, char longitudinal) {
 	sq_speed = speed >> 16;
 	sq_speed *= sq_speed;
 
-	drag = fix8(road_surface_type_array[car->surface_type].drag_factor * car->car_specs_ptr->drag) * sq_speed;
+	drag = fix8(road_surface_type_array[car->surface_type].velocity_drag * car->car_specs_ptr->drag) * sq_speed;
 
 	//only PSX
 	//if (longitudinal) {
 	//	drag += (car->drag_const_0x4ac + car->drag_const_0x4ae) * sq_speed;
 	//}
 
-	drag += road_surface_type_array[car->surface_type].add_drag;
+	drag += road_surface_type_array[car->surface_type].surface_drag;
 
 	incl_angle = car->angle_z;
 	if (incl_angle > 0x800000)
@@ -697,9 +697,9 @@ void tnfs_physics_update(tnfs_car_data *car) {
 	// calculate grip forces
 	tr_weight = fixmul(force_Lon, car_data->weight_transfer_factor);
 
-	car_data->tire_grip_front = fix8((car_data->front_friction_factor - tr_weight) * road_surface_type_array[car_data->surface_type].friction_factor);
+	car_data->tire_grip_front = fix8((car_data->front_friction_factor - tr_weight) * road_surface_type_array[car_data->surface_type].roadFriction);
 
-	car_data->tire_grip_rear = fix8((tr_weight + car_data->rear_friction_factor) * road_surface_type_array[car_data->surface_type].friction_factor);
+	car_data->tire_grip_rear = fix8((tr_weight + car_data->rear_friction_factor) * road_surface_type_array[car_data->surface_type].roadFriction);
 
 	tnfs_road_surface_modifier(car_data);
 

@@ -189,7 +189,7 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 
 				if (car->speed_local_lon == 0) {
 					thrust = 0;
-				} else if (abs(car->speed_local_lon) * 16 >= abs(thrust)) {
+				} else if (abs(thrust) > abs(car->speed_local_lon) * 16) {
 					thrust = car->speed_local_lon * -16;
 				} else if (car->speed_local_lon < 0) {
 					thrust = -thrust;
@@ -208,17 +208,18 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 	thrust = fix2(thrust * fix6(specs->final_drive_torque_ratio));
 
 	// rally mode
-	if ((cheat_code_8010d1c4 & 0x20 != 0) && (car->throttle > 0xfa)
-			&& (car->gear_selected > 0)
-			&& (car->speed_local_lon < 0x190000)) {
+	if (((cheat_code_8010d1c4 & 0x20) != 0) // rally mode enabled
+			&& (car->throttle > 0xfa) // full throttle
+			&& (car->gear_selected > 0) // forward gear
+			&& (car->speed_local_lon < 0x190000)) { // low speeds
 		thrust = thrust << 1;
 	}
 
 	// tire slip
 	if ((car->throttle > 0xf0) // full throttle
 			&& (abs(thrust) > car->tire_grip_rear - car->tire_grip_loss) // tire grip slipping
-			&& (car->rpm_engine < car->car_specs_ptr->gear_upshift_rpm[0] - 500) // before cut off
-			&& (car->car_specs_ptr->front_drive_percentage == 0)) { // RWD car
+			&& (car->rpm_engine < car->car_specs_ptr->gear_upshift_rpm[0] - 500)) { // before cut off
+			//&& (car->car_specs_ptr->front_drive_percentage == 0)) { // RWD car ??
 
 		// RPM to speed
 		car->speed_drivetrain = 0x100000000 / fixmul(specs->gear_ratio_table[gear], specs->mps_to_rpm_factor) * car->rpm_engine;

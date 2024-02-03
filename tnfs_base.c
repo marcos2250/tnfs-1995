@@ -42,6 +42,8 @@ static const unsigned int g_torque_table[120] = {
 };
 
 
+/* create a random track and a generic car */
+
 void auto_generate_track() {
 	int pos_x = 0;
 	int pos_y = 0;
@@ -293,10 +295,10 @@ void tnfs_reset_car() {
 	car_data.throttle_previous_pos = 0;
 	car_data.throttle = 0;
 	car_data.tcs_on = 0;
-	car_data.tcs_enabled = 0;
+	//car_data.tcs_enabled = 0;
 	car_data.brake = 0;
 	car_data.abs_on = 0;
-	car_data.abs_enabled = 0;
+	//car_data.abs_enabled = 0;
 	car_data.is_crashed = 0;
 	car_data.is_wrecked = 0;
 	car_data.time_off_ground = 0;
@@ -421,8 +423,15 @@ void tnfs_init_car() {
 		i += 2;
 	} while (i < car_specs.torque_table_entries);
 
+	car_data.road_segment_a = 0;
+	car_data.road_segment_b = 0;
+	car_data.tcs_enabled = 0;
+	car_data.abs_enabled = 0;
+
 	tnfs_reset_car();
 }
+
+/* basic game controls */
 
 void tnfs_change_camera() {
 	selected_camera++;
@@ -490,6 +499,8 @@ void tnfs_change_gear_down() {
 			tnfs_change_gear_automatic(-1);
 	}
 }
+
+/* additional features */
 
 void tnfs_abs() {
 	if (car_data.abs_enabled) {
@@ -576,15 +587,18 @@ void tnfs_crash_car() {
 	tnfs_collision_rollover_start(&car_data, 0, 0, -0xa0000);
 }
 
+/* common stub functions */
+
 void tnfs_sfx_play(int a, int b, int c, int d, int e, int f) {
 	printf("sound %i %i\n", b, f);
 }
 
 void tnfs_replay_highlight_000502AB(char a) {
-	printf("replay highlight %i\n", a);
+	if (g_game_time % 30 == 0)
+		printf("replay highlight %i\n", a);
 }
 
-/* common TNFS functions */
+/* common original TNFS functions */
 
 void tnfs_car_local_position_vector(tnfs_car_data *car_data, int *angle, int *length) {
 	int x;
@@ -739,9 +753,8 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 void tnfs_init_sim(char * trifile) {
 	g_game_time = 1000;
 	cheat_crashing_cars = 0;
+	cheat_code_8010d1c4 = 0;
 	sound_flag = 0;
-	car_data.road_segment_a = 0;
-	car_data.road_segment_b = 0;
 
 	tnfs_init_track(trifile);
 	tnfs_init_car();
@@ -778,7 +791,6 @@ void tnfs_update() {
 		// crash mode loop
 		tnfs_collision_main(&car_data);
 	}
-
 
 	// tweak to allow circuit track lap
 	if (car_data.road_segment_a == road_segment_count) {

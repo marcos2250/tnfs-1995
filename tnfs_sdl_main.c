@@ -18,6 +18,25 @@ const int SCREEN_HEIGHT = 600;
 GLfloat matrix[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 
 void handleKeys() {
+	if (event.type == SDL_KEYDOWN) {
+		switch (event.key.keysym.sym) {
+		case SDLK_LEFT:
+			car_data.steer_angle = -0x1B0000;
+			break;
+		case SDLK_RIGHT:
+			car_data.steer_angle = 0x1B0000;
+			break;
+		case SDLK_UP:
+			car_data.throttle = 0xFF;
+			break;
+		case SDLK_DOWN:
+			car_data.brake = 0xFF;
+			break;
+		case SDLK_SPACE:
+			car_data.handbrake = 1;
+			break;
+		}
+	}
 	if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
 		switch (event.key.keysym.sym) {
 		case SDLK_LEFT:
@@ -69,7 +88,7 @@ void handleKeys() {
 			break;
 		}
 	}
-	if (event.type == SDL_KEYUP && event.key.repeat == 0) {
+	if (event.type == SDL_KEYUP) {
 		switch (event.key.keysym.sym) {
 		case SDLK_UP:
 			car_data.throttle = 0;

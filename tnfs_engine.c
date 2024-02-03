@@ -207,6 +207,14 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 	// final ratio
 	thrust = fix2(thrust * fix6(specs->final_drive_torque_ratio));
 
+	// rally mode
+	if ((cheat_code_8010d1c4 & 0x20 != 0) && (car->throttle > 0xfa)
+			&& (car->gear_selected > 0)
+			&& (car->speed_local_lon < 0x190000)) {
+		thrust = thrust << 1;
+	}
+
+	// tire slip
 	if ((car->throttle > 0xf0) // full throttle
 			&& (abs(thrust) > car->tire_grip_rear - car->tire_grip_loss) // tire grip slipping
 			&& (car->rpm_engine < car->car_specs_ptr->gear_upshift_rpm[0] - 500) // before cut off

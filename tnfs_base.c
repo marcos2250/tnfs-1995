@@ -19,6 +19,7 @@ char roadConstantA = 0x20;
 char roadConstantB = 0x22;
 int road_segment_count = 0;
 int sound_flag = 0;
+int g_selected_cheat = 0;
 int cheat_crashing_cars = 0;
 int cheat_code_8010d1c4 = 0;
 
@@ -536,12 +537,38 @@ void tnfs_change_traction() {
 }
 
 void tnfs_cheat_mode() {
-	if (cheat_crashing_cars == 4) {
-		cheat_crashing_cars = 0;
-		printf("Crashing cars cheat enabled - Press handbrake to crash\n");
-	} else {
+	int i;
+
+	g_selected_cheat++;
+	cheat_crashing_cars = 0;
+	cheat_code_8010d1c4 = 0;
+
+	if (g_selected_cheat > 2) {
+		g_selected_cheat = 0;
+		printf("No easter egg active.\n");
+	}
+	if (g_selected_cheat == 1) {
 		cheat_crashing_cars = 4;
-		printf("Crashing cars cheat disabled\n");
+		printf("Cheat mode: Crashing cars - Press handbrake to crash\n");
+	}
+	if (g_selected_cheat == 2) {
+		printf("Cheat mode: Rally Mode\n");
+		cheat_code_8010d1c4 = 0x20;
+
+		for (i = 0; i < 512; i++)
+			car_specs.grip_table[i + 512] = car_specs.grip_table[i];
+
+		car_specs.lateral_accel_cutoff = 0xd2000;
+		car_specs.centre_of_gravity_height = 0x7581 * 3 / 2;
+		car_specs.front_friction_factor = 0x2b331 / 2;
+		car_specs.rear_friction_factor = 0x2f332 / 2;
+
+		for (i = 0; i < 3; i++) {
+			road_surface_type_array[i].roadFriction = 0x180;
+			road_surface_type_array[i].velocity_drag = 0x80;
+			road_surface_type_array[i].surface_drag = 0x1999;
+			road_surface_type_array[i].is_unpaved = 1;
+		}
 	}
 }
 
@@ -550,7 +577,7 @@ void tnfs_crash_car() {
 }
 
 void tnfs_sfx_play(int a, int b, int c, int d, int e, int f) {
-	printf("sound %i\n", f);
+	printf("sound %i %i\n", b, f);
 }
 
 void tnfs_replay_highlight_000502AB(char a) {

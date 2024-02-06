@@ -39,21 +39,6 @@ void handleKeys() {
 	}
 	if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
 		switch (event.key.keysym.sym) {
-		case SDLK_LEFT:
-			car_data.steer_angle = -0x1B0000;
-			break;
-		case SDLK_RIGHT:
-			car_data.steer_angle = 0x1B0000;
-			break;
-		case SDLK_UP:
-			car_data.throttle = 0xFF;
-			break;
-		case SDLK_DOWN:
-			car_data.brake = 0xFF;
-			break;
-		case SDLK_SPACE:
-			car_data.handbrake = 1;
-			break;
 		case SDLK_a:
 			tnfs_change_gear_up();
 			break;

@@ -51,10 +51,11 @@ void auto_generate_track() {
 	int slope = 0;
 	int slant = 0;
 	int rnd = 0;
+	int i;
 
 	road_segment_count = 2400;
 
-	for (int i = 0; i < 2400; i++) {
+	for (i = 0; i < 2400; i++) {
 
 		if (i % 30 == 0)
 			rnd = rand();
@@ -107,7 +108,7 @@ void tnfs_init_track(char * tri_file) {
 	int heading, s, c, t, dL, dR;
 
 	// try to read a TRI file if given, if not, generate a random track
-	if (!read_tri_file(tri_file)) {
+	if (tri_file == 0 || !read_tri_file(tri_file)) {
 		auto_generate_track();
 	}
 
@@ -766,6 +767,7 @@ void tnfs_init_sim(char * trifile) {
  * minimal basic main loop
  */
 void tnfs_update() {
+	int node;
 	g_game_time++;
 
 	// update camera
@@ -797,7 +799,7 @@ void tnfs_update() {
 		car_data.road_segment_a = 0;
 	}
 
-	int node = car_data.road_segment_a;
+	node = car_data.road_segment_a;
 	car_data.road_ground_position.x = track_data[node].pos.x;
 	car_data.road_ground_position.y = track_data[node].pos.y;
 	car_data.road_ground_position.z = track_data[node].pos.z;

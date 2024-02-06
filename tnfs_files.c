@@ -2,6 +2,7 @@
  * tnfs_file.c
  * Readers for TNFS files
  */
+#include <stdio.h>
 #include "tnfs_math.h"
 #include "tnfs_base.h"
 
@@ -24,10 +25,9 @@ int readAngle16(char *buffer, int pos) {
  * Import a TNFSSE TRI track file
  */
 int read_tri_file(char * file) {
-	const int chunk_size = 2400 * 36;
-	char buffer[chunk_size];
+	char buffer[36];
 	FILE *ptr;
-	int i, offset;
+	int i;
 
 	ptr = fopen(file,"rb");
 	if (!ptr) {
@@ -35,24 +35,22 @@ int read_tri_file(char * file) {
 		return 0;
 	}
 
-	fseek(ptr, 2444, SEEK_SET);
-	fread(buffer, chunk_size, 1, ptr);
-
 	road_segment_count = 0;
 	for (i = 0; i < 2400; i++) {
-		offset = i * 36;
+		fseek(ptr, i * 36 + 2444, SEEK_SET);
+		fread(buffer, 36, 1, ptr);
 
-		track_data[i].roadLeftMargin = (int)(buffer[offset] & 0xFF);
-		track_data[i].roadRightMargin = (int)(buffer[offset + 1] & 0xFF);
-		track_data[i].roadLeftFence = (int)(buffer[offset + 2] & 0xFF);
-		track_data[i].roadRightFence = (int)(buffer[offset + 3] & 0xFF);
+		track_data[i].roadLeftMargin = (int)(buffer[0] & 0xFF);
+		track_data[i].roadRightMargin = (int)(buffer[1] & 0xFF);
+		track_data[i].roadLeftFence = (int)(buffer[2] & 0xFF);
+		track_data[i].roadRightFence = (int)(buffer[3] & 0xFF);
 
-		track_data[i].pos.x = readFixed32(buffer, offset + 8);
-		track_data[i].pos.y = readFixed32(buffer, offset + 12);
-		track_data[i].pos.z = readFixed32(buffer, offset + 16);
-		track_data[i].slope = -readAngle16(buffer, offset + 20);
-		track_data[i].slant = -readAngle16(buffer, offset + 22);
-		track_data[i].heading = readAngle16(buffer, offset + 24);
+		track_data[i].pos.x = readFixed32(buffer, 8);
+		track_data[i].pos.y = readFixed32(buffer, 12);
+		track_data[i].pos.z = readFixed32(buffer, 16);
+		track_data[i].slope = -readAngle16(buffer, 20);
+		track_data[i].slant = -readAngle16(buffer, 22);
+		track_data[i].heading = readAngle16(buffer, 24);
 
 		if (i > 0 && track_data[i].pos.x == 0 && track_data[i].pos.y == 0 && track_data[i].pos.z == 0) {
 			break;

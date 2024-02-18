@@ -415,7 +415,7 @@ void tnfs_tire_forces(tnfs_car_data *car, //
 /*
  * Main physics routine
  */
-void tnfs_physics_update(tnfs_car_data *car) {
+void tnfs_physics_update(tnfs_car_data *car_data) {
 	int braking_total;
 	int sideslip;
 	int weight_transfer;
@@ -434,7 +434,6 @@ void tnfs_physics_update(tnfs_car_data *car) {
 	int frameskip;
 	int abs_speed_x;
 	int abs_speed_y;
-	tnfs_car_data *car_data;
 	int rLon;
 	int rLat;
 	int fLon;
@@ -461,53 +460,51 @@ void tnfs_physics_update(tnfs_car_data *car) {
 	int sLat;
 	tnfs_car_specs *car_specs;
 	int body_roll_sine;
-	int track_turning;
+	int turning;
 	int aux;
-
-	car_data = car;
 
 	//local_50 = &g_unknown_array + car_data->car_flag_0x480 * 0x74;
 	stats_data_ptr = &unknown_stats_array[0];
 
 	is_drifting = 0;
-	car_specs = car->car_specs_ptr;
+	car_specs = car_data->car_specs_ptr;
 
 	// fast vec2 length
-	abs_speed_x = abs(car->speed_x);
-	abs_speed_y = abs(car->speed_z);
+	abs_speed_x = abs(car_data->speed_x);
+	abs_speed_y = abs(car_data->speed_z);
 	if (abs_speed_x <= abs_speed_y)
-		car->speed = (abs_speed_x >> 2) + abs_speed_y;
+		car_data->speed = (abs_speed_x >> 2) + abs_speed_y;
 	else
-		car->speed = (abs_speed_y >> 2) + abs_speed_x;
+		car_data->speed = (abs_speed_y >> 2) + abs_speed_x;
 
 	// framerate fixed values
-	car->delta_time = 2184;
-	car->fps = 30;
+	car_data->delta_time = 2184;
+	car_data->fps = 30;
 
 	// custom scales/framerate speeds, not using
 	if (DAT_8010d1cc > 1 && DAT_8010d2f4 != 0) {
-		//frameskip = (&tnfs_car_data_ptr)[1 - car->car_flag_0x480] + 0x4c) - car->road_segment_b) / 2;
+		//frameskip = (&tnfs_car_data_ptr)[1 - car_data->car_flag_0x480] + 0x4c) - car_data->road_segment_b) / 2;
 		frameskip = 0;
 		if (frameskip > 0) {
 			if (frameskip > DAT_8010d2f4)
 				frameskip = DAT_8010d2f4;
-			car->fps = 30 - frameskip;
-			car->delta_time = 0x10000 / car->fps;
+			car_data->fps = 30 - frameskip;
+			car_data->delta_time = 0x10000 / car_data->fps;
 		}
 	}
 
 	// TCS/ABS controls
-	if ((general_flags & 0x10) != 0 && car->handbrake == 0) {
-		car->abs_on = car->abs_enabled;
-		car->tcs_on = car->tcs_enabled;
+	if ((general_flags & 0x10) != 0 && car_data->handbrake == 0) {
+		car_data->abs_on = car_data->abs_enabled;
+		car_data->tcs_on = car_data->tcs_enabled;
 	} else {
-		car->abs_on = 0;
-		car->tcs_on = 0;
+		car_data->abs_on = 0;
+		car_data->tcs_on = 0;
 	}
 
 	// gear shift control
-	if ((general_flags & 4) || car->gear_selected == -1) {
-		tnfs_engine_rev_limiter(car);
+	if ((general_flags & 4) || car_data->gear_selected == -1) {
+		tnfs_engine_rev_limiter(car_data);
 		if (car_data->gear_auto_selected > 0) { // automatic transmission
 			switch (car_data->gear_auto_selected) {
 			case 3:
@@ -824,9 +821,9 @@ void tnfs_physics_update(tnfs_car_data *car) {
 			track_heading_2 -= 0x1000000;
 
 		body_roll_sine = math_sin_3(car_data->angle_z);// >> 14);
-		track_turning = (car_data->speed_local_lon >> 8) * (track_heading_2 - track_heading_1);
-		track_turning = math_mul(body_roll_sine, track_turning >> 8);
-		car_data->angle_y -= fix7(track_turning);
+		turning = (car_data->speed_local_lon >> 8) * (track_heading_2 - track_heading_1);
+		turning = math_mul(body_roll_sine, turning >> 8);
+		car_data->angle_y -= fix7(turning);
 	}
 
 	// wrap angle
@@ -991,9 +988,9 @@ void tnfs_height_road_position(tnfs_car_data *car_data, int mode) {
 	pA.y = track_data[node].pos.y;
 	pA.z = track_data[node].pos.z;
 
-	pB.x = pA.x + (track_data[node].side_point.x >> 10) * 2;
-	pB.y = pA.y + (track_data[node].side_point.y >> 10) * 2;
-	pB.z = pA.z + (track_data[node].side_point.z >> 10) * 2;
+	pB.x = pA.x + track_data[node].segment_cos * 2;
+	pB.y = pA.y + track_data[node].segment_tan * 2;
+	pB.z = pA.z + track_data[node].segment_sin * 2;
 
 	node += 1;
 	pC.x = track_data[node].pos.x;

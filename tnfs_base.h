@@ -114,7 +114,7 @@ typedef struct tnfs_car_data {
 	int car_width; //0x07C
 	// ...
 	struct tnfs_car_data * car_data_ptr; //0x088
-	tnfs_vec3 road_fence_normal;
+	tnfs_vec3 road_fence_normal; //0x08C
 	tnfs_vec3 road_surface_normal;
 	tnfs_vec3 road_heading;
 	tnfs_vec3 road_position;
@@ -206,19 +206,23 @@ typedef struct tnfs_car_data {
 
 
 typedef struct tnfs_track_data {
-	// ...
-	tnfs_vec3 pos;
-	int slope;
-	int slant;
-	int heading;
-	tnfs_vec3 side_point;
-	tnfs_vec3 wall_normal;
-	// ...
-	int roadLeftMargin;
-	int roadRightMargin;
-	int roadLeftFence;
-	int roadRightFence;
-	//...
+	unsigned char roadLeftMargin; // 0
+	unsigned char roadRightMargin; // 1
+	unsigned char roadLeftFence; // 2
+	unsigned char roadRightFence; // 3
+	unsigned char num_lanes; // 4
+	unsigned char fence_flag; // 5
+	unsigned char verge_slide; // 6
+	unsigned char item_mode; // 7
+	tnfs_vec3 pos; // 8
+	short slope; // 20
+	short slant; // 22
+	short heading; // 24
+    // unk1
+	short segment_cos; // 28
+	short segment_tan; // 30
+	short segment_sin; // 32
+	// unk2
 	// added for renderer
 	vector3f vf_margin_L;
 	vector3f vf_margin_R;
@@ -241,8 +245,6 @@ extern struct tnfs_surface_type road_surface_type_array[3];
 
 extern char is_drifting;
 extern int g_game_time;
-extern char roadConstantA;
-extern char roadConstantB;
 extern int road_segment_count;
 extern int sound_flag;
 extern int cheat_crashing_cars;

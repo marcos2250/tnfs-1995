@@ -35,8 +35,8 @@ typedef struct {
 #define fixmul(x,y) (int)(((long long)(x) * (y) + 0x8000) >> 16)
 #define fixdiv(x,y) (((x) << 8) / (y))
 
-#define fix16(a) (((a)<0 ? (a) + 0xfffff : (a)) >> 16)
-#define fix15(a) (((a)<0 ? (a) + 0x7ffff : (a)) >> 15)
+#define fix16(a) (((a)<0 ? (a) + 0xffff : (a)) >> 16)
+#define fix15(a) (((a)<0 ? (a) + 0x7fff : (a)) >> 15)
 #define fix12(a) (((a)<0 ? (a) + 0xfff : (a)) >> 12)
 #define fix8(a)  (((a)<0 ? (a) + 0xff : (a)) >> 8)
 #define fix7(a)  (((a)<0 ? (a) + 0x7f : (a)) >> 7)
@@ -45,7 +45,7 @@ typedef struct {
 #define fix3(a)  (((a)<0 ? (a) + 0x7 : (a)) >> 3)
 #define fix2(a)  (((a)<0 ? (a) + 3 : (a)) >> 2)
 
-#define abs(a) ((a)<0 ? -(a) : (a))
+#define abs(a) ((a)>=0 ? (a) : -(a))
 
 
 int math_mul(int x, int y);

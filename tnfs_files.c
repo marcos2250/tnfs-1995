@@ -10,15 +10,19 @@ int readFixed32(char *buffer, int pos) {
 	return (int)(buffer[pos + 3] & 0xFF) << 24 //
 		| (int)(buffer[pos + 2] & 0xFF) << 16 //
 		| (int)(buffer[pos + 1] & 0xFF) << 8 //
-		| (int)(buffer[pos] & 0xFF);
+		| (buffer[pos] & 0xFF);
 }
 
-int readAngle16(char *buffer, int pos) {
-	int a = (int)(buffer[pos + 1] & 0xFF) << 8 | (int)(buffer[pos] & 0xFF);
+short readAngle14(char *buffer, int pos) {
+	short a = (short)(buffer[pos + 1] & 0xFF) << 8 | (buffer[pos] & 0xFF);
 	if (a > 8192) {
 		a -= 16384;
 	}
 	return a;
+}
+
+int readSigned16(char *buffer, int pos) {
+	return (short)((short)(buffer[pos + 1] & 0xFF) << 8 | (buffer[pos] & 0xFF));
 }
 
 /*
@@ -40,17 +44,26 @@ int read_tri_file(char * file) {
 		fseek(ptr, i * 36 + 2444, SEEK_SET);
 		fread(buffer, 36, 1, ptr);
 
-		track_data[i].roadLeftMargin = (int)(buffer[0] & 0xFF);
-		track_data[i].roadRightMargin = (int)(buffer[1] & 0xFF);
-		track_data[i].roadLeftFence = (int)(buffer[2] & 0xFF);
-		track_data[i].roadRightFence = (int)(buffer[3] & 0xFF);
+		track_data[i].roadLeftMargin = buffer[0];
+		track_data[i].roadRightMargin = buffer[1];
+		track_data[i].roadLeftFence = buffer[2];
+		track_data[i].roadRightFence = buffer[3];
+
+		track_data[i].num_lanes = buffer[4];
+		track_data[i].fence_flag = buffer[5];
+		track_data[i].verge_slide = buffer[6];
+		track_data[i].item_mode = buffer[7];
 
 		track_data[i].pos.x = readFixed32(buffer, 8);
 		track_data[i].pos.y = readFixed32(buffer, 12);
 		track_data[i].pos.z = readFixed32(buffer, 16);
-		track_data[i].slope = -readAngle16(buffer, 20);
-		track_data[i].slant = -readAngle16(buffer, 22);
-		track_data[i].heading = readAngle16(buffer, 24);
+		track_data[i].slope = -readAngle14(buffer, 20);
+		track_data[i].slant = -readAngle14(buffer, 22);
+		track_data[i].heading = readAngle14(buffer, 24);
+
+		track_data[i].segment_cos = readSigned16(buffer, 28);
+		track_data[i].segment_tan = readSigned16(buffer, 30);
+		track_data[i].segment_sin = readSigned16(buffer, 32);
 
 		if (i > 0 && track_data[i].pos.x == 0 && track_data[i].pos.y == 0 && track_data[i].pos.z == 0) {
 			break;
@@ -63,7 +76,7 @@ int read_tri_file(char * file) {
 }
 
 /*
- * Import a uncompressed PBS file
+ * Import an uncompressed PBS file
  */
 int read_pbs_file(char * file) {
 	char buffer[2048];

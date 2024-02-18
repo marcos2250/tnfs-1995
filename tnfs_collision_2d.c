@@ -109,7 +109,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	int aux;
 	long fence_angle;
 	int fenceSide;
-	int road_flag;
+	int fence_flag;
 	int rebound_speed_x;
 	int rebound_speed_z;
 	int rebound_x;
@@ -138,29 +138,29 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	fence_angle = track_data[car_data->road_segment_a].heading * 0x400;
 	fence_sin = math_sin_3(fence_angle);
 	fence_cos = math_cos_3(fence_angle);
-	road_flag = 0;
+	fence_flag = 0;
 	fenceSide = 0;
 	distance = fixmul(fence_sin, road_segment_pos_z - car_data->position.z) - fixmul(fence_cos, road_segment_pos_x - car_data->position.x);
 
 	rebound_speed_x = 0;
 	if (distance < roadLeftMargin * -0x2000) {
 		// left road side
-		car_data->surface_type = roadConstantB >> 4;
+		car_data->surface_type = track_data[car_data->road_segment_a].verge_slide >> 4;
 		aux = roadLeftFence * -0x2000 + tnfs_collision_car_size(car_data, fence_angle);
 		if (distance < aux) {
 			fenceSide = -0x100;
 			rebound_speed_x = aux - distance - 0x4ccc;
-			road_flag = roadConstantA >> 4;
+			fence_flag = track_data[car_data->road_segment_a].fence_flag >> 4;
 		}
 
 	} else if (distance > roadRightMargin * 0x2000) {
 		// right road side
-		car_data->surface_type = roadConstantB & 0xf;
+		car_data->surface_type = track_data[car_data->road_segment_a].verge_slide & 0xf;
 		aux = roadRightFence * 0x2000 - tnfs_collision_car_size(car_data, fence_angle);
 		if (distance > aux) {
 			fenceSide = 0x100;
 			rebound_speed_x = distance + 0x4ccc - aux;
-			road_flag = roadConstantA & 0xf;
+			fence_flag = track_data[car_data->road_segment_a].fence_flag & 0xf;
 		}
 	} else {
 		car_data->surface_type = 0;
@@ -179,7 +179,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 
 	// play collision sound
 	abs_speed = abs(rebound_speed_x);
-	if ((road_flag == 0) && (abs_speed >= 0x60001)) {
+	if ((fence_flag == 0) && (abs_speed >= 0x60001)) {
 		if (sound_flag == 0) {
 			if (car_data->unknown_flag_475 == 0) {
 				if (DAT_80111a40 != 0) {
@@ -260,13 +260,13 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	math_rotate_2d(rebound_speed_x, rebound_speed_z, fence_angle, &car_data->speed_x, &car_data->speed_z);
 
 	// ???
-	if (road_flag == 0) {
+	if (fence_flag == 0) {
 		aux = 0x30000;
-		road_flag = 0;
+		fence_flag = 0;
 	} else {
 		aux = 0x18000;
 	}
-	tnfs_collision_rotate(car_data, fence_angle, abs_speed, fenceSide, road_flag, aux);
+	tnfs_collision_rotate(car_data, fence_angle, abs_speed, fenceSide, fence_flag, aux);
 
 	if (car_data->speed_y > 0) {
 		car_data->speed_y = 0;

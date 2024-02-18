@@ -15,8 +15,6 @@ tnfs_surface_type road_surface_type_array[3];
 // settings/flags
 char is_drifting;
 int g_game_time = 1000;
-char roadConstantA = 0x20;
-char roadConstantB = 0x22;
 int road_segment_count = 0;
 int sound_flag = 0;
 int g_selected_cheat = 0;
@@ -88,6 +86,10 @@ void auto_generate_track() {
 		track_data[i].roadRightFence = 0x50;
 		track_data[i].roadLeftMargin = 0x35;
 		track_data[i].roadRightMargin = 0x35;
+		track_data[i].num_lanes = 0x11;
+		track_data[i].fence_flag = 0;
+		track_data[i].verge_slide = 0x22;
+		track_data[i].item_mode = 0x3;
 
 		track_data[i].slope = slope;
 		track_data[i].heading = -slant << 2;
@@ -95,6 +97,10 @@ void auto_generate_track() {
 		track_data[i].pos.x = pos_x;
 		track_data[i].pos.y = pos_y;
 		track_data[i].pos.z = pos_z;
+
+		track_data[i].segment_cos = (short)(math_cos_3(track_data[i].heading * -0x400) / 2);
+		track_data[i].segment_tan = (short)(math_tan_3(track_data[i].slant * 0x400) / 2);
+		track_data[i].segment_sin = (short)(math_sin_3(track_data[i].heading * -0x400) / 2);
 
 		// next segment
 		pos_x += fixmul(math_sin_3(track_data[i].heading * 0x400), 0x80000);
@@ -136,16 +142,8 @@ void tnfs_init_track(char * tri_file) {
 		c = math_cos_3(heading);
 		t = math_tan_3(track_data[i].slant * 0x400);
 
-		dL = -track_data[i].roadLeftMargin * 0x2000;
-		dR = track_data[i].roadRightMargin * 0x2000;
-
-		track_data[i].side_point.x = fixmul(c, dR);
-		track_data[i].side_point.y = fixmul(t, dR);
-		track_data[i].side_point.z = fixmul(s, dR);
-
-		track_data[i].wall_normal.x = c;
-		track_data[i].wall_normal.y = fixmul(t, 0x10000);
-		track_data[i].wall_normal.z = s;
+		dL = (int)(track_data[i].roadLeftMargin) * -0x2000;
+		dR = (int)track_data[i].roadRightMargin * 0x2000;
 
 		track_data[i].vf_margin_L.x = (float) (track_data[i].pos.x + fixmul(c, dL)) / 0x10000;
 		track_data[i].vf_margin_L.y = (float) (track_data[i].pos.y + fixmul(t, dL)) / 0x10000;
@@ -154,8 +152,8 @@ void tnfs_init_track(char * tri_file) {
 		track_data[i].vf_margin_R.y = (float) (track_data[i].pos.y + fixmul(t, dR)) / 0x10000;
 		track_data[i].vf_margin_R.z = -(float) (track_data[i].pos.z + fixmul(s, dR)) / 0x10000;
 
-		dL = -track_data[i].roadLeftFence * 0x2000;
-		dR = track_data[i].roadRightFence * 0x2000;
+		dL = (int)(track_data[i].roadLeftFence) * -0x2000;
+		dR = (int)(track_data[i].roadRightFence) * 0x2000;
 
 		track_data[i].vf_fence_L.x = (float) (track_data[i].pos.x + fixmul(c, dL)) / 0x10000;
 		track_data[i].vf_fence_L.y = (float) (track_data[i].pos.y + fixmul(t, dL)) / 0x10000;
@@ -718,9 +716,9 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	car->road_position.y = track_data[node].pos.y;
 	car->road_position.z = track_data[node].pos.z;
 
-	wall_normal.x = track_data[node].wall_normal.x;
-	wall_normal.y = track_data[node].wall_normal.y;
-	wall_normal.z = track_data[node].wall_normal.z;
+	wall_normal.x = track_data[node].segment_cos << 1;
+	wall_normal.y = track_data[node].segment_tan << 1;
+	wall_normal.z = track_data[node].segment_sin << 1;
 
 	// next node vector
 	node++;

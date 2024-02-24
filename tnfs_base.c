@@ -254,18 +254,18 @@ void tnfs_reset_car() {
 	car_data.car_length = car_specs.body_length;
 	car_data.car_width = car_specs.body_width;
 
-	car_data.weight_distribution_front = fixmul(car_specs.mass_front, car_specs.inverse_mass);
-	car_data.weight_distribution_rear = fixmul(car_specs.mass_rear, car_specs.inverse_mass);
-	car_data.weight_transfer_factor = fixmul(car_specs.centre_of_gravity_height, car_specs.burnOutDiv);
+	car_data.weight_distribution_front = math_mul(car_specs.mass_front, car_specs.inverse_mass);
+	car_data.weight_distribution_rear = math_mul(car_specs.mass_rear, car_specs.inverse_mass);
+	car_data.weight_transfer_factor = math_mul(car_specs.centre_of_gravity_height, car_specs.burnOutDiv);
 
-	aux = fixmul(fixmul(car_specs.wheelbase, car_specs.wheelbase), 0x324);
+	aux = math_mul(math_mul(car_specs.wheelbase, car_specs.wheelbase), 0x324);
 
 	car_data.wheel_base = math_div(aux, car_specs.wheelbase);
-	car_data.front_yaw_factor = math_div(fixmul(car_specs.wheelbase, car_data.weight_distribution_front), aux);
-	car_data.rear_yaw_factor = math_div(fixmul(car_specs.wheelbase, car_data.weight_distribution_rear), aux);
+	car_data.front_yaw_factor = math_div(math_mul(car_specs.wheelbase, car_data.weight_distribution_front), aux);
+	car_data.rear_yaw_factor = math_div(math_mul(car_specs.wheelbase, car_data.weight_distribution_rear), aux);
 
-	car_data.front_friction_factor = fixmul(0x9cf5c, fixmul(car_specs.front_friction_factor, car_data.weight_distribution_rear));
-	car_data.rear_friction_factor = fixmul(0x9cf5c, fixmul(car_specs.rear_friction_factor, car_data.weight_distribution_front));
+	car_data.front_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.front_friction_factor, car_data.weight_distribution_rear));
+	car_data.rear_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.rear_friction_factor, car_data.weight_distribution_front));
 
 	car_data.tire_grip_front = car_data.front_friction_factor;
 	car_data.tire_grip_rear = car_data.rear_friction_factor;
@@ -407,7 +407,7 @@ void tnfs_init_car() {
 	}
 
 	// drag coefficient to deccel factor
-	car_specs.drag = fixmul(car_specs.drag, car_specs.inverse_mass);
+	car_specs.drag = math_mul(car_specs.drag, car_specs.inverse_mass);
 
 	// net wheel torque values
 	i = 1;

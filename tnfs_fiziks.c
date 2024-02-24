@@ -149,7 +149,7 @@ void tnfs_road_surface_modifier(tnfs_car_data *car_data) {
 	if (angle > 0x800000)
 		angle -= 0x1000000;
 
-	car_data->road_grip_increment = 2 * (fixmul(abs(car_data->speed_local_lon), abs(angle)) >> 7) + slope_r;
+	car_data->road_grip_increment = 2 * (math_mul(abs(car_data->speed_local_lon), abs(angle)) >> 7) + slope_r;
 
 	car_data->tire_grip_front += car_data->road_grip_increment;
 	if (car_data->tire_grip_front < 0)
@@ -269,12 +269,10 @@ void tnfs_tire_forces(tnfs_car_data *car, //
 		int is_front_wheels) {
 
 	unsigned int slip_angle;
-	int force_decc;
 	int f_lat_loc_abs2;
 	int f_lon_loc_abs2;
 	int grip_force;
 	int lateral_force;
-	int force_lat_local_abs;
 	int *slide;
 	char *skid;
 	signed int max_grip;
@@ -283,131 +281,125 @@ void tnfs_tire_forces(tnfs_car_data *car, //
 	int force_lat_local;
 	int result_brake_thrust;
 	int slip_angle_grip;
-	struct tnfs_car_specs *car_specs;
-
-	car_specs = car->car_specs_ptr;
 
 	skid_amount = 0;
 	if (car->time_off_ground > 0) {
 		*_result_Lon = 0;
 		*_result_Lat = 0;
-		return;
-	}
-
-	if (is_front_wheels == 1) {
-		math_rotate_2d(force_Lat, force_Lon, -steering, &force_lat_local, &force_lon_local);
-		max_grip = car->tire_grip_front;
-		skid = &car->tire_skid_front;
-		slide = &car->slide_front;
 	} else {
-		force_lat_local = force_Lat;
-		force_lon_local = force_Lon;
-		max_grip = car->tire_grip_rear;
-		skid = &car->tire_skid_rear;
-		slide = &car->slide_rear;
-	}
-	*skid = 0;
-	debug_sum = *_result_Lon + *_result_Lat;
 
-	force_lat_local_abs = abs(force_lat_local);
-	if (force_lon_local <= 0)
-		slip_angle = math_atan2(-force_lon_local, force_lat_local_abs);
-	else
-		slip_angle = math_atan2(force_lon_local, force_lat_local_abs);
+		if (is_front_wheels == 1) {
+			math_rotate_2d(force_Lat, force_Lon, -steering, &force_lat_local, &force_lon_local);
+			max_grip = car->tire_grip_front;
+			skid = &car->tire_skid_front;
+			slide = &car->slide_front;
+		} else {
+			force_lat_local = force_Lat;
+			force_lon_local = force_Lon;
+			max_grip = car->tire_grip_rear;
+			skid = &car->tire_skid_rear;
+			slide = &car->slide_rear;
+		}
+		*skid = 0;
+		debug_sum = *_result_Lon + *_result_Lat;
 
-	if (slip_angle > car_specs->cutoff_slip_angle) {
-		slip_angle = car_specs->cutoff_slip_angle;
-		*skid |= 1u;
-	}
+		slip_angle = math_atan2(abs(force_lon_local), abs(force_lat_local));
 
-	if ((car->brake <= 245 || car->abs_enabled) //
-		&& ( fix2(5 * max_grip) >= abs(braking_force) //
-		|| (car->abs_enabled != 0 && car->handbrake == 0))) {
-		// not locked wheels
-
-		// lateral tire grip factor
-		slip_angle_grip = fixmul(max_grip, tnfs_tire_slide_table(car, slip_angle, is_front_wheels - 1));
-		lateral_force = abs(force_lat_local);
-
-		if (lateral_force > slip_angle_grip) {
-			//lateral force exceeding max grip
-			grip_force = 8 * slip_angle_grip;
-
-			// for skid sounds/visual effects
-			if (abs(force_lat_local) > grip_force && slip_angle > 0xf0000) {
-				if (slip_angle <= 0x1E0000) {
-					skid_amount = fix2(abs(force_lat_local) - grip_force);
-					*skid |= 4u;
-				} else {
-					*skid |= 1u;
-					skid_amount = abs(force_lat_local) - grip_force;
-				}
-			}
-
-			if (force_lat_local <= 0)
-				force_lat_local = -slip_angle_grip;
-			else
-				force_lat_local = slip_angle_grip;
-
+		if (slip_angle > car->car_specs_ptr->cutoff_slip_angle) {
+			slip_angle = car->car_specs_ptr->cutoff_slip_angle;
+			*skid |= 1;
 		}
 
-		if (force_lon_local <= 0)
-			braking_force = -braking_force;
+		if ( fix2(5 * max_grip) < abs(braking_force) //
+			&& (car->abs_enabled == 0 || car->handbrake != 0)) {
 
-		result_brake_thrust = braking_force + thrust_force;
+			// locked wheels: hard braking or handbrake
+			if (abs(force_lon_local) > max_grip)
+				*skid |= 1u;
 
-		if (abs(thrust_force) > abs(braking_force)) {
-			//acceleration
-			force_lon_local = result_brake_thrust;
-			f_lon_loc_abs2 = abs(force_lon_local);
-			f_lat_loc_abs2 = abs(force_lat_local);
-			if (f_lat_loc_abs2 + f_lon_loc_abs2 > max_grip) {
-				*skid = 2;
-				if (f_lon_loc_abs2 > max_grip && is_drifting && !car->tcs_enabled) {
-					force_lat_local = fix4(force_lat_local);
-				}
-			}
-			tnfs_tire_limit_max_grip(car, &force_lat_local, &force_lon_local, max_grip, slide);
-			if (*slide != 0) {
-				*slide *= 8;
-			}
-			if (*slide < skid_amount) {
-				*slide = skid_amount;
-			}
+			tnfs_tire_forces_locked(&force_lat_local, &force_lon_local, max_grip, slide);
 
 		} else {
-			//deceleration
-			force_decc = abs(result_brake_thrust);
-			if (force_decc < abs(force_lon_local)) {
-				if (force_lon_local <= 0) {
-					force_lon_local = -force_decc;
-				} else {
-					force_lon_local = force_decc;
+			// not locked wheels
+
+			// lateral tire grip factor
+			slip_angle_grip = math_mul(max_grip, tnfs_tire_slide_table(car, slip_angle, is_front_wheels - 1));
+			lateral_force = abs(force_lat_local);
+
+			if (lateral_force > slip_angle_grip) {
+				//lateral force exceeding max grip
+				grip_force = 8 * slip_angle_grip;
+
+				// for skid sounds/visual effects
+				if (abs(force_lat_local) > grip_force && slip_angle > 0xf0000) {
+					if (slip_angle <= 0x1E0000) {
+						skid_amount = fix2(abs(force_lat_local) - grip_force);
+						*skid |= 4u;
+					} else {
+						*skid |= 1u;
+						skid_amount = abs(force_lat_local) - grip_force;
+					}
 				}
+
+				if (force_lat_local <= 0)
+					force_lat_local = -slip_angle_grip;
+				else
+					force_lat_local = slip_angle_grip;
+
 			}
-			tnfs_tire_limit_max_grip(car, &force_lat_local, &force_lon_local, max_grip, slide);
-			*slide |= skid_amount;
-			if (car->abs_on)
-				*slide = 0;
+
+			if (force_lon_local <= 0)
+				braking_force = -braking_force;
+
+			result_brake_thrust = braking_force + thrust_force;
+
+			if (abs(thrust_force) > abs(braking_force)) {
+				//acceleration
+				force_lon_local = result_brake_thrust;
+				f_lon_loc_abs2 = abs(force_lon_local);
+				f_lat_loc_abs2 = abs(force_lat_local);
+				if (f_lat_loc_abs2 + f_lon_loc_abs2 > max_grip) {
+					*skid = 2;
+					if (f_lon_loc_abs2 > max_grip && is_drifting && !car->tcs_enabled) {
+						force_lat_local = fix4(force_lat_local);
+					}
+					tnfs_tire_limit_max_grip(car, &force_lat_local, &force_lon_local, max_grip, slide);
+				} else {
+					tnfs_tire_limit_max_grip(car, &force_lat_local, &force_lon_local, max_grip, slide);
+				}
+				if (*slide != 0) {
+					*slide <<= 3;
+				}
+				if (*slide < skid_amount) {
+					*slide = skid_amount;
+				}
+
+			} else {
+				//deceleration
+				if (abs(result_brake_thrust) < abs(force_lon_local)) {
+					if (force_lon_local <= 0) {
+						force_lon_local = -abs(result_brake_thrust);
+					} else {
+						force_lon_local = abs(result_brake_thrust);
+					}
+				}
+				tnfs_tire_limit_max_grip(car, &force_lat_local, &force_lon_local, max_grip, slide);
+				*slide |= skid_amount;
+				if (car->abs_on)
+					*slide = 0;
+			}
 		}
 
-	} else {
-		// locked wheels: hard braking or handbrake
-		if (abs(force_lon_local) > max_grip)
-			*skid |= 1u;
+		if (*slide > 0x960000)
+			*slide = 0x960000;
 
-		tnfs_tire_forces_locked(&force_lat_local, &force_lon_local, max_grip, slide);
-	}
-
-	if (*slide > 0x960000)
-		*slide = 0x960000;
-
-	// function return, rotate back to car frame
-	if (steering != 0) {
-		math_rotate_2d(force_lat_local, force_lon_local, steering, _result_Lat, _result_Lon);
-	} else {
-		*_result_Lat = force_lat_local;
-		*_result_Lon = force_lon_local;
+		// function return, rotate back to car frame
+		if (steering != 0) {
+			math_rotate_2d(force_lat_local, force_lon_local, steering, _result_Lat, _result_Lon);
+		} else {
+			*_result_Lat = force_lat_local;
+			*_result_Lon = force_lon_local;
+		}
 	}
 
 }
@@ -620,14 +612,18 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	sLat = car_data->fps * car_data->speed_local_lat;
 	sLon = car_data->fps * car_data->speed_local_lon;
 
-	// sideslip
-	sideslip = fixmul(car_data->wheel_base, car_data->fps * car_data->angular_speed);
 
-	// split front and rear moment of inertia, inverted
-	fLat = -fixmul(car_data->weight_distribution_front, sLat) - (drag_lat / 2) + sideslip;
-	rLat = -(sLat - fixmul(car_data->weight_distribution_front, sLat)) - (drag_lat / 2) - sideslip;
-	rLon = -(sLon - fixmul(car_data->weight_distribution_front, sLon)) - (drag_lon / 2);
-	fLon = -fixmul(car_data->weight_distribution_front, sLon) - (drag_lon / 2);
+	// split front and rear moment of inertia
+	// lateral, front and rear
+	aux = -math_mul(car_data->weight_distribution_front, sLat);
+	sideslip = math_mul(car_data->wheel_base, car_data->fps * car_data->angular_speed);
+	fLat = aux - (drag_lat / 2) + sideslip;
+	rLat = -(sLat + aux) - (drag_lat / 2) - sideslip;
+	
+	// longitudinal, front and rear
+	aux = -math_mul(car_data->weight_distribution_front, sLon);
+	rLon = -(sLon + aux) - (drag_lon / 2);
+	fLon = aux - (drag_lon / 2);
 
 	// adjust steer sensitivity
 	steer = car_data->steer_angle;
@@ -649,33 +645,32 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 
 	// limit braking forces
 	if (car_data->brake > 100 || car_data->handbrake) {
-		if (car_data->speed >= 1755054) {
-			if (car_data->speed >= 2621440) {
+		if (car_data->speed < 1755054) {
+			limit_tire_force = car_specs->max_brake_force_1;
+		} else {
+			if (car_data->speed < 2621440) {
+				limit_tire_force = car_specs->max_brake_force_2;
+			} else {
 				if (car_specs->max_brake_force_2 <= car_specs->max_brake_force_1) {
 					limit_tire_force = car_specs->max_brake_force_1;
 				} else {
 					limit_tire_force = car_specs->max_brake_force_2;
 				}
-			} else {
-				limit_tire_force = car_specs->max_brake_force_2;
 			}
-		} else {
-			limit_tire_force = car_specs->max_brake_force_1;
 		}
-		if (force_Lon <= 0) {
+		force_lon_total = force_Lon;
+		if (force_Lon < 0) {
 			force_lon_total = -force_Lon;
-		} else {
-			force_lon_total = f_R_Lon + f_F_Lon;
 		}
 		if (force_lon_total > limit_tire_force) {
-			if (force_Lon < 0) {
-				force_Lon = -limit_tire_force;
-			} else {
+			if (force_Lon >= 0) {
 				force_Lon = limit_tire_force;
+			} else {
+				force_Lon = -limit_tire_force;
 			}
 		}
 		if (selected_track == 3 && (car_data->road_segment_a <= 97 || car_data->road_segment_a >= 465)) {
-			if (force_Lat <= 0 ? -force_Lat : f_R_Lat + f_F_Lat > limit_tire_force) {
+			if (abs(force_Lat) >= limit_tire_force) {
 				if (force_Lat < 0) {
 					force_Lat = -limit_tire_force;
 				} else {
@@ -713,39 +708,42 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	car_data->susp_incl_lon = force_lon_adj;
 
 	// convert speeds to world scale (m/s >> 16)
-	if (abs(car_data->speed_local_lon) + abs(car_data->speed_local_lat) >= 19660) {
-		// car moving
-		car_data->speed_local_lat += fixmul(car_data->delta_time, (drag_lat + force_Lat + car_data->slope_force_lat));
-		car_data->speed_local_lon += fixmul(car_data->delta_time, (drag_lon + force_lon_adj + car_data->slope_force_lon));
-	} else {
+	if (abs(car_data->speed_local_lon) + abs(car_data->speed_local_lat) < 19660) {
 		// car stopped
-		car_data->speed_local_lat += fixmul(car_data->delta_time, force_Lat);
-		car_data->speed_local_lon += fixmul(car_data->delta_time, force_lon_adj);
+		car_data->speed_local_lat += math_mul(force_Lat, car_data->delta_time);
+		car_data->speed_local_lon += math_mul(force_lon_adj, car_data->delta_time);
 
 		if (car_data->gear_selected == -1 || car_data->throttle == 0) {
 			car_data->speed_local_lon = 0;
 			car_data->speed_local_lat = 0;
 		}
+	} else {
+		// car moving
+		car_data->speed_local_lat += math_mul((drag_lat + force_Lat + car_data->slope_force_lat), car_data->delta_time);
+		car_data->speed_local_lon += math_mul((drag_lon + force_lon_adj + car_data->slope_force_lon), car_data->delta_time);
 	}
 
 	// rotate back to global frame of reference
 	math_rotate_2d(car_data->speed_local_lat, car_data->speed_local_lon, car_data->angle_y, &car_data->speed_x, &car_data->speed_z);
 
 	// move the car
-	car_data->position.z += fixmul(car_data->speed_z, car_data->delta_time);
-	car_data->position.x -= fixmul(car_data->speed_x, car_data->delta_time);
+	//car_data->position.z += math_mul(car_data->speed_z, car_data->delta_time);
+	//car_data->position.x -= math_mul(car_data->speed_x, car_data->delta_time);
+	// since PC version, cars are sped up 25% !!!
+	car_data->position.z += math_mul(fix2(car_data->speed_z) + car_data->speed_z, car_data->delta_time);
+	car_data->position.x -= math_mul(fix2(car_data->speed_x) + car_data->speed_x, car_data->delta_time);
 
 	// suspension body roll
-	if (car_data->speed_local_lat + car_data->speed_local_lon <= 6553) {
+	if (car_data->speed_local_lat + car_data->speed_local_lon > 6553) {
+		car_data->body_roll += (-car_data->body_roll -fixmul(car_data->susp_incl_lat, car_specs->body_roll_factor)) / 2;
+		car_data->body_pitch += (-car_data->body_pitch -fixmul(car_data->susp_incl_lon, car_specs->body_pitch_factor)) / 2;
+	} else {
 		car_data->body_roll += -car_data->body_roll / 2;
 		car_data->body_pitch += -car_data->body_pitch / 2;
-	} else {
-		car_data->body_roll += (-(fixmul(car_data->susp_incl_lat, car_specs->body_roll_factor)) - car_data->body_roll) / 2;
-		car_data->body_pitch += (-(fixmul(car_data->susp_incl_lon, car_specs->body_pitch_factor)) - car_data->body_pitch) / 2;
 	}
 
 	// body rotation torque
-	angular_accel = fixmul(car_data->rear_yaw_factor, f_R_Lat) - fixmul(car_data->front_yaw_factor, f_F_Lat);
+	angular_accel = math_mul(car_data->rear_yaw_factor, f_R_Lat) - math_mul(car_data->front_yaw_factor, f_F_Lat);
 
 	// Rally Mode on PSX version, makes the car drift longer
 	if ((cheat_code_8010d1c4 & 0x20) && car_data->wheels_on_ground) {
@@ -782,7 +780,7 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 		if (aux < 0) {
 			aux = -car_data->susp_incl_lon + 0x2800ff;
 		}
-		DAT_800eb208 = fixmul(DAT_800eb208, aux) / 0x28;
+		DAT_800eb208 = math_mul(DAT_800eb208, aux) / 0x28;
 		if (DAT_800eb208 < car_data->angular_speed) {
 			angular_accel = (DAT_800eb208 - car_data->angular_speed) * 0x10;
 			if (angular_accel < -0x4b0000) {
@@ -797,16 +795,18 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	}
 
 	// apply body rotation
-	car_data->angular_speed += fixmul(car_data->delta_time, angular_accel);
+	car_data->angular_speed += math_mul(car_data->delta_time, angular_accel);
 
-	if (car_data->angular_speed > 0x960000) {
-		car_data->angular_speed = 0x960000;
-	} else if (car_data->angular_speed < -0x960000) {
-		car_data->angular_speed = -0x960000;
+	if (abs(car_data->angular_speed) > 0x960000) {
+		if (car_data->angular_speed < 0) {
+			car_data->angular_speed = -0x960000;
+		} else {
+			car_data->angular_speed = 0x960000;
+		}
 	}
 
 	// rotate car body
-	body_rotate = fixmul(car_data->delta_time, car_data->angular_speed);
+	body_rotate = math_mul(car_data->delta_time, car_data->angular_speed);
 	car_data->angle_y += fix2(body_rotate) + body_rotate;
 
 	// further car turning due to road bank angle
@@ -964,23 +964,25 @@ void tnfs_height_3B6AB(tnfs_car_data *car) {
 }
 
 void tnfs_height_road_position(tnfs_car_data *car_data, int mode) {
+	tnfs_vec3 * pR;
 	tnfs_vec3 pC;
 	tnfs_vec3 pB;
 	tnfs_vec3 pA;
-	tnfs_vec3 *pR;
 	int node;
 
 	if (mode) {
 		tnfs_height_3B76F(car_data);
+		car_data->world_position.x = car_data->position.x;
+		car_data->world_position.y = car_data->position.y;
+		car_data->world_position.z = car_data->position.z;
 		pR = &car_data->world_position;
 	} else {
 		tnfs_height_3B6AB(car_data);
+		car_data->road_ground_position.x = car_data->position.x;
+		car_data->road_ground_position.y = car_data->position.y;
+		car_data->road_ground_position.z = car_data->position.z;
 		pR = &car_data->road_ground_position;
 	}
-
-	pR->x = car_data->position.x;
-	pR->y = car_data->position.y;
-	pR->z = car_data->position.z;
 
 	// get 3 surface points to triangulate surface position
 	node = car_data->road_segment_a;
@@ -1054,7 +1056,7 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
 	car_data->speed_y -= 0x9cf5c * (car_data->delta_time >> 2) >> 15;
 
 	// next frame falling height
-	nHeight = (car_data->delta_time >> 4) * (((abs(car_data->speed_y) >> 2) + car_data->speed_y) >> 0xc) + car_data->position.y;
+	nHeight = (car_data->delta_time >> 4) * ((fix2(car_data->speed_y) + car_data->speed_y) >> 0xc) + car_data->position.y;
 
 	if (!is_driving_mode) {
 		// in crash mode
@@ -1078,11 +1080,14 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
 
 		if (car_data->time_off_ground > 20) {
 			if (cheat_code_8010d1c4 & 0x20)
-				bounce = car_data->time_off_ground / 6;
+				//bounce = fix2(car_data->time_off_ground / 6) * (((car_data->delta_time >> 2) * 0x9cf5c) >> 14); //PSX
+				bounce = (((car_data->delta_time >> 2) * 0x9cf5c) >> 14)
+							* (((car_data->time_off_ground >> 0x1f) - car_data->time_off_ground) >> 1);
 			else
-				bounce = car_data->time_off_ground;
+				bounce = (((car_data->delta_time >> 2) * 0x9cf5c) >> 14)
+							* fix2(car_data->time_off_ground);
 
-			car_data->speed_y += (0x9cf5c * (car_data->delta_time >> 2) >> 14) * fix2(bounce);
+			car_data->speed_y += bounce;
 			printf("Boink %d %d\n", car_data->speed_y >> 16, 0);
 		}
 
@@ -1134,10 +1139,11 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
 	car_data->unknown_flag_3DD = 0;
 	car_data->slope_force_lat = 0;
 
-	if (car_data->speed_y <= 0) {
-		car_data->slope_force_lon = math_mul(0x10000, car_data->slope_force_lon);
-	} else {
+	if (car_data->speed_y > 0) {
 		car_data->slope_force_lon = math_mul(0x2666, car_data->slope_force_lon);
+	} else {
+		if (car_data->speed_y < 0)
+			car_data->slope_force_lon = math_mul(0x10000, car_data->slope_force_lon);
 	}
 
 	if (DAT_8010c478)

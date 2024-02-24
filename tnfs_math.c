@@ -6,11 +6,14 @@
 #include "tnfs_math.h"
 
 /*
- * fixed multiplication
+ * fixed multiplication as used in PSX version
+ * PC version -> assembly code in math.h
  */
+#ifdef __GNUC__
 int math_mul(int x, int y) {
 	return (((long long) x) * y + 0x8000) >> 16;
 }
+#endif
 
 /*
  * fixed division, eg. 0x2800 / 0x4b2 => 0x884e6
@@ -237,9 +240,9 @@ int math_vec3_distance_squared_XZ(tnfs_vec3 *v1, tnfs_vec3 *v2) {
 }
 
 void math_vec3_cross_product(tnfs_vec3 *result, tnfs_vec3 *v1, tnfs_vec3 *v2) {
-	result->x = fixmul(v2->z, v1->y) - fixmul(v2->y, v1->z);
-	result->y = fixmul(v2->x, v1->z) - fixmul(v2->z, v1->x);
-	result->z = fixmul(v2->y, v1->x) - fixmul(v2->x, v1->y);
+	result->x = math_mul(v2->y, v1->z) - math_mul(v2->z, v1->y);
+	result->y = math_mul(v2->z, v1->x) - math_mul(v2->x, v1->z);
+	result->z = math_mul(v2->x, v1->y) - math_mul(v2->y, v1->x);
 }
 
 void math_vec3_normalize(tnfs_vec3 *v) {

@@ -31,19 +31,104 @@ typedef struct {
 } tnfs_vec9;
 
 
-// fixed point math macros
-#define fixmul(x,y) (int)(((long long)(x) * (y) + 0x8000) >> 16)
-#define fixdiv(x,y) (((x) << 8) / (y))
+/* fixed point math macros */
 
-#define fix16(a) (((a)<0 ? (a) + 0xffff : (a)) >> 16)
+// fixed truncated multiplication
+#define fixmul(x,y) (int)(((x)>>8) * ((y)>>8))
+
+#ifdef __GNUC__
+// generic round shift functions, PSX version
 #define fix15(a) (((a)<0 ? (a) + 0x7fff : (a)) >> 15)
-#define fix12(a) (((a)<0 ? (a) + 0xfff : (a)) >> 12)
 #define fix8(a)  (((a)<0 ? (a) + 0xff : (a)) >> 8)
 #define fix7(a)  (((a)<0 ? (a) + 0x7f : (a)) >> 7)
 #define fix6(a)  (((a)<0 ? (a) + 0x3f : (a)) >> 6)
 #define fix4(a)  (((a)<0 ? (a) + 0xf : (a)) >> 4)
 #define fix3(a)  (((a)<0 ? (a) + 0x7 : (a)) >> 3)
 #define fix2(a)  (((a)<0 ? (a) + 3 : (a)) >> 2)
+#else
+
+// fixed multiplication, PC version
+int math_mul(int a, int b);
+#pragma aux math_mul = \
+"imul edx" \
+"add  eax, 0x8000" \
+"adc  edx, 0x0" \
+"shrd eax, edx, 0x10" \
+parm  [ eax ] [ edx ] \
+value [ eax ];
+
+/* fixed round shift functions from PC version */
+int pfix15(int a, int b);
+#pragma aux pfix15 = \
+"sar edx, 0x1f" \
+"shl edx, 0xf" \
+"sbb eax, edx" \
+"sar eax, 0xf" \
+parm  [ edx ] [ eax ] \
+value [ eax ];
+#define fix15(a) (pfix15(a, a))
+
+int pfix8(int a, int b);
+#pragma aux pfix8 = \
+"sar edx, 0x1f" \
+"shl edx, 0x8" \
+"sbb eax, edx" \
+"sar eax, 0x8" \
+parm  [ edx ] [ eax ] \
+value [ eax ];
+#define fix8(a) (pfix8(a, a))
+
+int pfix7(int a, int b);
+#pragma aux pfix7 = \
+"sar edx, 0x1f" \
+"shl edx, 0x7" \
+"sbb eax, edx" \
+"sar eax, 0x7" \
+parm  [ edx ] [ eax ] \
+value [ eax ];
+#define fix7(a) (pfix7(a, a))
+
+int pfix6(int a, int b);
+#pragma aux pfix6 = \
+"sar edx, 0x1f" \
+"shl edx, 0x6" \
+"sbb eax, edx" \
+"sar eax, 0x6" \
+parm  [ edx ] [ eax ] \
+value [ eax ];
+#define fix6(a) (pfix6(a, a))
+
+int pfix4(int a, int b);
+#pragma aux pfix4 = \
+"sar edx, 0x1f" \
+"shl edx, 0x4" \
+"sbb eax, edx" \
+"sar eax, 0x4" \
+parm  [ edx ] [ eax ] \
+value [ eax ];
+#define fix4(a) (pfix4(a, a))
+
+int pfix3(int a, int b);
+#pragma aux pfix3 = \
+"sar edx, 0x1f" \
+"shl edx, 0x3" \
+"sbb eax, edx" \
+"sar eax, 0x3" \
+parm  [ edx ] [ eax ] \
+value [ eax ];
+#define fix3(a) (pfix3(a, a))
+
+int pfix2(int a, int b);
+#pragma aux pfix2 = \
+"sar edx, 0x1f" \
+"shl edx, 0x2" \
+"sbb eax, edx" \
+"sar eax, 0x2" \
+parm  [ edx ] [ eax ] \
+value [ eax ];
+#define fix2(a) (pfix2(a, a))
+
+#endif
 
 #define abs(a) ((a)>=0 ? (a) : -(a))
 

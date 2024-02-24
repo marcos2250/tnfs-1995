@@ -6,30 +6,30 @@
 #include "tnfs_math.h"
 #include "tnfs_base.h"
 
-int readFixed32(char *buffer, int pos) {
-	return (int)(buffer[pos + 3] & 0xFF) << 24 //
-		| (int)(buffer[pos + 2] & 0xFF) << 16 //
-		| (int)(buffer[pos + 1] & 0xFF) << 8 //
-		| (buffer[pos] & 0xFF);
+int readFixed32(unsigned char *buffer, int pos) {
+	return (int)(buffer[pos + 3]) << 24 //
+		| (int)(buffer[pos + 2]) << 16 //
+		| (int)(buffer[pos + 1]) << 8 //
+		| buffer[pos];
 }
 
-short readAngle14(char *buffer, int pos) {
-	short a = (short)(buffer[pos + 1] & 0xFF) << 8 | (buffer[pos] & 0xFF);
+short readAngle14(unsigned char *buffer, int pos) {
+	short a = (short)(buffer[pos + 1]) << 8 | buffer[pos];
 	if (a > 8192) {
 		a -= 16384;
 	}
 	return a;
 }
 
-int readSigned16(char *buffer, int pos) {
-	return (short)((short)(buffer[pos + 1] & 0xFF) << 8 | (buffer[pos] & 0xFF));
+int readSigned16(unsigned char *buffer, int pos) {
+	return (short)(buffer[pos + 1]) << 8 | buffer[pos];
 }
 
 /*
  * Import a TNFSSE TRI track file
  */
 int read_tri_file(char * file) {
-	char buffer[36];
+	unsigned char buffer[36];
 	FILE *ptr;
 	int i;
 
@@ -79,7 +79,7 @@ int read_tri_file(char * file) {
  * Import an uncompressed PBS file
  */
 int read_pbs_file(char * file) {
-	char buffer[2048];
+	unsigned char buffer[2048];
 	FILE *ptr;
 	int i;
 

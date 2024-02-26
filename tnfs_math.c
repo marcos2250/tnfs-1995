@@ -240,9 +240,9 @@ int math_vec3_distance_squared_XZ(tnfs_vec3 *v1, tnfs_vec3 *v2) {
 }
 
 void math_vec3_cross_product(tnfs_vec3 *result, tnfs_vec3 *v1, tnfs_vec3 *v2) {
-	result->x = math_mul(v2->y, v1->z) - math_mul(v2->z, v1->y);
-	result->y = math_mul(v2->z, v1->x) - math_mul(v2->x, v1->z);
-	result->z = math_mul(v2->x, v1->y) - math_mul(v2->y, v1->x);
+	result->x = math_mul(v1->y, v2->z) - math_mul(v1->z, v2->y);
+	result->y = math_mul(v1->z, v2->x) - math_mul(v1->x, v2->z);
+	result->z = math_mul(v1->x, v2->y) - math_mul(v1->y, v2->x);
 }
 
 void math_vec3_normalize(tnfs_vec3 *v) {
@@ -281,8 +281,16 @@ void math_height_coordinates(tnfs_vec3 *p3, tnfs_vec3 *p2, tnfs_vec3 *p1, tnfs_v
 	denominator = math_inverse_value(cross.y);
 
 	// calculate y for the 3 requested points
-	p3->y = fixmul(-fixmul(cross.z, p3->z) - fixmul(cross.x, p3->x), denominator);
-	p2->y = fixmul(-fixmul(cross.z, p2->z) - fixmul(cross.x, p2->x), denominator);
-	p1->y = fixmul(-fixmul(cross.z, p1->z - tA->z) - fixmul(cross.x, p1->x - tA->x), denominator) + tA->y;
+	//p3->y = fixmul(-fixmul(cross.z, p3->z) - fixmul(cross.x, p3->x), denominator);
+	//p2->y = fixmul(-fixmul(cross.z, p2->z) - fixmul(cross.x, p2->x), denominator);
+	//p1->y = fixmul(-fixmul(cross.z, p1->z - tA->z) - fixmul(cross.x, p1->x - tA->x), denominator) + tA->y;
+
+	// compiler optimized
+	cross.x = cross.x >> 8;
+	cross.z = cross.z >> 8;
+	denominator = denominator >> 8;
+	p3->y = ((-((p3->z >> 8) * cross.z) - ((p3->x >> 8) * cross.x)) >> 8) * denominator;
+	p2->y = ((-((p2->z >> 8) * cross.z) - ((p2->x >> 8) * cross.x)) >> 8) * denominator;
+	p1->y = ((-(((p1->z - tA->z) >> 8) * cross.z) - (((p1->x - tA->x) >> 8) * cross.x)) >> 8) * denominator + tA->y;
 }
 

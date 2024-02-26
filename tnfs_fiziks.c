@@ -526,14 +526,14 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	traction_rear = thrust_force - traction_front;
 
 	// braking forces
-	if (car_data->brake <= 240) {
-		braking_total = fixmul(330 * car_data->brake, car_data->tire_grip_rear + car_data->tire_grip_front);
-		braking_front = fixmul(car_specs->front_brake_percentage, braking_total);
-		braking_rear = (braking_total - braking_front);
-	} else {
+	if (car_data->brake > 240) {
 		// hard braking
 		braking_front = 0x140000;
 		braking_rear = 0x140000;
+	} else {
+		braking_total = fixmul(330 * car_data->brake, car_data->tire_grip_rear + car_data->tire_grip_front);
+		braking_front = fixmul(car_specs->front_brake_percentage, braking_total);
+		braking_rear = (braking_total - braking_front);
 	}
 
 	// handbrake
@@ -558,13 +558,13 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	}
 
 	//TCS
-	if (car_data->throttle >= 40) {
+	if (car_data->throttle < 40) {
+		car_data->tcs_on = 0;
+	} else {
 		if (car_data->tcs_on != 0) {
-			if (abs(thrust_force) > 0x70000 && car_data->throttle > 83)
+			if (0x70000 <= abs(thrust_force) && car_data->throttle > 83)
 				car_data->throttle -= 12;
 		}
-	} else {
-		car_data->tcs_on = 0;
 	}
 	if (car_data->brake < 40)
 		car_data->abs_on = 0;
@@ -627,10 +627,10 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 
 	// adjust steer sensitivity
 	steer = car_data->steer_angle;
-	if (car_data->brake <= 200) {
-		steering = steer - fix15(fix8(car_data->speed_local_lon) * steer);
-	} else {
+	if (car_data->brake > 200) {
 		steering = steer / 2;
+	} else {
+		steering = steer - fix15(fix8(car_data->speed_local_lon) * steer);
 	}
 
 	// tire forces (bicycle model)
@@ -701,7 +701,7 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	tnfs_road_surface_modifier(car_data);
 
 	// thrust force to acc (force/mass=acc?)
-	force_lon_adj = fix8(car_specs->thrust_to_acc_factor * force_Lon);
+	force_lon_adj = fix8((car_specs->thrust_to_acc_factor * force_Lon));
 
 	// suspension inclination
 	car_data->susp_incl_lat = force_Lat;
@@ -990,9 +990,9 @@ void tnfs_height_road_position(tnfs_car_data *car_data, int mode) {
 	pA.y = track_data[node].pos.y;
 	pA.z = track_data[node].pos.z;
 
-	pB.x = pA.x + track_data[node].segment_cos * 2;
-	pB.y = pA.y + track_data[node].segment_tan * 2;
-	pB.z = pA.z + track_data[node].segment_sin * 2;
+	pB.x = (track_data[node].segment_cos) * 2 + pA.x;
+	pB.y = (track_data[node].segment_tan) * 2 + pA.y;
+	pB.z = (track_data[node].segment_sin) * 2 + pA.z;
 
 	node += 1;
 	pC.x = track_data[node].pos.x;

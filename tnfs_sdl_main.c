@@ -21,16 +21,16 @@ void handleKeys() {
 	if (event.type == SDL_KEYDOWN) {
 		switch (event.key.keysym.sym) {
 		case SDLK_LEFT:
-			car_data.steer_angle = -0x1B0000;
+			g_control_steer = -1;
 			break;
 		case SDLK_RIGHT:
-			car_data.steer_angle = 0x1B0000;
+			g_control_steer = 1;
 			break;
 		case SDLK_UP:
-			car_data.throttle = 0xFF;
+			g_control_throttle = 1;
 			break;
 		case SDLK_DOWN:
-			car_data.brake = 0xFF;
+			g_control_brake = 1;
 			break;
 		case SDLK_SPACE:
 			car_data.handbrake = 1;
@@ -76,16 +76,16 @@ void handleKeys() {
 	if (event.type == SDL_KEYUP) {
 		switch (event.key.keysym.sym) {
 		case SDLK_UP:
-			car_data.throttle = 0;
+			g_control_throttle = 0;
 			break;
 		case SDLK_DOWN:
-			car_data.brake = 0;
+			g_control_brake = 0;
 			break;
 		case SDLK_LEFT:
-			car_data.steer_angle = 0;
+			g_control_steer = 0;
 			break;
 		case SDLK_RIGHT:
-			car_data.steer_angle = 0;
+			g_control_steer = 0;
 			break;
 		case SDLK_SPACE:
 			car_data.handbrake = 0;

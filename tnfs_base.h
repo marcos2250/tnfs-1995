@@ -11,7 +11,8 @@ typedef struct tnfs_car_specs {
 	int mass_front; //0x000
 	int mass_rear; //0x004
 	int mass_total; //0x008
-	//  ...
+	int inverse_mass_front; //0x00C
+	int inverse_mass_rear; //0x010
 	int inverse_mass; //0x014
 	int front_drive_percentage; //0x018
 	int front_brake_percentage; //0x01C
@@ -121,6 +122,7 @@ typedef struct tnfs_car_data {
 	// ...
 	int collision_height_offset;
 	tnfs_collision_data collision_data;
+	// ...
 	int field203_0x174;
 	// ...
 	int angle_dx;
@@ -128,9 +130,9 @@ typedef struct tnfs_car_data {
 	tnfs_vec3 world_position;
 	int body_roll; //0x365
 	int body_pitch; //0x369
-	tnfs_vec3 road_ground_position;
 	tnfs_vec3 front_edge;
 	tnfs_vec3 side_edge;
+	tnfs_vec3 road_ground_position;
 	// ...
 	int throttle; //0x3B1
 	int throttle_previous_pos; //0x3B5
@@ -145,7 +147,6 @@ typedef struct tnfs_car_data {
 	// ...
 	int slope_force_lat; //0x3D9
 	int unknown_flag_3DD; //0x3DD
-	// ...
 	int slope_force_lon; //0x3E1
 	int thrust; //0x3E5
 	int gear_auto_selected; //0x3E9
@@ -173,35 +174,41 @@ typedef struct tnfs_car_data {
 	// ...
 	int weight_distribution_front; //0x435
 	int weight_distribution_rear; //0x439
-	// ...
+	int mass_front;
+	int mass_rear;
 	int weight_transfer_factor; //0x445
 	int rear_friction_factor; //0x449
 	int front_friction_factor; //0x44D
 	int wheel_base; //0x451
-	// ...
+	int unknown_0x460;
 	int front_yaw_factor; //0x459
 	int rear_yaw_factor; //0x45D
 	// ...
 	struct tnfs_car_specs *car_specs_ptr; //0x471
 	int unknown_flag_475; //0x475
-	int unknown_flag_479; //0x479
-	int unknown_flag_480; //0x480
 	// ...
+	int unknown_0x498;
 	int tcs_enabled; //0x491
 	int abs_enabled; //0x495
 	// ...
+	int drag_const_0x4a8;
+	int drag_const_0x4aa;
+	short drag_const_0x4ac;
+	short drag_const_0x4ae;
 	int surface_type; //0x49D
 	int surface_type_b; //0x4A1
-	//..
+	// ...
 	int tcs_on; //0x4AD
 	int abs_on; //0x4B1
 	// ...
+	int is_wrecked;
+	// ...
 	int delta_time; //0x4D5
 	int fps; //0x4D9
-	//..
-	int is_wrecked;
+	// ...
 	int field444_0x520;
 	int field445_0x524;
+	// ...
 } tnfs_car_data;
 
 
@@ -249,13 +256,16 @@ extern int road_segment_count;
 extern int sound_flag;
 extern int cheat_crashing_cars;
 extern int cheat_code_8010d1c4;
+extern char g_control_throttle;
+extern char g_control_brake;
+extern signed char g_control_steer;
 
 extern int selected_camera;
 extern tnfs_vec3 camera_position;
 
 // common functions
 void tnfs_init_sim();
-void tnfs_replay_highlight_000502AB(char a);
+void tnfs_replay_highlight_record(char a);
 void tnfs_reset_car();
 void tnfs_update();
 void tnfs_crash_car();

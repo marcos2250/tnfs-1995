@@ -31,7 +31,7 @@ void drawRect(float x, float y, double a, float l, float w) {
 }
 
 void drawRoad(float ox, float oy) {
-	int i,j,n,max;
+	int i, j, n, max;
 
 	max = road_segment_count - 1;
 	for (n = 0; n < 8; n++) {
@@ -44,11 +44,11 @@ void drawRoad(float ox, float oy) {
 		}
 		j = i + 1;
 
-		_moveto((int)((-track_data[i].vf_margin_L.z-ox) * scale), (int)((track_data[i].vf_margin_L.x-oy) * scale));
-		_lineto((int)((-track_data[j].vf_margin_L.z-ox) * scale), (int)((track_data[j].vf_margin_L.x-oy) * scale));
-		_lineto((int)((-track_data[j].vf_margin_R.z-ox) * scale), (int)((track_data[j].vf_margin_R.x-oy) * scale));
-		_lineto((int)((-track_data[i].vf_margin_R.z-ox) * scale), (int)((track_data[i].vf_margin_R.x-oy) * scale));
-		_lineto((int)((-track_data[i].vf_margin_L.z-ox) * scale), (int)((track_data[i].vf_margin_L.x-oy) * scale));
+		_moveto((int) ((-track_data[i].vf_margin_L.z - ox) * scale), (int) ((track_data[i].vf_margin_L.x - oy) * scale));
+		_lineto((int) ((-track_data[j].vf_margin_L.z - ox) * scale), (int) ((track_data[j].vf_margin_L.x - oy) * scale));
+		_lineto((int) ((-track_data[j].vf_margin_R.z - ox) * scale), (int) ((track_data[j].vf_margin_R.x - oy) * scale));
+		_lineto((int) ((-track_data[i].vf_margin_R.z - ox) * scale), (int) ((track_data[i].vf_margin_R.x - oy) * scale));
+		_lineto((int) ((-track_data[i].vf_margin_L.z - ox) * scale), (int) ((track_data[i].vf_margin_L.x - oy) * scale));
 	}
 }
 
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
 	trifile = 0;
 	// command usage: tnfs [tr1.tri] (read a track file)
 	if (argc > 1) {
-	       trifile = argv[1];
+		trifile = argv[1];
 	}
 
 	tnfs_init_sim(trifile);
@@ -106,24 +106,23 @@ int main(int argc, char **argv) {
 
 		// read keys, not very responsive
 		if (kbhit()) {
-			v = getch();
-			switch (v) {
+			switch (getch()) {
 			case 72:
-				car_data.throttle = 0xFF;
-				car_data.brake = 0;
+				g_control_throttle = 1;
+				g_control_brake = 0;
 				car_data.handbrake = 0;
-				car_data.steer_angle = 0;
+				g_control_steer = 0;
 				break;
 			case 80:
-				car_data.brake = 0xFF;
-				car_data.throttle = 0;
+				g_control_brake = 1;
+				g_control_throttle = 0;
 				car_data.handbrake = 0;
 				break;
 			case 75:
-				car_data.steer_angle = -0x1B0000;
+				g_control_steer = -1;
 				break;
 			case 77:
-				car_data.steer_angle = 0x1B0000;
+				g_control_steer = 1;
 				break;
 			case 27:
 				playing = 0;

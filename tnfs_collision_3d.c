@@ -422,7 +422,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		}
 		if (car->collision_data.field6_0x60 > 0x80000) {
 			tnfs_car_local_position_vector(car->car_data_ptr, &local_28, &local_24);
-			if (car->unknown_flag_480 == 0) {
+			if (car->unknown_flag_475 == 0) {
 				local_24 = 1;
 				local_28 = 0x400000;
 			} else {
@@ -503,7 +503,7 @@ void tnfs_collision_rollover_start_2(tnfs_car_data *param_1) {
 	//FUN_8004ce14((tnfs_car_data *)&PTR_80103660);
 	param_1->field203_0x174 = param_1->field203_0x174 & 0xfffffdff;
 	param_1->collision_data.crashed_time = 300;
-	//tnfs_unecessary_800489a4(0x5c);
+	tnfs_replay_highlight_record(0x5c);
 	if (sound_flag == 0) {
 		if (param_1 != tnfs_car_data_ptr) {
 			return;

@@ -201,7 +201,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 		}
 		tnfs_sfx_play(-1, 2, 9, abs_speed, sfxB, sfxA);
 		if (abs_speed > 0x140000) {
-			tnfs_replay_highlight_000502AB(0x32);
+			tnfs_replay_highlight_record(0x32);
 		}
 	}
 

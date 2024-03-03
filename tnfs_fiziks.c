@@ -70,9 +70,9 @@ int tnfs_drag_force(tnfs_car_data *car, signed int speed, char longitudinal) {
 	drag = fix8(road_surface_type_array[car->surface_type].velocity_drag * car->car_specs_ptr->drag) * sq_speed;
 
 	//only PSX
-	//if (longitudinal) {
-	//	drag += (car->drag_const_0x4ac + car->drag_const_0x4ae) * sq_speed;
-	//}
+	if (longitudinal) {
+		drag += (car->drag_const_0x4ac + car->drag_const_0x4ae) * sq_speed;
+	}
 
 	drag += road_surface_type_array[car->surface_type].surface_drag;
 
@@ -133,6 +133,9 @@ void tnfs_road_surface_modifier(tnfs_car_data *car_data) {
 	int slope_1;
 	int slope_0;
 
+	int grip;
+	int grip1;
+
 	slope_0 = track_data[car_data->road_segment_a].slope * 0x400;
 	if (slope_0 > 0x800000)
 		slope_0 -= 0x1000000;
@@ -159,7 +162,24 @@ void tnfs_road_surface_modifier(tnfs_car_data *car_data) {
 	if (car_data->tire_grip_rear < 0)
 		car_data->tire_grip_rear = 0;
 
-	// ...
+	// not exists on 3DO and PC demo
+	grip = car_data->speed_local_lon >> 16;
+	if (0 < car_data->speed_local_lon) {
+		grip = grip * grip;
+		grip1 = grip * car_data->drag_const_0x4a8;
+		grip = grip * car_data->drag_const_0x4aa;
+		car_data->tire_grip_front = grip1 + car_data->tire_grip_front;
+		grip1 = grip1 + grip;
+		car_data->tire_grip_rear = grip + car_data->tire_grip_rear;
+		grip = grip1;
+		if (grip1 < 0) {
+			grip = grip1 + 3;
+		}
+		if (grip1 < 0) {
+			grip1 = grip1 + 7;
+		}
+		car_data->road_grip_increment = (grip >> 2) + (grip1 >> 3) + car_data->road_grip_increment;
+	}
 }
 
 /*
@@ -251,7 +271,7 @@ void tnfs_tire_limit_max_grip(tnfs_car_data *car_data, //
 			*force_lat = fix8(factor * *force_lat);
 			*force_lon = fix8(factor * *force_lon);
 			// ANGLE WARNING!!
-			printf("ANGLE WARNING!! %s=%d\n", "a", f_lat_abs);
+			// printf("ANGLE WARNING!! %s=%d\n", "a", f_lat_abs);
 		}
 	}
 
@@ -272,7 +292,6 @@ void tnfs_tire_forces(tnfs_car_data *car, //
 	int f_lat_loc_abs2;
 	int f_lon_loc_abs2;
 	int grip_force;
-	int lateral_force;
 	int *slide;
 	char *skid;
 	signed int max_grip;
@@ -324,9 +343,8 @@ void tnfs_tire_forces(tnfs_car_data *car, //
 
 			// lateral tire grip factor
 			slip_angle_grip = math_mul(max_grip, tnfs_tire_slide_table(car, slip_angle, is_front_wheels - 1));
-			lateral_force = abs(force_lat_local);
 
-			if (lateral_force > slip_angle_grip) {
+			if (abs(force_lat_local) > slip_angle_grip) {
 				//lateral force exceeding max grip
 				grip_force = 8 * slip_angle_grip;
 
@@ -452,7 +470,6 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	int sLat;
 	tnfs_car_specs *car_specs;
 	int body_roll_sine;
-	int turning;
 	int aux;
 
 	//local_50 = &g_unknown_array + car_data->car_flag_0x480 * 0x74;
@@ -727,9 +744,10 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	math_rotate_2d(car_data->speed_local_lat, car_data->speed_local_lon, car_data->angle_y, &car_data->speed_x, &car_data->speed_z);
 
 	// move the car
+	// 3DO version
 	//car_data->position.z += math_mul(car_data->speed_z, car_data->delta_time);
 	//car_data->position.x -= math_mul(car_data->speed_x, car_data->delta_time);
-	// since PC version, cars are sped up 25% !!!
+	// PC/PSX version, cars are sped up 25% !!!
 	car_data->position.z += math_mul(fix2(car_data->speed_z) + car_data->speed_z, car_data->delta_time);
 	car_data->position.x -= math_mul(fix2(car_data->speed_x) + car_data->speed_x, car_data->delta_time);
 
@@ -821,9 +839,9 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 			track_heading_2 -= 0x1000000;
 
 		body_roll_sine = math_sin_3(car_data->angle_z);// >> 14);
-		turning = (car_data->speed_local_lon >> 8) * (track_heading_2 - track_heading_1);
-		turning = math_mul(body_roll_sine, turning >> 8);
-		car_data->angle_y -= fix7(turning);
+		angular_accel = (car_data->speed_local_lon >> 8) * (track_heading_2 - track_heading_1);
+		angular_accel = math_mul(body_roll_sine, angular_accel >> 8);
+		car_data->angle_y -= fix7(angular_accel);
 	}
 
 	// wrap angle
@@ -845,15 +863,15 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 		else
 			local_speed_lat = car_data->speed_local_lat;
 		if (local_speed_lat > local_speed_lon && car_data->speed_local_lat > 0x8000)
-			tnfs_replay_highlight_000502AB(87);
+			tnfs_replay_highlight_record(87);
 		if ((car_data->slide_front || car_data->slide_rear) //
 			&& car_data->speed > 0x140000 //
 			&& ((car_data->tire_skid_rear & 1) || (car_data->tire_skid_front & 1))) {
-				tnfs_replay_highlight_000502AB(40);
+				tnfs_replay_highlight_record(40);
 		}
 		if (DAT_800f62c0 == 0) {
 			if (abs(car_data->speed_local_lon) > 3276) {
-				tnfs_replay_highlight_000502AB(120);
+				tnfs_replay_highlight_record(120);
 				DAT_800f62c0 = g_game_time + 1;
 			}
 		}
@@ -926,7 +944,7 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 		}
 		if (car_data->tire_skid_rear) {
 			if (abs(car_data->angular_speed) > 3276800)
-				tnfs_replay_highlight_000502AB(87);
+				tnfs_replay_highlight_record(87);
 		}
 	}
 
@@ -1045,7 +1063,7 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
 	int bounce;
 	int angleX = 0;
 	int angleZ = 0;
-	int nHeight;
+	int nextHeight;
 
 	tnfs_height_road_position(car_data, 0);
 
@@ -1056,7 +1074,7 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
 	car_data->speed_y -= 0x9cf5c * (car_data->delta_time >> 2) >> 15;
 
 	// next frame falling height
-	nHeight = (car_data->delta_time >> 4) * ((fix2(car_data->speed_y) + car_data->speed_y) >> 0xc) + car_data->position.y;
+	nextHeight = (car_data->delta_time >> 4) * ((fix2(car_data->speed_y) + car_data->speed_y) >> 0xc) + car_data->position.y;
 
 	if (!is_driving_mode) {
 		// in crash mode
@@ -1067,10 +1085,10 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
 		return;
 	}
 
-	if (car_data->road_ground_position.y >= nHeight - 0x40) {
+	if (car_data->road_ground_position.y >= nextHeight - 0x40) {
 		// hit the ground
 
-		nHeight = car_data->road_ground_position.y;
+		nextHeight = car_data->road_ground_position.y;
 
 		tnfs_height_car_inclination(car_data, 0, 0);
 		tnfs_height_get_surface_inclination(car_data, &angleX, &angleZ);
@@ -1092,7 +1110,7 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
 		}
 
 		if (car_data->time_off_ground > 10) {
-			tnfs_replay_highlight_000502AB(84);
+			tnfs_replay_highlight_record(84);
 			car_data->time_off_ground = -2;
 			car_data->angle_x = angleX;
 			car_data->angle_z = angleZ;
@@ -1116,7 +1134,7 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
 
 	} else {
 		// wheels on air
-		if (nHeight - car_data->road_ground_position.y >= 0x4000) {
+		if (nextHeight - car_data->road_ground_position.y >= 0x4000) {
 			car_data->is_gear_engaged = 0;
 			car_data->wheels_on_ground = 0;
 			car_data->time_off_ground++;
@@ -1149,7 +1167,7 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
 	if (DAT_8010c478)
 		DAT_8010c478--;
 
-	car_data->position.y = nHeight;
+	car_data->position.y = nextHeight;
 }
 
 /*

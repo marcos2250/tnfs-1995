@@ -20,6 +20,9 @@ int sound_flag = 0;
 int g_selected_cheat = 0;
 int cheat_crashing_cars = 0;
 int cheat_code_8010d1c4 = 0;
+char g_control_throttle;
+char g_control_brake;
+signed char g_control_steer;
 
 int selected_camera = 0;
 tnfs_vec3 camera_position;
@@ -118,23 +121,6 @@ void tnfs_init_track(char * tri_file) {
 		auto_generate_track();
 	}
 
-	// Road Traction sections (surface constants)
-	// Tarmac
-	road_surface_type_array[0].roadFriction = 0x100;
-	road_surface_type_array[0].velocity_drag = 0x100;
-	road_surface_type_array[0].surface_drag = 0x3333;
-	road_surface_type_array[0].is_unpaved = 0;
-	// Shoulder
-	road_surface_type_array[1].roadFriction = 0x100;
-	road_surface_type_array[1].velocity_drag = 0x1400;
-	road_surface_type_array[1].surface_drag = 0x3333;
-	road_surface_type_array[1].is_unpaved = 1;
-	// Shoulder2
-	road_surface_type_array[2].roadFriction = 0x100;
-	road_surface_type_array[2].velocity_drag = 0x1400;
-	road_surface_type_array[2].surface_drag = 0x3333;
-	road_surface_type_array[2].is_unpaved = 1;
-
 	// model track for rendering
 	for (i = 0; i < road_segment_count; i++) {
 		heading = track_data[i].heading * -0x400;
@@ -164,12 +150,45 @@ void tnfs_init_track(char * tri_file) {
 	}
 }
 
+void tnfs_init_surface_constants() {
+	int i;
+
+	// Road Traction sections (surface constants)
+	// Tarmac
+	road_surface_type_array[0].roadFriction = 0x100;
+	road_surface_type_array[0].velocity_drag = 0x100;
+	road_surface_type_array[0].surface_drag = 0x3333;
+	road_surface_type_array[0].is_unpaved = 0;
+	// Shoulder
+	road_surface_type_array[1].roadFriction = 0x100;
+	road_surface_type_array[1].velocity_drag = 0x1400;
+	road_surface_type_array[1].surface_drag = 0x3333;
+	road_surface_type_array[1].is_unpaved = 1;
+	// Shoulder2
+	road_surface_type_array[2].roadFriction = 0x100;
+	road_surface_type_array[2].velocity_drag = 0x1400;
+	road_surface_type_array[2].surface_drag = 0x3333;
+	road_surface_type_array[2].is_unpaved = 1;
+
+	// rally mode surface constants
+	if (g_selected_cheat & 0x20) {
+		for (i = 0; i < 3; i++) {
+			road_surface_type_array[i].roadFriction = 0x180;
+			road_surface_type_array[i].velocity_drag = 0x80;
+			road_surface_type_array[i].surface_drag = 0x1999;
+			road_surface_type_array[i].is_unpaved = 1;
+		}
+	}
+}
+
 void tnfs_create_car_specs() {
 	int i;
 
 	car_specs.mass_front = 0x3148000; //788kg
 	car_specs.mass_rear = 0x3148000; //788kg
 	car_specs.mass_total = 0x6290000; //1577kg
+	car_specs.inverse_mass_front = 0x53; //1/788kg
+	car_specs.inverse_mass_rear = 0x53; //1/788kg
 	car_specs.inverse_mass = 0x29; // 1/1577
 	car_specs.front_drive_percentage = 0; //RWD
 	car_specs.front_brake_percentage = 0xc000; //70%
@@ -249,27 +268,6 @@ void tnfs_create_car_specs() {
 }
 
 void tnfs_reset_car() {
-	int aux;
-
-	car_data.car_length = car_specs.body_length;
-	car_data.car_width = car_specs.body_width;
-
-	car_data.weight_distribution_front = math_mul(car_specs.mass_front, car_specs.inverse_mass);
-	car_data.weight_distribution_rear = math_mul(car_specs.mass_rear, car_specs.inverse_mass);
-	car_data.weight_transfer_factor = math_mul(car_specs.centre_of_gravity_height, car_specs.burnOutDiv);
-
-	aux = math_mul(math_mul(car_specs.wheelbase, car_specs.wheelbase), 0x324);
-
-	car_data.wheel_base = math_div(aux, car_specs.wheelbase);
-	car_data.front_yaw_factor = math_div(math_mul(car_specs.wheelbase, car_data.weight_distribution_front), aux);
-	car_data.rear_yaw_factor = math_div(math_mul(car_specs.wheelbase, car_data.weight_distribution_rear), aux);
-
-	car_data.front_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.front_friction_factor, car_data.weight_distribution_rear));
-	car_data.rear_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.rear_friction_factor, car_data.weight_distribution_front));
-
-	car_data.tire_grip_front = car_data.front_friction_factor;
-	car_data.tire_grip_rear = car_data.rear_friction_factor;
-
 	car_data.collision_height_offset = 0x92f1;
 	car_data.collision_data.linear_acc_factor = 0xf646;
 	car_data.collision_data.angular_acc_factor = 0x7dd4;
@@ -339,8 +337,6 @@ void tnfs_reset_car() {
 	car_data.field444_0x520 = 0;
 	car_data.field445_0x524 = 0;
 	car_data.unknown_flag_475 = 0;
-	car_data.unknown_flag_479 = 0;
-	car_data.unknown_flag_480 = 0;
 	car_data.world_position.x = 0;
 	car_data.world_position.y = 0;
 	car_data.world_position.z = 0;
@@ -399,15 +395,30 @@ void tnfs_reset_car() {
 }
 
 void tnfs_init_car() {
-	int i;
+	int i, aux;
 
 	// load car specs
 	if (!read_pbs_file("carspecs.pbs")) {
 		tnfs_create_car_specs();
 	}
 
-	// drag coefficient to deccel factor
-	car_specs.drag = math_mul(car_specs.drag, car_specs.inverse_mass);
+	aux = car_data.field445_0x524;
+	car_data.field444_0x520 = 2; // ??
+	car_data.position.z = 0; //0x600000;
+	car_data.road_segment_a = 0; //0x10;
+	car_data.road_segment_b = 0; //0x10;
+	car_data.lap_number = 1;
+
+	// rally mode tweaks
+	if (g_selected_cheat & 0x20) {
+		for (i = 0; i < 512; i++)
+			car_specs.grip_table[i + 512] = car_specs.grip_table[i];
+
+		car_specs.lateral_accel_cutoff = 0xd2000;
+		car_specs.centre_of_gravity_height = 0x7581 * 3 / 2;
+		car_specs.front_friction_factor = 0x2b331 / 2;
+		car_specs.rear_friction_factor = 0x2f332 / 2;
+	}
 
 	// net wheel torque values
 	i = 1;
@@ -422,15 +433,84 @@ void tnfs_init_car() {
 		i += 2;
 	} while (i < car_specs.torque_table_entries);
 
-	car_data.road_segment_a = 0;
-	car_data.road_segment_b = 0;
-	car_data.tcs_enabled = 0;
+	car_data.car_length = car_specs.body_length;
+	car_data.car_width = car_specs.body_width;
 	car_data.abs_enabled = 0;
+	car_data.tcs_enabled = 0;
+	car_data.gear_auto_selected = 0;
+	car_data.unknown_0x498 = 0;
+	car_data.drag_const_0x4a8 = 0;
+	car_data.drag_const_0x4aa = 0;
 
-	tnfs_reset_car();
+	/* Fiziks_InitCar() */
+	tnfs_init_surface_constants();
+
+	car_data.weight_distribution_front = math_mul(car_specs.mass_front, car_specs.inverse_mass);
+	car_data.weight_distribution_rear = math_mul(car_specs.mass_rear, car_specs.inverse_mass);
+
+	// unused specs
+	car_data.mass_front = math_mul(car_specs.mass_total, car_specs.inverse_mass_front);
+	car_data.mass_rear = math_mul(car_specs.mass_total, car_specs.inverse_mass_rear);
+
+	// drag coefficient to deccel factor
+	car_specs.drag = math_mul(car_specs.drag, car_specs.inverse_mass);
+
+	car_data.weight_transfer_factor = math_mul(car_specs.centre_of_gravity_height, car_specs.burnOutDiv);
+	car_data.front_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.front_friction_factor, car_data.weight_distribution_rear));
+	car_data.rear_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.rear_friction_factor, car_data.weight_distribution_front));
+
+	car_data.drag_const_0x4ac = (short)(car_data.drag_const_0x4a8 << 1);
+	car_data.tire_grip_front = car_data.front_friction_factor;
+	car_data.tire_grip_rear = car_data.rear_friction_factor;
+	car_data.drag_const_0x4ae = (short)(car_data.drag_const_0x4aa << 1);
+
+	car_data.drag_const_0x4a8 = fix8(fix8(car_specs.front_friction_factor) * 10 * car_data.drag_const_0x4a8);
+	car_data.drag_const_0x4aa = fix8(fix8(car_specs.rear_friction_factor) * 10 * car_data.drag_const_0x4aa);
+
+	aux = math_mul(math_mul(car_specs.wheelbase, car_specs.wheelbase), 0x324);
+
+	car_data.wheel_base = math_div(aux, car_specs.wheelbase);
+	car_data.unknown_0x460 = math_div(math_mul(aux, car_specs.inertia_factor), car_specs.wheelbase);
+	car_data.front_yaw_factor = math_div(math_mul(car_specs.wheelbase, car_data.weight_distribution_front), aux);
+	car_data.rear_yaw_factor = math_div(math_mul(car_specs.wheelbase, car_data.weight_distribution_rear), aux);
 }
 
 /* basic game controls */
+
+void tnfs_controls_update() {
+	// steer ramp
+	if (g_control_steer > 0) {
+		car_data.steer_angle += 0x6C000;
+		if (car_data.steer_angle > 0x1B0000)
+			car_data.steer_angle = 0x1B0000;
+	} else if (g_control_steer < 0) {
+		car_data.steer_angle -= 0x6C000;
+		if (car_data.steer_angle < -0x1B0000)
+			car_data.steer_angle = -0x1B0000;
+	} else {
+		car_data.steer_angle >>= 1;
+	}
+	// throttle ramp
+	if (g_control_throttle) {
+		car_data.throttle += 0x11;
+		if (car_data.throttle > 0xFF)
+			car_data.throttle = 0xFF;
+	} else {
+		car_data.throttle -= 0xC;
+		if (car_data.throttle < 0)
+			car_data.throttle = 0;
+	}
+	// brake ramp
+	if (g_control_brake) {
+		car_data.brake += car_data.brake < 140 ? 0xC : 2;
+		if (car_data.brake > 0xFF)
+			car_data.brake = 0xFF;
+	} else {
+		car_data.brake -= 0x33;
+		if (car_data.brake < 0)
+			car_data.brake = 0;
+	}
+}
 
 void tnfs_change_camera() {
 	selected_camera++;
@@ -547,8 +627,6 @@ void tnfs_change_traction() {
 }
 
 void tnfs_cheat_mode() {
-	int i;
-
 	g_selected_cheat++;
 	cheat_crashing_cars = 0;
 	cheat_code_8010d1c4 = 0;
@@ -564,22 +642,10 @@ void tnfs_cheat_mode() {
 	if (g_selected_cheat == 2) {
 		printf("Cheat mode: Rally Mode\n");
 		cheat_code_8010d1c4 = 0x20;
-
-		for (i = 0; i < 512; i++)
-			car_specs.grip_table[i + 512] = car_specs.grip_table[i];
-
-		car_specs.lateral_accel_cutoff = 0xd2000;
-		car_specs.centre_of_gravity_height = 0x7581 * 3 / 2;
-		car_specs.front_friction_factor = 0x2b331 / 2;
-		car_specs.rear_friction_factor = 0x2f332 / 2;
-
-		for (i = 0; i < 3; i++) {
-			road_surface_type_array[i].roadFriction = 0x180;
-			road_surface_type_array[i].velocity_drag = 0x80;
-			road_surface_type_array[i].surface_drag = 0x1999;
-			road_surface_type_array[i].is_unpaved = 1;
-		}
 	}
+
+	tnfs_init_car();
+	tnfs_reset_car();
 }
 
 void tnfs_crash_car() {
@@ -592,7 +658,7 @@ void tnfs_sfx_play(int a, int b, int c, int d, int e, int f) {
 	printf("sound %i %i\n", b, f);
 }
 
-void tnfs_replay_highlight_000502AB(char a) {
+void tnfs_replay_highlight_record(char a) {
 	if (g_game_time % 30 == 0)
 		printf("replay highlight %i\n", a);
 }
@@ -784,6 +850,7 @@ void tnfs_update() {
 
 	if (car_data.collision_data.crashed_time == 0) {
 		// driving mode loop
+		tnfs_controls_update();
 		tnfs_driving_main();
 		// update render matrix
 		matrix_create_from_pitch_yaw_roll(&car_data.matrix, car_data.angle_x + car_data.body_pitch, car_data.angle_y, car_data.angle_z + car_data.body_roll);

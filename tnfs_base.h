@@ -159,8 +159,8 @@ typedef struct tnfs_car_data {
 	int slide_front; //0x405
 	int slide_rear; //0x409
 	int tire_grip_loss; //0x40D
-	int susp_incl_lat; //0x411
-	int susp_incl_lon; //0x415
+	int accel_lat; //0x411
+	int accel_lon; //0x415
 	int gear_shift_current; //0x419
 	int gear_shift_previous; //0x41D
 	int gear_shift_interval; //0x421
@@ -180,7 +180,7 @@ typedef struct tnfs_car_data {
 	int rear_friction_factor; //0x449
 	int front_friction_factor; //0x44D
 	int wheel_base; //0x451
-	int unknown_0x460;
+	int moment_of_inertia;
 	int front_yaw_factor; //0x459
 	int rear_yaw_factor; //0x45D
 	// ...

@@ -329,8 +329,8 @@ void tnfs_reset_car() {
 	car_data.speed_local_lon = 0;
 	car_data.steer_angle = 0; //int32 -1769472 to +1769472
 	car_data.tire_grip_loss = 0;
-	car_data.susp_incl_lat = 0;
-	car_data.susp_incl_lon = 0;
+	car_data.accel_lat = 0;
+	car_data.accel_lon = 0;
 	car_data.road_grip_increment = 0;
 	car_data.lap_number = 1;
 	car_data.field203_0x174 = 0x1e0;
@@ -470,7 +470,7 @@ void tnfs_init_car() {
 	aux = math_mul(math_mul(car_specs.wheelbase, car_specs.wheelbase), 0x324);
 
 	car_data.wheel_base = math_div(aux, car_specs.wheelbase);
-	car_data.unknown_0x460 = math_div(math_mul(aux, car_specs.inertia_factor), car_specs.wheelbase);
+	car_data.moment_of_inertia = math_div(math_mul(aux, car_specs.inertia_factor), car_specs.wheelbase);
 	car_data.front_yaw_factor = math_div(math_mul(car_specs.wheelbase, car_data.weight_distribution_front), aux);
 	car_data.rear_yaw_factor = math_div(math_mul(car_specs.wheelbase, car_data.weight_distribution_rear), aux);
 }

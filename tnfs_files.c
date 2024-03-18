@@ -13,16 +13,8 @@ int readFixed32(unsigned char *buffer, int pos) {
 		| buffer[pos];
 }
 
-short readAngle14(unsigned char *buffer, int pos) {
-	short a = (short)(buffer[pos + 1]) << 8 | buffer[pos];
-	if (a > 8192) {
-		a -= 16384;
-	}
-	return a;
-}
-
 int readSigned16(unsigned char *buffer, int pos) {
-	return (short)(buffer[pos + 1]) << 8 | buffer[pos];
+	return (signed short)(buffer[pos + 1]) << 8 | buffer[pos];
 }
 
 /*
@@ -57,10 +49,13 @@ int read_tri_file(char * file) {
 		track_data[i].pos.x = readFixed32(buffer, 8);
 		track_data[i].pos.y = readFixed32(buffer, 12);
 		track_data[i].pos.z = readFixed32(buffer, 16);
-		track_data[i].slope = -readAngle14(buffer, 20);
-		track_data[i].slant = -readAngle14(buffer, 22);
-		track_data[i].heading = readAngle14(buffer, 24);
 
+		// 14-bit angles: unsigned 0 to 0x4000 (360)
+		track_data[i].slope = readSigned16(buffer, 20);
+		track_data[i].slant = readSigned16(buffer, 22);
+		track_data[i].heading = readSigned16(buffer, 24);
+
+		// 16-bit normals: signed -32768 to +32768
 		track_data[i].segment_cos = readSigned16(buffer, 28);
 		track_data[i].segment_tan = readSigned16(buffer, 30);
 		track_data[i].segment_sin = readSigned16(buffer, 32);

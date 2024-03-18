@@ -11,6 +11,7 @@ tnfs_car_specs car_specs;
 tnfs_car_data car_data;
 tnfs_track_data track_data[2400];
 tnfs_surface_type road_surface_type_array[3];
+tnfs_car_data xman_car_data;
 
 // settings/flags
 char is_drifting;
@@ -95,14 +96,14 @@ void auto_generate_track() {
 		track_data[i].item_mode = 0x3;
 
 		track_data[i].slope = slope;
-		track_data[i].heading = -slant << 2;
+		track_data[i].heading = slant << 2;
 		track_data[i].slant = slant;
 		track_data[i].pos.x = pos_x;
 		track_data[i].pos.y = pos_y;
 		track_data[i].pos.z = pos_z;
 
 		track_data[i].segment_cos = (short)(math_cos_3(track_data[i].heading * -0x400) / 2);
-		track_data[i].segment_tan = (short)(math_tan_3(track_data[i].slant * 0x400) / 2);
+		track_data[i].segment_tan = (short)(math_tan_3(track_data[i].slant * -0x400) / 2);
 		track_data[i].segment_sin = (short)(math_sin_3(track_data[i].heading * -0x400) / 2);
 
 		// next segment
@@ -126,7 +127,7 @@ void tnfs_init_track(char * tri_file) {
 		heading = track_data[i].heading * -0x400;
 		s = math_sin_3(heading);
 		c = math_cos_3(heading);
-		t = math_tan_3(track_data[i].slant * 0x400);
+		t = math_tan_3(track_data[i].slant * -0x400);
 
 		dL = (int)(track_data[i].roadLeftMargin) * -0x2000;
 		dR = (int)track_data[i].roadRightMargin * 0x2000;
@@ -267,131 +268,132 @@ void tnfs_create_car_specs() {
 	}
 }
 
-void tnfs_reset_car() {
-	car_data.collision_height_offset = 0x92f1;
-	car_data.collision_data.linear_acc_factor = 0xf646;
-	car_data.collision_data.angular_acc_factor = 0x7dd4;
-	car_data.collision_data.size.x = car_specs.body_width / 2;
-	car_data.collision_data.size.y = 0x92f1;
-	car_data.collision_data.size.z = car_specs.body_length / 2;
+void tnfs_reset_car(tnfs_car_data *car) {
 
-	car_data.car_data_ptr = &car_data;
-	car_data.car_specs_ptr = &car_specs;
+	car->gear_selected = -1; //-2 Reverse, -1 Neutral, 0..8 Forward gears
+	car->gear_auto_selected = 2; //0 Manual mode, 1 Reverse, 2 Neutral, 3 Drive
+	car->gear_shift_current = -1;
+	car->gear_shift_previous = -1;
+	car->gear_shift_interval = 16;
+	car->tire_skid_front = 0;
+	car->tire_skid_rear = 0;
+	car->is_gear_engaged = 0;
+	car->handbrake = 0;
+	car->is_engine_cutoff = 0;
+	car->is_shifting_gears = -1;
+	car->throttle_previous_pos = 0;
+	car->throttle = 0;
+	car->tcs_on = 0;
+	//car->tcs_enabled = 0;
+	car->brake = 0;
+	car->abs_on = 0;
+	//car->abs_enabled = 0;
+	car->is_crashed = 0;
+	car->is_wrecked = 0;
+	car->time_off_ground = 0;
+	car->slide_front = 0;
+	car->slide_rear = 0;
+	car->wheels_on_ground = 1;
+	car->surface_type = 0;
+	car->surface_type_b = 0;
+	//car->road_segment_a = 0;
+	//car->road_segment_b = 0;
+	car->slope_force_lat = 0;
+	car->unknown_flag_3DD = 0;
+	car->slope_force_lon = 0;
+	car->position.x = track_data[car->road_segment_a].pos.x;
+	car->position.y = track_data[car->road_segment_a].pos.y + 150;
+	car->position.z = track_data[car->road_segment_a].pos.z;
 
-	car_data.gear_selected = -1; //-2 Reverse, -1 Neutral, 0..8 Forward gears
-	car_data.gear_auto_selected = 2; //0 Manual mode, 1 Reverse, 2 Neutral, 3 Drive
-	car_data.gear_shift_current = -1;
-	car_data.gear_shift_previous = -1;
-	car_data.gear_shift_interval = 16;
-	car_data.tire_skid_front = 0;
-	car_data.tire_skid_rear = 0;
-	car_data.is_gear_engaged = 0;
-	car_data.handbrake = 0;
-	car_data.is_engine_cutoff = 0;
-	car_data.is_shifting_gears = -1;
-	car_data.throttle_previous_pos = 0;
-	car_data.throttle = 0;
-	car_data.tcs_on = 0;
-	//car_data.tcs_enabled = 0;
-	car_data.brake = 0;
-	car_data.abs_on = 0;
-	//car_data.abs_enabled = 0;
-	car_data.is_crashed = 0;
-	car_data.is_wrecked = 0;
-	car_data.time_off_ground = 0;
-	car_data.slide_front = 0;
-	car_data.slide_rear = 0;
-	car_data.wheels_on_ground = 1;
-	car_data.surface_type = 0;
-	car_data.surface_type_b = 0;
-	//car_data.road_segment_a = 0;
-	//car_data.road_segment_b = 0;
-	car_data.slope_force_lat = 0;
-	car_data.unknown_flag_3DD = 0;
-	car_data.slope_force_lon = 0;
-	car_data.position.x = track_data[car_data.road_segment_a].pos.x;
-	car_data.position.y = track_data[car_data.road_segment_a].pos.y + 150;
-	car_data.position.z = track_data[car_data.road_segment_a].pos.z;
-	car_data.angle_x = track_data[car_data.road_segment_a].slope * 0x400;
-	car_data.angle_y = track_data[car_data.road_segment_a].heading * 0x400;
-	car_data.angle_z = track_data[car_data.road_segment_a].slant * 0x400;
-	car_data.body_pitch = 0;
-	car_data.body_roll = 0;
-	car_data.angle_dx = 0;
-	car_data.angular_speed = 0;
-	car_data.speed_x = 0;
-	car_data.speed_y = 0;
-	car_data.speed_z = 0;
-	car_data.speed = 0;
-	car_data.speed_drivetrain = 0;
-	car_data.speed_local_lat = 0;
-	car_data.speed_local_vert = 0;
-	car_data.speed_local_lon = 0;
-	car_data.steer_angle = 0; //int32 -1769472 to +1769472
-	car_data.tire_grip_loss = 0;
-	car_data.accel_lat = 0;
-	car_data.accel_lon = 0;
-	car_data.road_grip_increment = 0;
-	car_data.lap_number = 1;
-	car_data.field203_0x174 = 0x1e0;
-	car_data.field444_0x520 = 0;
-	car_data.field445_0x524 = 0;
-	car_data.unknown_flag_475 = 0;
-	car_data.world_position.x = 0;
-	car_data.world_position.y = 0;
-	car_data.world_position.z = 0;
-	car_data.road_ground_position.x = 0;
-	car_data.road_ground_position.y = 0;
-	car_data.road_ground_position.z = 0;
+	car->angle_x = track_data[car->road_segment_a].slope;
+	car->angle_y = track_data[car->road_segment_a].heading * 0x400;
+	car->angle_z = track_data[car->road_segment_a].slant;
 
-	car_data.rpm_vehicle = car_specs.rpm_idle;
-	car_data.rpm_engine = car_specs.rpm_idle;
-	car_data.rpm_redline = car_specs.rpm_redline;
+	// convert slope/slant angles to signed values
+	if (car->angle_x > 8192)
+		car->angle_x -= 16384;
+	car->angle_x *= -0x400;
+	if (car->angle_z > 8192)
+		car->angle_z -= 16384;
+	car->angle_z *= -0x400;
 
-	car_data.road_fence_normal.x = 0x10000;
-	car_data.road_fence_normal.y = 0;
-	car_data.road_fence_normal.z = 0;
+	car->body_pitch = 0;
+	car->body_roll = 0;
+	car->angle_dx = 0;
+	car->angular_speed = 0;
+	car->speed_x = 0;
+	car->speed_y = 0;
+	car->speed_z = 0;
+	car->speed = 0;
+	car->speed_drivetrain = 0;
+	car->speed_local_lat = 0;
+	car->speed_local_vert = 0;
+	car->speed_local_lon = 0;
+	car->steer_angle = 0; //int32 -1769472 to +1769472
+	car->tire_grip_loss = 0;
+	car->accel_lat = 0;
+	car->accel_lon = 0;
+	car->road_grip_increment = 0;
+	car->lap_number = 1;
+	car->field203_0x174 = 0x1e0;
+	car->field444_0x520 = 0;
+	car->field445_0x524 = 0;
+	car->unknown_flag_475 = 0;
+	car->world_position.x = 0;
+	car->world_position.y = 0;
+	car->world_position.z = 0;
+	car->road_ground_position.x = 0;
+	car->road_ground_position.y = 0;
+	car->road_ground_position.z = 0;
+
+	car->rpm_vehicle = car_specs.rpm_idle;
+	car->rpm_engine = car_specs.rpm_idle;
+	car->rpm_redline = car_specs.rpm_redline;
+
+	car->road_fence_normal.x = 0x10000;
+	car->road_fence_normal.y = 0;
+	car->road_fence_normal.z = 0;
 
 	//surface normal (up)
-	car_data.road_surface_normal.x = 0;
-	car_data.road_surface_normal.y = 0x10000;
-	car_data.road_surface_normal.z = 0;
+	car->road_surface_normal.x = 0;
+	car->road_surface_normal.y = 0x10000;
+	car->road_surface_normal.z = 0;
 
 	//track next node (north)
-	car_data.road_heading.x = 0;
-	car_data.road_heading.y = 0;
-	car_data.road_heading.z = 0x10000;
+	car->road_heading.x = 0;
+	car->road_heading.y = 0;
+	car->road_heading.z = 0x10000;
 
 	//surface position center
-	car_data.road_position.x = 0;
-	car_data.road_position.y = 0;
-	car_data.road_position.z = 0;
+	car->road_position.x = 0;
+	car->road_position.y = 0;
+	car->road_position.z = 0;
 
-	car_data.front_edge.x = 0x10000;
-	car_data.front_edge.y = 0;
-	car_data.front_edge.z = 0;
+	car->front_edge.x = 0x10000;
+	car->front_edge.y = 0;
+	car->front_edge.z = 0;
 
-	car_data.side_edge.x = 0;
-	car_data.side_edge.y = 0x10000;
-	car_data.side_edge.z = 0;
+	car->side_edge.x = 0;
+	car->side_edge.y = 0x10000;
+	car->side_edge.z = 0;
 
-	math_matrix_identity(&car_data.matrix);
-	math_matrix_identity(&car_data.collision_data.matrix);
+	math_matrix_identity(&car->matrix);
+	math_matrix_identity(&car->collision_data.matrix);
 
-	car_data.collision_data.position.x = 0;
-	car_data.collision_data.position.y = 0;
-	car_data.collision_data.position.z = 0;
-	car_data.collision_data.speed.x = 0;
-	car_data.collision_data.speed.y = 0;
-	car_data.collision_data.speed.z = 0;
-	car_data.collision_data.field4_0x48.x = 0;
-	car_data.collision_data.field4_0x48.y = 0;
-	car_data.collision_data.field4_0x48.z = 0;
-	car_data.collision_data.crashed_time = 0;
-	car_data.collision_data.angular_speed.x = 0;
-	car_data.collision_data.angular_speed.y = 0;
-	car_data.collision_data.angular_speed.z = 0;
-	car_data.collision_data.field6_0x60 = 0;
+	car->collision_data.position.x = car->position.x;
+	car->collision_data.position.y = car->position.y;
+	car->collision_data.position.z = -car->position.z;
+	car->collision_data.speed.x = 0;
+	car->collision_data.speed.y = 0;
+	car->collision_data.speed.z = 0;
+	car->collision_data.field4_0x48.x = 0;
+	car->collision_data.field4_0x48.y = 0;
+	car->collision_data.field4_0x48.z = -0x9cf5c;
+	car->collision_data.crashed_time = 0;
+	car->collision_data.angular_speed.x = 0;
+	car->collision_data.angular_speed.y = 0;
+	car->collision_data.angular_speed.z = 0;
+	car->collision_data.field6_0x60 = 0;
 }
 
 void tnfs_init_car() {
@@ -473,6 +475,13 @@ void tnfs_init_car() {
 	car_data.moment_of_inertia = math_div(math_mul(aux, car_specs.inertia_factor), car_specs.wheelbase);
 	car_data.front_yaw_factor = math_div(math_mul(car_specs.wheelbase, car_data.weight_distribution_front), aux);
 	car_data.rear_yaw_factor = math_div(math_mul(car_specs.wheelbase, car_data.weight_distribution_rear), aux);
+
+	car_data.collision_height_offset = 0x92f1;
+	car_data.collision_data.linear_acc_factor = 0xf646;
+	car_data.collision_data.angular_acc_factor = 0x7dd4;
+	car_data.collision_data.size.x = car_specs.body_width / 2;
+	car_data.collision_data.size.y = 0x92f1;
+	car_data.collision_data.size.z = car_specs.body_length / 2;
 }
 
 /* basic game controls */
@@ -645,7 +654,7 @@ void tnfs_cheat_mode() {
 	}
 
 	tnfs_init_car();
-	tnfs_reset_car();
+	tnfs_reset_car(&car_data);
 }
 
 void tnfs_crash_car() {
@@ -792,7 +801,7 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	heading.y = track_data[node].pos.y - car->road_position.y;
 	heading.z = track_data[node].pos.z - car->road_position.z;
 
-	math_vec3_normalize(&heading);
+	math_vec3_normalize_fast(&heading);
 
 	// 0x10000, 0, 0 => points to right side of road
 	car->road_fence_normal.x = wall_normal.x;
@@ -822,9 +831,19 @@ void tnfs_init_sim(char * trifile) {
 	sound_flag = 0;
 
 	tnfs_init_track(trifile);
-	tnfs_init_car();
 
-	tnfs_reset_car();
+	// init player car
+	tnfs_init_car();
+	car_data.car_data_ptr = &car_data;
+	car_data.car_specs_ptr = &car_specs;
+	tnfs_reset_car(&car_data);
+
+	// create xman car, player car copy
+	memcpy(&xman_car_data, &car_data, sizeof(tnfs_car_data));
+	xman_car_data.car_data_ptr = &xman_car_data;
+	xman_car_data.car_specs_ptr = &car_specs;
+	xman_car_data.road_segment_a = 20;
+	tnfs_reset_car(&xman_car_data);
 }
 
 /*
@@ -848,15 +867,25 @@ void tnfs_update() {
 		break;
 	}
 
-	if (car_data.collision_data.crashed_time == 0) {
+	// player
+	if (car_data.is_wrecked == 0) {
 		// driving mode loop
 		tnfs_controls_update();
 		tnfs_driving_main();
 		// update render matrix
-		matrix_create_from_pitch_yaw_roll(&car_data.matrix, car_data.angle_x + car_data.body_pitch, car_data.angle_y, car_data.angle_z + car_data.body_roll);
+		math_matrix_from_pitch_yaw_roll(&car_data.matrix, car_data.angle_x + car_data.body_pitch, car_data.angle_y, car_data.angle_z + car_data.body_roll);
 	} else {
 		// crash mode loop
 		tnfs_collision_main(&car_data);
+	}
+
+	// opponent
+	if (xman_car_data.is_wrecked == 0) {
+		// update render matrix
+		math_matrix_from_pitch_yaw_roll(&xman_car_data.matrix, xman_car_data.angle_x, xman_car_data.angle_y, xman_car_data.angle_z);
+	} else {
+		// crash mode loop
+		tnfs_collision_main(&xman_car_data);
 	}
 
 	// tweak to allow circuit track lap
@@ -868,4 +897,6 @@ void tnfs_update() {
 	car_data.road_ground_position.x = track_data[node].pos.x;
 	car_data.road_ground_position.y = track_data[node].pos.y;
 	car_data.road_ground_position.z = track_data[node].pos.z;
+
+	tnfs_collision_carcar();
 }

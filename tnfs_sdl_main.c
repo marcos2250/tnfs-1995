@@ -46,7 +46,7 @@ void handleKeys() {
 			tnfs_change_gear_down();
 			break;
 		case SDLK_r:
-			tnfs_reset_car();
+			tnfs_reset_car(&car_data);
 			break;
 		case SDLK_c:
 			tnfs_change_camera();
@@ -101,24 +101,24 @@ void handleKeys() {
  * position X+ right Y+ up Z+ north
  * angle X+ pitch down Y+ yaw clockwise Z+ roll left
  */
-void drawVehicle() {
+void drawVehicle(tnfs_car_data * car) {
 	// TNFS uses LHS, convert to OpenGL's RHS
 	glMatrixMode(GL_MODELVIEW);
-	matrix[0] = (float) car_data.matrix.ax / 0x10000;
-	matrix[1] = (float) car_data.matrix.ay / 0x10000;
-	matrix[2] = (float) -car_data.matrix.az / 0x10000;
+	matrix[0] = (float) car->matrix.ax / 0x10000;
+	matrix[1] = (float) car->matrix.ay / 0x10000;
+	matrix[2] = (float) -car->matrix.az / 0x10000;
 	matrix[3] = 0;
-	matrix[4] = (float) car_data.matrix.bx / 0x10000;
-	matrix[5] = (float) car_data.matrix.by / 0x10000;
-	matrix[6] = (float) -car_data.matrix.bz / 0x10000;
+	matrix[4] = (float) car->matrix.bx / 0x10000;
+	matrix[5] = (float) car->matrix.by / 0x10000;
+	matrix[6] = (float) -car->matrix.bz / 0x10000;
 	matrix[7] = 0;
-	matrix[8] = (float) car_data.matrix.cx / 0x10000;
-	matrix[9] = (float) car_data.matrix.cy / 0x10000;
-	matrix[10] = (float) -car_data.matrix.cz / 0x10000;
+	matrix[8] = (float) car->matrix.cx / 0x10000;
+	matrix[9] = (float) car->matrix.cy / 0x10000;
+	matrix[10] = (float) -car->matrix.cz / 0x10000;
 	matrix[11] = 0;
-	matrix[12] = ((float) (car_data.position.x - camera_position.x)) / 0x10000;
-	matrix[13] = ((float) (car_data.position.y - camera_position.y)) / 0x10000;
-	matrix[14] = ((float) (-car_data.position.z + camera_position.z)) / 0x10000;
+	matrix[12] = ((float) (car->position.x - camera_position.x)) / 0x10000;
+	matrix[13] = ((float) (car->position.y - camera_position.y)) / 0x10000;
+	matrix[14] = ((float) (-car->position.z + camera_position.z)) / 0x10000;
 	matrix[15] = 1;
 	glLoadMatrixf(matrix);
 
@@ -241,7 +241,8 @@ void renderGl() {
 	gluPerspective(90.0, 1, 0.1, 1000);
 
 	drawRoad();
-	drawVehicle();
+	drawVehicle(&car_data);
+	drawVehicle(&xman_car_data);
 	drawTach();
 }
 

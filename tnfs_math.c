@@ -64,6 +64,13 @@ int math_atan2(int x, int y) {
 	return atan2(y, x) * 2670178;
 }
 
+int math_angle14_32(short input) {
+	int a = input;
+	if (a > 8192)
+		a -= 16384;
+	return a * 0x400;
+}
+
 /*
  * rotate 2d vector
  */
@@ -171,16 +178,6 @@ void math_matrix_multiply(tnfs_vec9 *result, tnfs_vec9 *m2, tnfs_vec9 *m1) {
 	memcpy(result, &mr, sizeof(tnfs_vec9));
 }
 
-void matrix_create_from_pitch_yaw_roll(tnfs_vec9 *result, int pitch, int yaw, int roll) {
-	tnfs_vec9 tStack_38;
-
-	math_matrix_set_rot_X(result, pitch);
-	math_matrix_set_rot_Z(&tStack_38, roll);
-	math_matrix_multiply(result, result, &tStack_38);
-	math_matrix_set_rot_Y(&tStack_38, yaw);
-	math_matrix_multiply(result, result, &tStack_38);
-}
-
 /*
  * inverse value f(x) = 1/x
  * 0x2260 => 0x77280
@@ -222,6 +219,14 @@ int math_vec3_length(tnfs_vec3 *vector) {
 	return sqrt(x + y + z) * 0xFF;
 }
 
+int math_vec3_length_XYZ(int px, int py, int pz) {
+	int x, y, z;
+	x = math_mul(px, px);
+	y = math_mul(py, py);
+	z = math_mul(pz, pz);
+	return sqrt(x + y + z) * 0xFF;
+}
+
 /*
  * vector3 length of X & Z values
  */
@@ -245,7 +250,24 @@ void math_vec3_cross_product(tnfs_vec3 *result, tnfs_vec3 *v1, tnfs_vec3 *v2) {
 	result->z = math_mul(v1->x, v2->y) - math_mul(v1->y, v2->x);
 }
 
+void math_vec3_normalize_2(tnfs_vec3 *input) {
+	math_vec3_normalize(input);
+}
+
+
 void math_vec3_normalize(tnfs_vec3 *v) {
+	int d;
+	d = math_mul(v->x, v->x) + math_mul(v->y, v->y) + math_mul(v->z, v->z);
+	d = math_sqrt(d);
+	if (d != 0) {
+		d = math_inverse_value(d);
+		v->x = math_mul(v->x, d);
+		v->y = math_mul(v->y, d);
+		v->z = math_mul(v->z, d);
+	}
+}
+
+void math_vec3_normalize_fast(tnfs_vec3 *v) {
 	int d;
 	d = fixmul(v->x, v->x) + fixmul(v->y, v->y) + fixmul(v->z, v->z);
 	d = math_sqrt(d);
@@ -255,6 +277,50 @@ void math_vec3_normalize(tnfs_vec3 *v) {
 		v->y = fixmul(v->y, d);
 		v->z = fixmul(v->z, d);
 	}
+}
+
+int math_vec3_dot(tnfs_vec3 *v1, tnfs_vec3 *v2) {
+	int iVar1;
+	int iVar2;
+	int iVar3;
+	iVar1 = math_mul(v1->x, v2->x);
+	iVar2 = math_mul(v1->y, v2->y);
+	iVar3 = math_mul(v1->z, v2->z);
+	return iVar1 + iVar2 + iVar3;
+}
+
+void math_matrix_create_from_vec3(tnfs_vec9 *result, int amount, tnfs_vec3 *direction) {
+	int angle_a;
+	int angle_b;
+	int h_length;
+	tnfs_vec9 mRotZ;
+	tnfs_vec9 mRotY;
+	tnfs_vec9 mRotX;
+	tnfs_vec9 mRotYZ;
+	tnfs_vec9 mInv;
+
+	angle_a = math_atan2(direction->x, direction->z);
+	math_matrix_set_rot_Y(&mRotY, angle_a);
+
+	h_length = math_vec3_length_XZ(direction);
+	angle_b = math_atan2(h_length, direction->y);
+	math_matrix_set_rot_Z(&mRotZ, -angle_b);
+	math_matrix_multiply(&mRotYZ, &mRotY, &mRotZ);
+
+	math_matrix_set_rot_X(&mRotX, amount);
+	math_matrix_transpose(&mInv, &mRotYZ);
+	math_matrix_multiply(result, &mRotYZ, &mRotX);
+	math_matrix_multiply(result, result, &mInv);
+}
+
+void math_matrix_from_pitch_yaw_roll(tnfs_vec9 *result, int pitch, int yaw, int roll) {
+	tnfs_vec9 tStack_38;
+
+	math_matrix_set_rot_X(result, pitch);
+	math_matrix_set_rot_Z(&tStack_38, roll);
+	math_matrix_multiply(result, result, &tStack_38);
+	math_matrix_set_rot_Y(&tStack_38, yaw);
+	math_matrix_multiply(result, result, &tStack_38);
 }
 
 /*
@@ -293,4 +359,5 @@ void math_height_coordinates(tnfs_vec3 *p3, tnfs_vec3 *p2, tnfs_vec3 *p1, tnfs_v
 	p2->y = ((-((p2->z >> 8) * cross.z) - ((p2->x >> 8) * cross.x)) >> 8) * denominator;
 	p1->y = ((-(((p1->z - tA->z) >> 8) * cross.z) - (((p1->x - tA->x) >> 8) * cross.x)) >> 8) * denominator + tA->y;
 }
+
 

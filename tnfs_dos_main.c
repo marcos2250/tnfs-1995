@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
 				car_data.handbrake = 1;
 				break;
 			case 114:
-				tnfs_reset_car();
+				tnfs_reset_car(&car_data);
 				break;
 			case 97:
 				tnfs_change_gear_up();

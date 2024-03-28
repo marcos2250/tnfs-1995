@@ -183,7 +183,12 @@ void drawRoad() {
 	max = road_segment_count - 1;
 	for (int n = 0; n < 100; n++) {
 
-		i = car_data.road_segment_a - 50 + n;
+		if (selected_camera == 2) {
+			i = xman_car_data.road_segment_a;
+		} else {
+			i = car_data.road_segment_a;
+		}
+		i = i - 50 + n;
 		if (i < 0) {
 			i = i + max;
 		} else if (i >= max) {

@@ -15,7 +15,6 @@ int is_recording_replay = 1;
 int general_flags = 0x14;
 int debug_sum = 0;
 int selected_track = 3; //rusty springs
-int DAT_8010d1cc = 0;
 int DAT_8010d2f4 = 0;
 int DAT_8010d30c = 0;
 
@@ -1171,8 +1170,8 @@ void tnfs_height_position(tnfs_car_data *car_data, int is_driving_mode) {
  * - PSX 8002df18
  * - WIN95 TNFSSE 0x4286a0
  */
-void tnfs_driving_main() {
-	tnfs_physics_update(&car_data);
-	tnfs_road_segment_update(&car_data);
-	tnfs_height_position(&car_data, 1);
+void tnfs_driving_main(tnfs_car_data * car) {
+	tnfs_physics_update(car);
+	tnfs_road_segment_update(car);
+	tnfs_height_position(car, 1);
 }

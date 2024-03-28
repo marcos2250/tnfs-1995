@@ -209,6 +209,19 @@ typedef struct tnfs_car_data {
 	int field444_0x520;
 	int field445_0x524;
 	// ...
+
+	int field_33c; //0x33c
+	int ai_state;
+	int field_1c; //0x1c
+	int car_road_speed; //0x15c
+	int speed_target; //0x160
+	int target_center_line; //0x164
+	int field_174[3]; //100
+	int field_4e1;
+	int center_line_distance; //0x80
+	int angle_084; //0x84
+	int field_088; //0x88
+	int field_08c; //0x8c
 } tnfs_car_data;
 
 
@@ -260,6 +273,7 @@ extern int cheat_code_8010d1c4;
 extern char g_control_throttle;
 extern char g_control_brake;
 extern signed char g_control_steer;
+extern int DAT_8010d1cc;
 
 extern int selected_camera;
 extern tnfs_vec3 camera_position;

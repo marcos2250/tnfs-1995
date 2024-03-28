@@ -250,11 +250,6 @@ void math_vec3_cross_product(tnfs_vec3 *result, tnfs_vec3 *v1, tnfs_vec3 *v2) {
 	result->z = math_mul(v1->x, v2->y) - math_mul(v1->y, v2->x);
 }
 
-void math_vec3_normalize_2(tnfs_vec3 *input) {
-	math_vec3_normalize(input);
-}
-
-
 void math_vec3_normalize(tnfs_vec3 *v) {
 	int d;
 	d = math_mul(v->x, v->x) + math_mul(v->y, v->y) + math_mul(v->z, v->z);
@@ -265,6 +260,10 @@ void math_vec3_normalize(tnfs_vec3 *v) {
 		v->y = math_mul(v->y, d);
 		v->z = math_mul(v->z, d);
 	}
+}
+
+void math_vec3_normalize_2(tnfs_vec3 *input) {
+	math_vec3_normalize(input);
 }
 
 void math_vec3_normalize_fast(tnfs_vec3 *v) {

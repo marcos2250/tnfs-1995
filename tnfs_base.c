@@ -306,7 +306,6 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->slope_force_lon = 0;
 
 	car->position.x = track_data[car->road_segment_a].pos.x;
-
 	car->position.y = track_data[car->road_segment_a].pos.y + 150;
 	car->position.z = track_data[car->road_segment_a].pos.z;
 
@@ -331,6 +330,7 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->speed_y = 0;
 	car->speed_z = 0;
 	car->speed = 0;
+	car->car_road_speed = 0;
 	car->speed_drivetrain = 0;
 	car->speed_local_lat = 0;
 	car->speed_local_vert = 0;
@@ -860,10 +860,11 @@ void tnfs_init_sim(char * trifile) {
  * minimal routines for the X-man driver
  */
 void tnfs_ai_driver_update() {
+
 	tnfs_ai_update_vectors(&xman_car_data);
 
 	// fake lane change
-	xman_car_data.target_center_line = xman_car_data.road_segment_a & 0x10 ? 0x48000 : -0x48000;
+	xman_car_data.target_center_line = (xman_car_data.road_segment_a >> 2) & 0x10 ? 0x16000 : -0x16000;
 
 	tnfs_ai_main(&xman_car_data, 0, 0);
 

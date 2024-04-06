@@ -210,18 +210,19 @@ typedef struct tnfs_car_data {
 	int field445_0x524;
 	// ...
 
-	int field_33c; //0x33c
 	int ai_state;
-	int field_1c; //0x1c
+	int center_line_distance; //0x80
+	int side_width; //0x84
+	int field_088; //0x88
+	int field_08c; //0x8c
+	int target_angle; //0x1c
 	int car_road_speed; //0x15c
 	int speed_target; //0x160
 	int target_center_line; //0x164
-	int field_174[3]; //100
+	int field_174; //0x174
+	int power_curve[100]; //0x178
+	int field_33c; //0x33c
 	int field_4e1;
-	int center_line_distance; //0x80
-	int angle_084; //0x84
-	int field_088; //0x88
-	int field_08c; //0x8c
 } tnfs_car_data;
 
 

@@ -16,7 +16,7 @@ int DAT_800eae0c = 0x10000;
 int DAT_800eae10 = 0x34000;
 int DAT_800eae14 = 10;
 int DAT_800eae18 = 0x8000;
-tnfs_car_data * tnfs_car_data_ptr = 0;
+tnfs_car_data *tnfs_car_data_ptr = 0;
 
 void tnfs_collision_rebound(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_vec3 *speed, tnfs_vec3 *normal) {
 	tnfs_vec3 cross_prod;
@@ -175,7 +175,7 @@ void tnfs_collision_detect(tnfs_collision_data *body, tnfs_vec3 *surf_normal, tn
 
 	// distance between surface and body closest point
 	g_surf_distance = sideX * v_length.x + sideY * v_length.y + sideZ * v_length.z //
-			+ fixmul(surf_normal->x, body->position.x - surf_pos->x) //
+	+ fixmul(surf_normal->x, body->position.x - surf_pos->x) //
 			+ fixmul(surf_normal->y, body->position.y - surf_pos->y) //
 			+ fixmul(surf_normal->z, body->position.z - surf_pos->z);
 
@@ -222,7 +222,6 @@ void tnfs_collision_detect(tnfs_collision_data *body, tnfs_vec3 *surf_normal, tn
 		v_speed.x = fixmul(body->angular_speed.y, l_edge.z) - fixmul(body->angular_speed.z, l_edge.y) + body->speed.x;
 		v_speed.y = fixmul(body->angular_speed.z, l_edge.x) - fixmul(body->angular_speed.x, l_edge.z) + body->speed.y;
 		v_speed.z = fixmul(body->angular_speed.x, l_edge.y) - fixmul(body->angular_speed.y, l_edge.x) + body->speed.z;
-
 
 		// check if vectors are in opposite directions
 		if (fixmul(surf_normal->x, v_speed.x) + fixmul(surf_normal->y, v_speed.y) + fixmul(surf_normal->z, v_speed.z) < 0) {
@@ -558,7 +557,6 @@ int _DAT_001449cc;
  */
 int tnfs_collision_carcar_huge_func(tnfs_collision_data *body1, tnfs_collision_data *body2, tnfs_vec3 *col_position, tnfs_vec3 *col_direction, tnfs_vec9 *mat_car2,
 		tnfs_vec9 *mat_car1, tnfs_vec9 *mat_aux) {
-	int iVar1;
 	int iVar2;
 	int iVar3;
 	int iVar4;
@@ -581,228 +579,212 @@ int tnfs_collision_carcar_huge_func(tnfs_collision_data *body1, tnfs_collision_d
 	iVar2 = mat_car2->ax + mat_aux->ax;
 	iVar3 = mat_car2->bx + mat_aux->ay;
 	iVar4 = mat_car2->cx + mat_aux->az;
-	if ((((((body1->size).z < iVar4) || (-iVar4 != (body1->size).z && iVar4 <= -(body1->size).z)) || ((body1->size).x < iVar2))
-			|| (((-iVar2 != (body1->size).x && iVar2 <= -(body1->size).x) || ((body1->size).y < iVar3)))) || (-iVar3 != (body1->size).y && iVar3 <= -(body1->size).y)) {
+	if ((((((body1->size).z < iVar4) || (-iVar4 > (body1->size).z && iVar4 <= -(body1->size).z)) || ((body1->size).x < iVar2))
+			|| (((-iVar2 > (body1->size).x && iVar2 <= -(body1->size).x) || ((body1->size).y < iVar3)))) || (-iVar3 > (body1->size).y && iVar3 <= -(body1->size).y)) {
 		iVar2 = mat_car2->ay + mat_aux->ax;
 		iVar3 = mat_car2->by + mat_aux->ay;
 		iVar4 = mat_car2->cy + mat_aux->az;
-		if ((((body1->size).z < iVar4) || (-iVar4 != (body1->size).z && iVar4 <= -(body1->size).z))
+		if ((((body1->size).z < iVar4) || (-iVar4 > (body1->size).z && iVar4 <= -(body1->size).z))
 				|| (((body1->size).x < iVar2
-						|| ((((-iVar2 != (body1->size).x && iVar2 <= -(body1->size).x) || ((body1->size).y < iVar3)) || (-iVar3 != (body1->size).y && iVar3 <= -(body1->size).y)))))) {
+						|| ((((-iVar2 > (body1->size).x && iVar2 <= -(body1->size).x) || ((body1->size).y < iVar3)) || (-iVar3 > (body1->size).y && iVar3 <= -(body1->size).y)))))) {
 			iVar2 = mat_car2->az + mat_aux->ax;
 			iVar3 = mat_car2->bz + mat_aux->ay;
 			iVar4 = mat_car2->cz + mat_aux->az;
-			if ((((body1->size).z < iVar4) || (-iVar4 != (body1->size).z && iVar4 <= -(body1->size).z))
+			if ((((body1->size).z < iVar4) || (-iVar4 > (body1->size).z && iVar4 <= -(body1->size).z))
 					|| (((body1->size).x < iVar2
-							|| ((((-iVar2 != (body1->size).x && iVar2 <= -(body1->size).x) || ((body1->size).y < iVar3)) || (-iVar3 != (body1->size).y && iVar3 <= -(body1->size).y)))))) {
+							|| ((((-iVar2 > (body1->size).x && iVar2 <= -(body1->size).x) || ((body1->size).y < iVar3)) || (-iVar3 > (body1->size).y && iVar3 <= -(body1->size).y)))))) {
 				iVar2 = mat_aux->ax - mat_car2->ax;
 				iVar3 = mat_aux->ay - mat_car2->bx;
 				iVar4 = mat_aux->az - mat_car2->cx;
-				if ((((((body1->size).z < iVar4) || (-iVar4 != (body1->size).z && iVar4 <= -(body1->size).z)) || ((body1->size).x < iVar2))
-						|| (((-iVar2 != (body1->size).x && iVar2 <= -(body1->size).x) || ((body1->size).y < iVar3)))) || (-iVar3 != (body1->size).y && iVar3 <= -(body1->size).y)) {
+				if ((((((body1->size).z < iVar4) || (-iVar4 > (body1->size).z && iVar4 <= -(body1->size).z)) || ((body1->size).x < iVar2))
+						|| (((-iVar2 > (body1->size).x && iVar2 <= -(body1->size).x) || ((body1->size).y < iVar3)))) || (-iVar3 > (body1->size).y && iVar3 <= -(body1->size).y)) {
 					iVar2 = mat_aux->ax - mat_car2->ay;
 					iVar3 = mat_aux->ay - mat_car2->by;
 					iVar4 = mat_aux->az - mat_car2->cy;
-					if ((((body1->size).z < iVar4) || (-iVar4 != (body1->size).z && iVar4 <= -(body1->size).z))
+					if ((((body1->size).z < iVar4) || (-iVar4 > (body1->size).z && iVar4 <= -(body1->size).z))
 							|| (((body1->size).x < iVar2
-									|| ((((-iVar2 != (body1->size).x && iVar2 <= -(body1->size).x) || ((body1->size).y < iVar3))
-											|| (-iVar3 != (body1->size).y && iVar3 <= -(body1->size).y)))))) {
+									|| ((((-iVar2 > (body1->size).x && iVar2 <= -(body1->size).x) || ((body1->size).y < iVar3))
+											|| (-iVar3 > (body1->size).y && iVar3 <= -(body1->size).y)))))) {
 						iVar2 = mat_aux->ax - mat_car2->az;
 						iVar3 = mat_aux->ay - mat_car2->bz;
 						iVar4 = mat_aux->az - mat_car2->cz;
-						if ((((((body1->size).z < iVar4) || (-iVar4 != (body1->size).z && iVar4 <= -(body1->size).z)) || ((body1->size).x < iVar2))
-								|| (((-iVar2 != (body1->size).x && iVar2 <= -(body1->size).x) || ((body1->size).y < iVar3))))
-								|| (-iVar3 != (body1->size).y && iVar3 <= -(body1->size).y)) {
+						if ((((((body1->size).z < iVar4) || (-iVar4 > (body1->size).z && iVar4 <= -(body1->size).z)) || ((body1->size).x < iVar2))
+								|| (((-iVar2 > (body1->size).x && iVar2 <= -(body1->size).x) || ((body1->size).y < iVar3))))
+								|| (-iVar3 > (body1->size).y && iVar3 <= -(body1->size).y)) {
 							iVar2 = mat_car1->ax - mat_aux->bx;
 							iVar3 = mat_car1->ay - mat_aux->by;
 							iVar4 = mat_car1->az - mat_aux->bz;
-							if ((((((body2->size).z < iVar4) || (-iVar4 != (body2->size).z && iVar4 <= -(body2->size).z)) || ((body2->size).x < iVar2))
-									|| (((-iVar2 != (body2->size).x && iVar2 <= -(body2->size).x) || ((body2->size).y < iVar3))))
-									|| (-iVar3 != (body2->size).y && iVar3 <= -(body2->size).y)) {
+							if ((((((body2->size).z < iVar4) || (-iVar4 > (body2->size).z && iVar4 <= -(body2->size).z)) || ((body2->size).x < iVar2))
+									|| (((-iVar2 > (body2->size).x && iVar2 <= -(body2->size).x) || ((body2->size).y < iVar3))))
+									|| (-iVar3 > (body2->size).y && iVar3 <= -(body2->size).y)) {
 								iVar2 = mat_car1->bx - mat_aux->bx;
 								iVar3 = mat_car1->by - mat_aux->by;
 								iVar4 = mat_car1->bz - mat_aux->bz;
-								if ((((body2->size).z < iVar4) || (-iVar4 != (body2->size).z && iVar4 <= -(body2->size).z))
+								if ((((body2->size).z < iVar4) || (-iVar4 > (body2->size).z && iVar4 <= -(body2->size).z))
 										|| (((body2->size).x < iVar2
-												|| ((((-iVar2 != (body2->size).x && iVar2 <= -(body2->size).x) || ((body2->size).y < iVar3))
-														|| (-iVar3 != (body2->size).y && iVar3 <= -(body2->size).y)))))) {
+												|| ((((-iVar2 > (body2->size).x && iVar2 <= -(body2->size).x) || ((body2->size).y < iVar3))
+														|| (-iVar3 > (body2->size).y && iVar3 <= -(body2->size).y)))))) {
 									iVar2 = mat_car1->cx - mat_aux->bx;
 									iVar3 = mat_car1->cy - mat_aux->by;
 									iVar4 = mat_car1->cz - mat_aux->bz;
-									if ((((((body2->size).z < iVar4) || (-iVar4 != (body2->size).z && iVar4 <= -(body2->size).z)) || ((body2->size).x < iVar2))
-											|| (((-iVar2 != (body2->size).x && iVar2 <= -(body2->size).x) || ((body2->size).y < iVar3))))
-											|| (-iVar3 != (body2->size).y && iVar3 <= -(body2->size).y)) {
+									if ((((((body2->size).z < iVar4) || (-iVar4 > (body2->size).z && iVar4 <= -(body2->size).z)) || ((body2->size).x < iVar2))
+											|| (((-iVar2 > (body2->size).x && iVar2 <= -(body2->size).x) || ((body2->size).y < iVar3))))
+											|| (-iVar3 > (body2->size).y && iVar3 <= -(body2->size).y)) {
 										iVar2 = -mat_aux->bx - mat_car1->ax;
 										iVar3 = -mat_aux->by - mat_car1->ay;
 										iVar4 = -mat_aux->bz - mat_car1->az;
-										if (((((body2->size).z < iVar4) || (-iVar4 != (body2->size).z && iVar4 <= -(body2->size).z)) || ((body2->size).x < iVar2))
-												|| ((((-iVar2 != (body2->size).x && iVar2 <= -(body2->size).x) || ((body2->size).y < iVar3))
-														|| (-iVar3 != (body2->size).y && iVar3 <= -(body2->size).y)))) {
+										if (((((body2->size).z < iVar4) || (-iVar4 > (body2->size).z && iVar4 <= -(body2->size).z)) || ((body2->size).x < iVar2))
+												|| ((((-iVar2 > (body2->size).x && iVar2 <= -(body2->size).x) || ((body2->size).y < iVar3))
+														|| (-iVar3 > (body2->size).y && iVar3 <= -(body2->size).y)))) {
 											iVar2 = -mat_aux->bx - mat_car1->bx;
 											iVar3 = -mat_aux->by - mat_car1->by;
 											iVar4 = -mat_aux->bz - mat_car1->bz;
-											if ((((body2->size).z < iVar4) || (-iVar4 != (body2->size).z && iVar4 <= -(body2->size).z))
+											if ((((body2->size).z < iVar4) || (-iVar4 > (body2->size).z && iVar4 <= -(body2->size).z))
 													|| (((body2->size).x < iVar2
-															|| ((((-iVar2 != (body2->size).x && iVar2 <= -(body2->size).x) || ((body2->size).y < iVar3))
-																	|| (-iVar3 != (body2->size).y && iVar3 <= -(body2->size).y)))))) {
+															|| ((((-iVar2 > (body2->size).x && iVar2 <= -(body2->size).x) || ((body2->size).y < iVar3))
+																	|| (-iVar3 > (body2->size).y && iVar3 <= -(body2->size).y)))))) {
 												iVar2 = -mat_aux->bx - mat_car1->cx;
 												iVar3 = -mat_aux->by - mat_car1->cy;
 												iVar4 = -mat_aux->bz - mat_car1->cz;
-												if ((((body2->size).z < iVar4) || (-iVar4 != (body2->size).z && iVar4 <= -(body2->size).z))
+												if ((((body2->size).z < iVar4) || (-iVar4 > (body2->size).z && iVar4 <= -(body2->size).z))
 														|| (((body2->size).x < iVar2
-																|| ((((-iVar2 != (body2->size).x && iVar2 <= -(body2->size).x) || ((body2->size).y < iVar3))
-																		|| (-iVar3 != (body2->size).y && iVar3 <= -(body2->size).y)))))) {
+																|| ((((-iVar2 > (body2->size).x && iVar2 <= -(body2->size).x) || ((body2->size).y < iVar3))
+																		|| (-iVar3 > (body2->size).y && iVar3 <= -(body2->size).y)))))) {
 													local_1c.x = mat_aux->ax + mat_car2->ax + mat_car2->ay + mat_car2->az;
 													local_1c.y = mat_aux->ay + mat_car2->bx + mat_car2->by + mat_car2->bz;
 													local_1c.z = mat_aux->az + mat_car2->cx + mat_car2->cy + mat_car2->cz;
-													if ((((((body1->size).z < local_1c.z) || (-local_1c.z != (body1->size).z && local_1c.z <= -(body1->size).z))
+													if ((((((body1->size).z < local_1c.z) || (-local_1c.z > (body1->size).z && local_1c.z <= -(body1->size).z))
 															|| ((body1->size).x < local_1c.x))
-															|| (((-local_1c.x != (body1->size).x && local_1c.x <= -(body1->size).x) || ((body1->size).y < local_1c.y))))
-															|| (-local_1c.y != (body1->size).y && local_1c.y <= -(body1->size).y)) {
+															|| (((-local_1c.x > (body1->size).x && local_1c.x <= -(body1->size).x) || ((body1->size).y < local_1c.y))))
+															|| (-local_1c.y > (body1->size).y && local_1c.y <= -(body1->size).y)) {
 														local_1c.x = mat_aux->ax + ((mat_car2->ax + mat_car2->ay) - mat_car2->az);
 														local_1c.y = mat_aux->ay + ((mat_car2->bx + mat_car2->by) - mat_car2->bz);
 														local_1c.z = mat_aux->az + ((mat_car2->cx + mat_car2->cy) - mat_car2->cz);
-														if ((((body1->size).z < local_1c.z) || (-local_1c.z != (body1->size).z && local_1c.z <= -(body1->size).z))
+														if ((((body1->size).z < local_1c.z) || (-local_1c.z > (body1->size).z && local_1c.z <= -(body1->size).z))
 																|| (((body1->size).x < local_1c.x
-																		|| ((((-local_1c.x != (body1->size).x && local_1c.x <= -(body1->size).x) || ((body1->size).y < local_1c.y))
-																				|| (-local_1c.y != (body1->size).y && local_1c.y <= -(body1->size).y)))))) {
+																		|| ((((-local_1c.x > (body1->size).x && local_1c.x <= -(body1->size).x) || ((body1->size).y < local_1c.y))
+																				|| (-local_1c.y > (body1->size).y && local_1c.y <= -(body1->size).y)))))) {
 															local_1c.x = mat_aux->ax + (mat_car2->ax - mat_car2->ay) + mat_car2->az;
 															local_1c.y = mat_aux->ay + (mat_car2->bx - mat_car2->by) + mat_car2->bz;
 															local_1c.z = mat_aux->az + (mat_car2->cx - mat_car2->cy) + mat_car2->cz;
-															if (((((body1->size).z < local_1c.z) || (-local_1c.z != (body1->size).z && local_1c.z <= -(body1->size).z))
+															if (((((body1->size).z < local_1c.z) || (-local_1c.z > (body1->size).z && local_1c.z <= -(body1->size).z))
 																	|| ((body1->size).x < local_1c.x))
-																	|| ((((-local_1c.x != (body1->size).x && local_1c.x <= -(body1->size).x) || ((body1->size).y < local_1c.y))
-																			|| (-local_1c.y != (body1->size).y && local_1c.y <= -(body1->size).y)))) {
+																	|| ((((-local_1c.x > (body1->size).x && local_1c.x <= -(body1->size).x) || ((body1->size).y < local_1c.y))
+																			|| (-local_1c.y > (body1->size).y && local_1c.y <= -(body1->size).y)))) {
 																local_1c.x = mat_aux->ax + ((mat_car2->ax - mat_car2->ay) - mat_car2->az);
 																local_1c.y = mat_aux->ay + ((mat_car2->bx - mat_car2->by) - mat_car2->bz);
 																local_1c.z = mat_aux->az + ((mat_car2->cx - mat_car2->cy) - mat_car2->cz);
-																if ((((((body1->size).z < local_1c.z) || (-local_1c.z != (body1->size).z && local_1c.z <= -(body1->size).z))
+																if ((((((body1->size).z < local_1c.z) || (-local_1c.z > (body1->size).z && local_1c.z <= -(body1->size).z))
 																		|| ((body1->size).x < local_1c.x))
-																		|| (((-local_1c.x != (body1->size).x && local_1c.x <= -(body1->size).x) || ((body1->size).y < local_1c.y))))
-																		|| (-local_1c.y != (body1->size).y && local_1c.y <= -(body1->size).y)) {
+																		|| (((-local_1c.x > (body1->size).x && local_1c.x <= -(body1->size).x) || ((body1->size).y < local_1c.y))))
+																		|| (-local_1c.y > (body1->size).y && local_1c.y <= -(body1->size).y)) {
 																	local_1c.x = mat_aux->ax + (mat_car2->ay - mat_car2->ax) + mat_car2->az;
 																	local_1c.y = mat_aux->ay + (mat_car2->by - mat_car2->bx) + mat_car2->bz;
 																	local_1c.z = mat_aux->az + (mat_car2->cy - mat_car2->cx) + mat_car2->cz;
-																	if ((((body1->size).z < local_1c.z) || (-local_1c.z != (body1->size).z && local_1c.z <= -(body1->size).z))
+																	if ((((body1->size).z < local_1c.z) || (-local_1c.z > (body1->size).z && local_1c.z <= -(body1->size).z))
 																			|| (((body1->size).x < local_1c.x
-																					|| ((((-local_1c.x != (body1->size).x && local_1c.x <= -(body1->size).x)
+																					|| ((((-local_1c.x > (body1->size).x && local_1c.x <= -(body1->size).x)
 																							|| ((body1->size).y < local_1c.y))
-																							|| (-local_1c.y != (body1->size).y && local_1c.y <= -(body1->size).y)))))) {
+																							|| (-local_1c.y > (body1->size).y && local_1c.y <= -(body1->size).y)))))) {
 																		local_1c.x = mat_aux->ax + ((mat_car2->ay - mat_car2->ax) - mat_car2->az);
 																		local_1c.y = mat_aux->ay + ((mat_car2->by - mat_car2->bx) - mat_car2->bz);
 																		local_1c.z = mat_aux->az + ((mat_car2->cy - mat_car2->cx) - mat_car2->cz);
-																		if ((((((body1->size).z < local_1c.z) || (-local_1c.z != (body1->size).z && local_1c.z <= -(body1->size).z))
+																		if ((((((body1->size).z < local_1c.z) || (-local_1c.z > (body1->size).z && local_1c.z <= -(body1->size).z))
 																				|| ((body1->size).x < local_1c.x))
-																				|| (((-local_1c.x != (body1->size).x && local_1c.x <= -(body1->size).x)
+																				|| (((-local_1c.x > (body1->size).x && local_1c.x <= -(body1->size).x)
 																						|| ((body1->size).y < local_1c.y))))
-																				|| (-local_1c.y != (body1->size).y && local_1c.y <= -(body1->size).y)) {
+																				|| (-local_1c.y > (body1->size).y && local_1c.y <= -(body1->size).y)) {
 																			local_1c.x = mat_aux->ax + (-mat_car2->ay - mat_car2->ax) + mat_car2->az;
 																			local_1c.y = mat_aux->ay + (-mat_car2->by - mat_car2->bx) + mat_car2->bz;
 																			local_1c.z = mat_aux->az + (-mat_car2->cy - mat_car2->cx) + mat_car2->cz;
 																			if ((((((body1->size).z < local_1c.z)
-																					|| (-local_1c.z != (body1->size).z && local_1c.z <= -(body1->size).z))
+																					|| (-local_1c.z > (body1->size).z && local_1c.z <= -(body1->size).z))
 																					|| ((body1->size).x < local_1c.x))
-																					|| (((-local_1c.x != (body1->size).x && local_1c.x <= -(body1->size).x)
+																					|| (((-local_1c.x > (body1->size).x && local_1c.x <= -(body1->size).x)
 																							|| ((body1->size).y < local_1c.y))))
-																					|| (-local_1c.y != (body1->size).y && local_1c.y <= -(body1->size).y)) {
+																					|| (-local_1c.y > (body1->size).y && local_1c.y <= -(body1->size).y)) {
 																				local_1c.x = mat_aux->ax + ((-mat_car2->ay - mat_car2->ax) - mat_car2->az);
 																				local_1c.y = mat_aux->ay + ((-mat_car2->by - mat_car2->bx) - mat_car2->bz);
 																				local_1c.z = mat_aux->az + ((-mat_car2->cy - mat_car2->cx) - mat_car2->cz);
 																				if ((((body1->size).z < local_1c.z)
-																						|| (-local_1c.z != (body1->size).z && local_1c.z <= -(body1->size).z))
+																						|| (-local_1c.z > (body1->size).z && local_1c.z <= -(body1->size).z))
 																						|| (((body1->size).x < local_1c.x
-																								|| ((((-local_1c.x != (body1->size).x && local_1c.x <= -(body1->size).x)
+																								|| ((((-local_1c.x > (body1->size).x && local_1c.x <= -(body1->size).x)
 																										|| ((body1->size).y < local_1c.y))
-																										|| (-local_1c.y != (body1->size).y && local_1c.y <= -(body1->size).y)))))) {
+																										|| (-local_1c.y > (body1->size).y && local_1c.y <= -(body1->size).y)))))) {
 																					local_1c.x = (mat_car1->ax + mat_car1->bx + mat_car1->cx) - mat_aux->bx;
 																					local_1c.y = (mat_car1->ay + mat_car1->by + mat_car1->cy) - mat_aux->by;
 																					local_1c.z = (mat_car1->az + mat_car1->bz + mat_car1->cz) - mat_aux->bz;
 																					if ((((((body2->size).z < local_1c.z)
-																							|| (-local_1c.z != (body2->size).z && local_1c.z <= -(body2->size).z))
+																							|| (-local_1c.z > (body2->size).z && local_1c.z <= -(body2->size).z))
 																							|| ((body2->size).x < local_1c.x))
-																							|| (((-local_1c.x != (body2->size).x && local_1c.x <= -(body2->size).x)
+																							|| (((-local_1c.x > (body2->size).x && local_1c.x <= -(body2->size).x)
 																									|| ((body2->size).y < local_1c.y))))
-																							|| (-local_1c.y != (body2->size).y && local_1c.y <= -(body2->size).y)) {
+																							|| (-local_1c.y > (body2->size).y && local_1c.y <= -(body2->size).y)) {
 																						local_1c.x = ((mat_car1->ax + mat_car1->bx) - mat_car1->cx) - mat_aux->bx;
 																						local_1c.y = ((mat_car1->ay + mat_car1->by) - mat_car1->cy) - mat_aux->by;
 																						local_1c.z = ((mat_car1->az + mat_car1->bz) - mat_car1->cz) - mat_aux->bz;
 																						if ((((((body2->size).z < local_1c.z)
-																								|| (-local_1c.z != (body2->size).z && local_1c.z <= -(body2->size).z))
+																								|| (-local_1c.z > (body2->size).z && local_1c.z <= -(body2->size).z))
 																								|| ((body2->size).x < local_1c.x))
-																								|| (((-local_1c.x != (body2->size).x && local_1c.x <= -(body2->size).x)
+																								|| (((-local_1c.x > (body2->size).x && local_1c.x <= -(body2->size).x)
 																										|| ((body2->size).y < local_1c.y))))
-																								|| (-local_1c.y != (body2->size).y && local_1c.y <= -(body2->size).y)) {
+																								|| (-local_1c.y > (body2->size).y && local_1c.y <= -(body2->size).y)) {
 																							local_1c.x = ((mat_car1->ax - mat_car1->bx) + mat_car1->cx) - mat_aux->bx;
 																							local_1c.y = ((mat_car1->ay - mat_car1->by) + mat_car1->cy) - mat_aux->by;
 																							local_1c.z = ((mat_car1->az - mat_car1->bz) + mat_car1->cz) - mat_aux->bz;
 																							if ((((body2->size).z < local_1c.z)
-																									|| (-local_1c.z != (body2->size).z && local_1c.z <= -(body2->size).z))
+																									|| (-local_1c.z > (body2->size).z && local_1c.z <= -(body2->size).z))
 																									|| (((body2->size).x < local_1c.x
-																											|| ((((-local_1c.x != (body2->size).x && local_1c.x <= -(body2->size).x)
+																											|| ((((-local_1c.x > (body2->size).x && local_1c.x <= -(body2->size).x)
 																													|| ((body2->size).y < local_1c.y))
-																													|| (-local_1c.y != (body2->size).y
+																													|| (-local_1c.y > (body2->size).y
 																															&& local_1c.y <= -(body2->size).y)))))) {
 																								local_1c.x = ((mat_car1->ax - mat_car1->bx) - mat_car1->cx) - mat_aux->bx;
 																								local_1c.y = ((mat_car1->ay - mat_car1->by) - mat_car1->cy) - mat_aux->by;
 																								local_1c.z = ((mat_car1->az - mat_car1->bz) - mat_car1->cz) - mat_aux->bz;
 																								if ((((body2->size).z < local_1c.z)
-																										|| (-local_1c.z != (body2->size).z && local_1c.z <= -(body2->size).z))
+																										|| (-local_1c.z > (body2->size).z && local_1c.z <= -(body2->size).z))
 																										|| (((body2->size).x < local_1c.x
-																												|| ((((-local_1c.x != (body2->size).x
-																														&& local_1c.x <= -(body2->size).x)
+																												|| ((((-local_1c.x > (body2->size).x && local_1c.x <= -(body2->size).x)
 																														|| ((body2->size).y < local_1c.y))
-																														|| (-local_1c.y != (body2->size).y
-																																&& local_1c.y <= -(body2->size).y)))))) {
+																														|| (-local_1c.y > (body2->size).y && local_1c.y <= -(body2->size).y)))))) {
 																									local_1c.x = ((mat_car1->bx - mat_car1->ax) + mat_car1->cx) - mat_aux->bx;
 																									local_1c.y = ((mat_car1->by - mat_car1->ay) + mat_car1->cy) - mat_aux->by;
 																									local_1c.z = ((mat_car1->bz - mat_car1->az) + mat_car1->cz) - mat_aux->bz;
 																									if ((((((body2->size).z < local_1c.z)
-																											|| (-local_1c.z != (body2->size).z && local_1c.z <= -(body2->size).z))
+																											|| (-local_1c.z > (body2->size).z && local_1c.z <= -(body2->size).z))
 																											|| ((body2->size).x < local_1c.x))
-																											|| (((-local_1c.x != (body2->size).x && local_1c.x <= -(body2->size).x)
+																											|| (((-local_1c.x > (body2->size).x && local_1c.x <= -(body2->size).x)
 																													|| ((body2->size).y < local_1c.y))))
-																											|| (-local_1c.y != (body2->size).y && local_1c.y <= -(body2->size).y)) {
+																											|| (-local_1c.y > (body2->size).y && local_1c.y <= -(body2->size).y)) {
 																										local_1c.x = ((mat_car1->bx - mat_car1->ax) - mat_car1->cx) - mat_aux->bx;
 																										local_1c.y = ((mat_car1->by - mat_car1->ay) - mat_car1->cy) - mat_aux->by;
 																										local_1c.z = ((mat_car1->bz - mat_car1->az) - mat_car1->cz) - mat_aux->bz;
 																										if ((((body2->size).z < local_1c.z)
-																												|| (-local_1c.z != (body2->size).z && local_1c.z <= -(body2->size).z))
+																												|| (-local_1c.z > (body2->size).z && local_1c.z <= -(body2->size).z))
 																												|| (((body2->size).x < local_1c.x
-																														|| ((((-local_1c.x != (body2->size).x
-																																&& local_1c.x <= -(body2->size).x)
+																														|| ((((-local_1c.x > (body2->size).x && local_1c.x <= -(body2->size).x)
 																																|| ((body2->size).y < local_1c.y))
-																																|| (-local_1c.y != (body2->size).y
-																																		&& local_1c.y <= -(body2->size).y)))))) {
-																											local_1c.x = ((-mat_car1->bx - mat_car1->ax) + mat_car1->cx)
-																													- mat_aux->bx;
-																											local_1c.y = ((-mat_car1->by - mat_car1->ay) + mat_car1->cy)
-																													- mat_aux->by;
-																											local_1c.z = ((-mat_car1->bz - mat_car1->az) + mat_car1->cz)
-																													- mat_aux->bz;
+																																|| (-local_1c.y > (body2->size).y && local_1c.y <= -(body2->size).y)))))) {
+																											local_1c.x = ((-mat_car1->bx - mat_car1->ax) + mat_car1->cx) - mat_aux->bx;
+																											local_1c.y = ((-mat_car1->by - mat_car1->ay) + mat_car1->cy) - mat_aux->by;
+																											local_1c.z = ((-mat_car1->bz - mat_car1->az) + mat_car1->cz) - mat_aux->bz;
 																											if ((((body2->size).z < local_1c.z)
-																													|| (-local_1c.z != (body2->size).z
-																															&& local_1c.z <= -(body2->size).z))
+																													|| (-local_1c.z > (body2->size).z && local_1c.z <= -(body2->size).z))
 																													|| (((body2->size).x < local_1c.x
-																															|| ((((-local_1c.x != (body2->size).x
-																																	&& local_1c.x <= -(body2->size).x)
+																															|| ((((-local_1c.x > (body2->size).x && local_1c.x <= -(body2->size).x)
 																																	|| ((body2->size).y < local_1c.y))
-																																	|| (-local_1c.y != (body2->size).y
-																																			&& local_1c.y <= -(body2->size).y)))))) {
-																												local_1c.x = ((-mat_car1->bx - mat_car1->ax) - mat_car1->cx)
-																														- mat_aux->bx;
-																												local_1c.y = ((-mat_car1->by - mat_car1->ay) - mat_car1->cy)
-																														- mat_aux->by;
-																												local_1c.z = ((-mat_car1->bz - mat_car1->az) - mat_car1->cz)
-																														- mat_aux->bz;
+																																	|| (-local_1c.y > (body2->size).y && local_1c.y <= -(body2->size).y)))))) {
+																												local_1c.x = ((-mat_car1->bx - mat_car1->ax) - mat_car1->cx) - mat_aux->bx;
+																												local_1c.y = ((-mat_car1->by - mat_car1->ay) - mat_car1->cy) - mat_aux->by;
+																												local_1c.z = ((-mat_car1->bz - mat_car1->az) - mat_car1->cz) - mat_aux->bz;
 																												if ((((((body2->size).z < local_1c.z)
-																														|| (-local_1c.z != (body2->size).z
-																																&& local_1c.z <= -(body2->size).z))
+																														|| (-local_1c.z > (body2->size).z && local_1c.z <= -(body2->size).z))
 																														|| ((body2->size).x < local_1c.x))
-																														|| (((-local_1c.x != (body2->size).x
-																																&& local_1c.x <= -(body2->size).x)
+																														|| (((-local_1c.x > (body2->size).x && local_1c.x <= -(body2->size).x)
 																																|| ((body2->size).y < local_1c.y))))
-																														|| (-local_1c.y != (body2->size).y
-																																&& local_1c.y <= -(body2->size).y)) {
+																														|| (-local_1c.y > (body2->size).y && local_1c.y <= -(body2->size).y)) {
 																													return 0;
 																												}
 																												col_position->x = (((body1->position).x
@@ -841,8 +823,7 @@ int tnfs_collision_carcar_huge_func(tnfs_collision_data *body1, tnfs_collision_d
 																													+ ((body1->size).y >> 8) * ((body1->matrix).by >> 8))
 																													- ((body1->size).z >> 8) * ((body1->matrix).cy >> 8);
 																											col_position->z = (((body1->size).y >> 8) * ((body1->matrix).bz >> 8)
-																													+ ((body1->position).z
-																															- ((body1->size).x >> 8) * ((body1->matrix).az >> 8)))
+																													+ ((body1->position).z - ((body1->size).x >> 8) * ((body1->matrix).az >> 8)))
 																													- ((body1->matrix).cz >> 8) * ((body1->size).z >> 8);
 																										}
 																									} else {
@@ -855,8 +836,7 @@ int tnfs_collision_carcar_huge_func(tnfs_collision_data *body1, tnfs_collision_d
 																												+ ((body1->size).y >> 8) * ((body1->matrix).by >> 8)
 																												+ ((body1->size).z >> 8) * ((body1->matrix).cy >> 8);
 																										col_position->z = ((body1->size).y >> 8) * ((body1->matrix).bz >> 8)
-																												+ ((body1->position).z
-																														- ((body1->size).x >> 8) * ((body1->matrix).az >> 8))
+																												+ ((body1->position).z - ((body1->size).x >> 8) * ((body1->matrix).az >> 8))
 																												+ ((body1->matrix).cz >> 8) * ((body1->size).z >> 8);
 																									}
 																								} else {
@@ -1012,21 +992,9 @@ int tnfs_collision_carcar_huge_func(tnfs_collision_data *body1, tnfs_collision_d
 																						iVar2 = (body1->speed).y >> 8;
 																						iVar3 = (body1->speed).x >> 8;
 																						iVar4 = (body1->speed).z >> 8;
-																						local_100.x = (local_dc.y >> 8) * iVar2 + iVar3 * (local_dc.x >> 8)
-																								+ iVar4 * (local_dc.z >> 8);
-																						local_100.y = (local_e8.y >> 8) * iVar2 + iVar3 * (local_e8.x >> 8)
-																								+ iVar4 * (local_e8.z >> 8);
-																						local_100.z = (local_f4.y >> 8) * iVar2 + iVar3 * (local_f4.x >> 8)
-																								+ iVar4 * (local_f4.z >> 8);
-																						if (local_100.x < 1) {
-																							local_100.x = -local_100.x;
-																						}
-																						if (local_100.y < 1) {
-																							local_100.y = -local_100.y;
-																						}
-																						if (local_100.z < 1) {
-																							local_100.z = -local_100.z;
-																						}
+																						local_100.x = abs((local_dc.y >> 8) * iVar2 + iVar3 * (local_dc.x >> 8) + iVar4 * (local_dc.z >> 8));
+																						local_100.y = abs((local_e8.y >> 8) * iVar2 + iVar3 * (local_e8.x >> 8) + iVar4 * (local_e8.z >> 8));
+																						local_100.z = abs((local_f4.y >> 8) * iVar2 + iVar3 * (local_f4.x >> 8) + iVar4 * (local_f4.z >> 8));
 																						if ((local_100.y < local_100.x) && (local_100.z < local_100.x)) {
 																							col_direction->x = local_dc.x;
 																							col_direction->y = local_dc.y;
@@ -1221,18 +1189,9 @@ int tnfs_collision_carcar_huge_func(tnfs_collision_data *body1, tnfs_collision_d
 														iVar2 = (body2->speed).y >> 8;
 														iVar3 = (body2->speed).x >> 8;
 														iVar4 = (body2->speed).z >> 8;
-														local_90.x = (local_6c.y >> 8) * iVar2 + iVar3 * (local_6c.x >> 8) + iVar4 * (local_6c.z >> 8);
-														local_90.y = (local_78.y >> 8) * iVar2 + iVar3 * (local_78.x >> 8) + iVar4 * (local_78.z >> 8);
-														local_90.z = (local_84.y >> 8) * iVar2 + iVar3 * (local_84.x >> 8) + iVar4 * (local_84.z >> 8);
-														if (local_90.x < 1) {
-															local_90.x = -local_90.x;
-														}
-														if (local_90.y < 1) {
-															local_90.y = -local_90.y;
-														}
-														if (local_90.z < 1) {
-															local_90.z = -local_90.z;
-														}
+														local_90.x = abs((local_6c.y >> 8) * iVar2 + iVar3 * (local_6c.x >> 8) + iVar4 * (local_6c.z >> 8));
+														local_90.y = abs((local_78.y >> 8) * iVar2 + iVar3 * (local_78.x >> 8) + iVar4 * (local_78.z >> 8));
+														local_90.z = abs((local_84.y >> 8) * iVar2 + iVar3 * (local_84.x >> 8) + iVar4 * (local_84.z >> 8));
 														if ((local_90.y < local_90.x) && (local_90.z < local_90.x)) {
 															col_direction->x = local_6c.x;
 															col_direction->y = local_6c.y;
@@ -1393,52 +1352,56 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 	int iVar10;
 	int iVar11;
 	int iVar12;
-	int iVar13;
 	tnfs_vec9 mat_car2;
 	tnfs_vec9 mat_car1;
 	tnfs_vec9 mat_aux;
+	tnfs_vec9 mat_prod;
 	tnfs_vec3 local_88;
 	tnfs_vec3 local_68;
 	tnfs_vec3 local_58;
 	tnfs_vec3 local_48;
 	tnfs_vec3 local_38;
+	tnfs_vec3 car_dist;
 
-	iVar13 = (fixmul(car1->matrix.ax, car2->matrix.ax) + fixmul(car1->matrix.ay, car2->matrix.ay) + fixmul(car1->matrix.az, car2->matrix.az)) >> 8;
-	mat_car2.ax = iVar13 * (car2->size.x >> 8);
-	iVar12 = (fixmul(car1->matrix.ax, car2->matrix.bx) + fixmul(car1->matrix.ay, car2->matrix.by) + fixmul(car1->matrix.az, car2->matrix.bz)) >> 8;
-	mat_car2.ay = iVar12 * (car2->size.y >> 8);
-	iVar11 = (fixmul(car1->matrix.ax, car2->matrix.cx) + fixmul(car1->matrix.ay, car2->matrix.cy) + fixmul(car1->matrix.az, car2->matrix.cz)) >> 8;
-	mat_car2.az = iVar11 * (car2->size.z >> 8);
-	iVar10 = (fixmul(car1->matrix.bx, car2->matrix.ax) + fixmul(car1->matrix.by, car2->matrix.ay) + fixmul(car1->matrix.bz, car2->matrix.az)) >> 8;
-	mat_car2.bx = iVar10 * (car2->size.x >> 8);
-	iVar9 = (fixmul(car1->matrix.bx, car2->matrix.bx) + fixmul(car1->matrix.by, car2->matrix.by) + fixmul(car1->matrix.bz, car2->matrix.bz)) >> 8;
-	mat_car2.by = iVar9 * (car2->size.y >> 8);
-	iVar8 = (fixmul(car1->matrix.bx, car2->matrix.cx) + fixmul(car1->matrix.by, car2->matrix.cy) + fixmul(car1->matrix.bz, car2->matrix.cz)) >> 8;
-	mat_car2.bz = iVar8 * (car2->size.z >> 8);
-	iVar7 = (fixmul(car1->matrix.cx, car2->matrix.ax) + fixmul(car1->matrix.cy, car2->matrix.ay) + fixmul(car1->matrix.cz, car2->matrix.az)) >> 8;
-	mat_car2.cx = iVar7 * (car2->size.x >> 8);
-	iVar6 = (fixmul(car1->matrix.cx, car2->matrix.bx) + fixmul(car1->matrix.cy, car2->matrix.by) + fixmul(car1->matrix.cz, car2->matrix.bz)) >> 8;
-	mat_car2.cy = iVar6 * (car2->size.y >> 8);
-	iVar4 = (fixmul(car1->matrix.cx, car2->matrix.cx) + fixmul(car1->matrix.cy, car2->matrix.cy) + fixmul(car1->matrix.cz, car2->matrix.cz)) >> 8;
-	mat_car2.cz = iVar4 * (car2->size.z >> 8);
-	mat_car1.ax = iVar13 * (car1->size.x >> 8);
-	mat_car1.ay = iVar12 * (car1->size.x >> 8);
-	mat_car1.az = iVar11 * (car1->size.x >> 8);
-	mat_car1.bx = iVar10 * (car1->size.y >> 8);
-	mat_car1.by = iVar9 * (car1->size.y >> 8);
-	mat_car1.bz = iVar8 * (car1->size.y >> 8);
-	mat_car1.cx = iVar7 * (car1->size.z >> 8);
-	mat_car1.cy = iVar6 * (car1->size.z >> 8);
-	mat_car1.cz = iVar4 * (car1->size.z >> 8);
+	mat_prod.ax = (fixmul(car1->matrix.ax, car2->matrix.ax) + fixmul(car1->matrix.ay, car2->matrix.ay) + fixmul(car1->matrix.az, car2->matrix.az)) >> 8;
+	mat_prod.ay = (fixmul(car1->matrix.ax, car2->matrix.bx) + fixmul(car1->matrix.ay, car2->matrix.by) + fixmul(car1->matrix.az, car2->matrix.bz)) >> 8;
+	mat_prod.az = (fixmul(car1->matrix.ax, car2->matrix.cx) + fixmul(car1->matrix.ay, car2->matrix.cy) + fixmul(car1->matrix.az, car2->matrix.cz)) >> 8;
+	mat_prod.bx = (fixmul(car1->matrix.bx, car2->matrix.ax) + fixmul(car1->matrix.by, car2->matrix.ay) + fixmul(car1->matrix.bz, car2->matrix.az)) >> 8;
+	mat_prod.by = (fixmul(car1->matrix.bx, car2->matrix.bx) + fixmul(car1->matrix.by, car2->matrix.by) + fixmul(car1->matrix.bz, car2->matrix.bz)) >> 8;
+	mat_prod.bz = (fixmul(car1->matrix.bx, car2->matrix.cx) + fixmul(car1->matrix.by, car2->matrix.cy) + fixmul(car1->matrix.bz, car2->matrix.cz)) >> 8;
+	mat_prod.cx = (fixmul(car1->matrix.cx, car2->matrix.ax) + fixmul(car1->matrix.cy, car2->matrix.ay) + fixmul(car1->matrix.cz, car2->matrix.az)) >> 8;
+	mat_prod.cy = (fixmul(car1->matrix.cx, car2->matrix.bx) + fixmul(car1->matrix.cy, car2->matrix.by) + fixmul(car1->matrix.cz, car2->matrix.bz)) >> 8;
+	mat_prod.cz = (fixmul(car1->matrix.cx, car2->matrix.cx) + fixmul(car1->matrix.cy, car2->matrix.cy) + fixmul(car1->matrix.cz, car2->matrix.cz)) >> 8;
+
+	mat_car2.ax = mat_prod.ax * (car2->size.x >> 8);
+	mat_car2.ay = mat_prod.ay * (car2->size.y >> 8);
+	mat_car2.az = mat_prod.az * (car2->size.z >> 8);
+	mat_car2.bx = mat_prod.bx * (car2->size.x >> 8);
+	mat_car2.by = mat_prod.by * (car2->size.y >> 8);
+	mat_car2.bz = mat_prod.bz * (car2->size.z >> 8);
+	mat_car2.cx = mat_prod.cx * (car2->size.x >> 8);
+	mat_car2.cy = mat_prod.cy * (car2->size.y >> 8);
+	mat_car2.cz = mat_prod.cz * (car2->size.z >> 8);
+
+	mat_car1.ax = mat_prod.ax * (car1->size.x >> 8);
+	mat_car1.ay = mat_prod.ay * (car1->size.x >> 8);
+	mat_car1.az = mat_prod.az * (car1->size.x >> 8);
+	mat_car1.bx = mat_prod.bx * (car1->size.y >> 8);
+	mat_car1.by = mat_prod.by * (car1->size.y >> 8);
+	mat_car1.bz = mat_prod.bz * (car1->size.y >> 8);
+	mat_car1.cx = mat_prod.cx * (car1->size.z >> 8);
+	mat_car1.cy = mat_prod.cy * (car1->size.z >> 8);
+	mat_car1.cz = mat_prod.cz * (car1->size.z >> 8);
+
 	iVar4 = 0;
-	iVar6 = 0;
-	do {
-		iVar8 = (car2->position).x - (car1->position).x;
-		iVar9 = (car2->position).y - (car1->position).y;
-		iVar11 = (car2->position).z - (car1->position).z;
-		iVar7 = iVar8 >> 8;
-		iVar10 = iVar9 >> 8;
-		iVar12 = iVar11 >> 8;
+
+	for (iVar6 = 0; iVar6 < 32; ++iVar6) {
+		car_dist.x = (car2->position).x - (car1->position).x;
+		car_dist.y = (car2->position).y - (car1->position).y;
+		car_dist.z = (car2->position).z - (car1->position).z;
+		iVar7 = car_dist.x >> 8;
+		iVar10 = car_dist.y >> 8;
+		iVar12 = car_dist.z >> 8;
 		mat_aux.ax = ((car1->matrix).ax >> 8) * iVar7 + ((car1->matrix).ay >> 8) * iVar10 + ((car1->matrix).az >> 8) * iVar12;
 		mat_aux.ay = ((car1->matrix).bx >> 8) * iVar7 + ((car1->matrix).by >> 8) * iVar10 + ((car1->matrix).bz >> 8) * iVar12;
 		mat_aux.az = ((car1->matrix).cx >> 8) * iVar7 + ((car1->matrix).cy >> 8) * iVar10 + ((car1->matrix).cz >> 8) * iVar12;
@@ -1446,8 +1409,8 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 		mat_aux.by = ((car2->matrix).bx >> 8) * iVar7 + ((car2->matrix).by >> 8) * iVar10 + ((car2->matrix).bz >> 8) * iVar12;
 		mat_aux.bz = ((car2->matrix).cx >> 8) * iVar7 + ((car2->matrix).cy >> 8) * iVar10 + ((car2->matrix).cz >> 8) * iVar12;
 		aux = col_position->x;
-		iVar7 = tnfs_collision_carcar_huge_func(car1, car2, col_position, col_direction, &mat_car2, &mat_car1, &mat_aux);
-		if (iVar7 == 0) {
+
+		if (!tnfs_collision_carcar_huge_func(car1, car2, col_position, col_direction, &mat_car2, &mat_car1, &mat_aux)) {
 			return iVar4;
 		}
 		bVar1 = 0;
@@ -1465,7 +1428,7 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 			if (piVar5 < piVar3) {
 				piVar5 = piVar3;
 			}
-			if (DAT_800eae40 < piVar5) {
+			if (piVar5 > 0xF9A58) {
 				iVar7 = abs(iVar8);
 				iVar10 = abs(iVar9);
 				iVar12 = iVar7;
@@ -1488,9 +1451,9 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 					local_48.y = local_68.y;
 					local_48.z = local_68.z;
 					math_vec3_normalize_2(&local_48);
-					local_38.x = iVar8;
-					local_38.y = iVar9;
-					local_38.z = iVar11;
+					local_38.x = car_dist.x;
+					local_38.y = car_dist.y;
+					local_38.z = car_dist.z;
 					math_vec3_normalize_fast(&local_38);
 					piVar5 = fixmul(local_48.x, local_38.x) + fixmul(local_48.y, local_38.y) + fixmul(local_48.z, local_38.z);
 					if (((DAT_800eae50 < piVar5) && (DAT_800eae20 == 0)) || (((DAT_800eae30 != 0 && (DAT_800eae54 < piVar5)) && (iVar7 < DAT_800eae4c)))) {
@@ -1509,9 +1472,9 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 				local_88.y = iVar9 * ((car2->speed).y >> 8) >> 5;
 				local_88.z = iVar9 * ((car2->speed).z >> 8) >> 5;
 			} else {
-				local_58.x = iVar8;
-				local_58.y = iVar9;
-				local_58.z = iVar11;
+				local_58.x = car_dist.x;
+				local_58.y = car_dist.y;
+				local_58.z = car_dist.z;
 				math_vec3_normalize(&local_58);
 				iVar4 = car1->field6_0x60 + car2->field6_0x60;
 				iVar9 = math_div(car1->field6_0x60, iVar4);
@@ -1535,9 +1498,9 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 		car1->position.z = car1->position.z + mat_aux.cz;
 		car2->position.x = car2->position.x + local_88.x;
 		car2->position.y = car2->position.y + local_88.y;
-		iVar6 = iVar6 + 1;
 		car2->position.z = car2->position.z + local_88.z;
-	} while (iVar6 < 0x20);
+	}
+
 	return iVar4;
 }
 
@@ -1548,7 +1511,7 @@ int DAT_800eae70 = 0x8ccc;
 /*
  * Apply speed vectors change for a 2-body collision
  */
-char tnfs_collision_carcar_rebound(tnfs_collision_data *body1, tnfs_collision_data *body2, tnfs_vec3 * col_position, tnfs_vec3 * col_direction) {
+char tnfs_collision_carcar_rebound(tnfs_collision_data *body1, tnfs_collision_data *body2, tnfs_vec3 *col_position, tnfs_vec3 *col_direction) {
 	int iVar1;
 	int iVar2;
 	int iVar3;
@@ -1561,7 +1524,6 @@ char tnfs_collision_carcar_rebound(tnfs_collision_data *body1, tnfs_collision_da
 	tnfs_vec3 local_60;
 	tnfs_vec3 local_50;
 	tnfs_vec3 local_40;
-	tnfs_vec3 *local_30;
 
 	local_60.x = col_position->x - body1->position.x;
 	local_60.y = col_position->y - body1->position.y;
@@ -1570,8 +1532,7 @@ char tnfs_collision_carcar_rebound(tnfs_collision_data *body1, tnfs_collision_da
 	local_50.y = col_position->y - body2->position.y;
 	local_50.z = col_position->z - body2->position.z;
 	math_vec3_cross_product(&tStack_80, &local_60, col_direction);
-	local_30 = &local_50;
-	math_vec3_cross_product(&tStack_70, local_30, col_direction);
+	math_vec3_cross_product(&tStack_70, &local_50, col_direction);
 	iVar1 = math_vec3_dot(&body1->speed, col_direction);
 	iVar2 = math_vec3_dot(&body2->speed, col_direction);
 	iVar3 = math_vec3_dot(&body1->angular_speed, &tStack_80);
@@ -1606,7 +1567,7 @@ char tnfs_collision_carcar_rebound(tnfs_collision_data *body1, tnfs_collision_da
 		body1->angular_speed.x = body1->angular_speed.x + local_40.x;
 		body1->angular_speed.y = body1->angular_speed.y + local_40.y;
 		body1->angular_speed.z = body1->angular_speed.z + local_40.z;
-		math_vec3_cross_product(&local_40, local_30, &local_90);
+		math_vec3_cross_product(&local_40, &local_50, &local_90);
 		local_40.x = math_mul(body2->angular_acc_factor, local_40.x);
 		local_40.y = math_mul(body2->angular_acc_factor, local_40.y);
 		iVar2 = math_mul(body2->angular_acc_factor, local_40.z);
@@ -1620,7 +1581,7 @@ char tnfs_collision_carcar_rebound(tnfs_collision_data *body1, tnfs_collision_da
 /*
  * enhances the rollover vectors for more cinematic crashes
  */
-void tnfs_collision_carcar_exageration(tnfs_car_data * car) {
+void tnfs_collision_carcar_exageration(tnfs_car_data *car) {
 	car->collision_data.angular_speed.x = (car->collision_data.angular_speed.x >> 8) * 0x59;
 	car->collision_data.angular_speed.y = (car->collision_data.angular_speed.y >> 8) * 0x59;
 	car->collision_data.angular_speed.z = (car->collision_data.angular_speed.z >> 8) * 0x59;
@@ -1645,6 +1606,7 @@ tnfs_vec3 g_col_direction;
 void tnfs_collision_carcar() {
 	// both cars are near
 	if (abs(car_data.position.x - xman_car_data.position.x) < 0x30000
+			&& abs(car_data.position.y - xman_car_data.position.y) < 0x30000
 			&& abs(car_data.position.z - xman_car_data.position.z) < 0x30000) {
 
 		g_col_position.x = 0;

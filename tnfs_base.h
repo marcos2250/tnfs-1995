@@ -86,7 +86,10 @@ typedef struct {
 	int angular_acc_factor; //0x6c
 	// ...
 	tnfs_vec3 size; //0x74
-	int crashed_time; //0x80
+	int crash_time_ai_state; //0x80
+	// ...
+	int field_088; //0x88
+	int field_08c; //0x8c
 	// ...
 } tnfs_collision_data;
 
@@ -96,9 +99,9 @@ typedef struct tnfs_car_data {
 	int angle_y; //0x010
 	int angle_z; //0x014
 	int steer_angle; //0x018
-	// ...
-	int is_crashed;
-	tnfs_vec9 matrix;
+	int target_angle; //0x1c
+	int is_crashed; //0x20
+	tnfs_vec9 matrix; //0x24
 	int road_segment_a; //0x048
 	int road_segment_b; //0x04C
 	int lap_number; //0x050
@@ -113,7 +116,8 @@ typedef struct tnfs_car_data {
 	int angular_speed; //0x074
 	int car_length; //0x078
 	int car_width; //0x07C
-	// ...
+	int center_line_distance; //0x80
+	int side_width; //0x84
 	struct tnfs_car_data * car_data_ptr; //0x088
 	tnfs_vec3 road_fence_normal; //0x08C
 	tnfs_vec3 road_surface_normal;
@@ -122,12 +126,19 @@ typedef struct tnfs_car_data {
 	// ...
 	int collision_height_offset;
 	tnfs_collision_data collision_data;
+
+	int car_road_speed; //0x15c
+	int speed_target; //0x160
+	int target_center_line; //0x164
 	// ...
-	int field203_0x174;
+	int field_174; //0x174
+	int power_curve[100]; //0x178
 	// ...
-	int angle_dx;
+	int field_33c; //0x33c
 	// ...
-	tnfs_vec3 world_position;
+	int angle_dx; //0x354
+	int angle_dy; //0x358
+	tnfs_vec3 world_position; //0x35c
 	int body_roll; //0x365
 	int body_pitch; //0x369
 	tnfs_vec3 front_edge;
@@ -191,10 +202,10 @@ typedef struct tnfs_car_data {
 	int tcs_enabled; //0x491
 	int abs_enabled; //0x495
 	// ...
-	int drag_const_0x4a8;
-	int drag_const_0x4aa;
-	short drag_const_0x4ac;
-	short drag_const_0x4ae;
+	int drag_const_0x4a8; //0x4a8
+	int drag_const_0x4aa; //0x4aa
+	short drag_const_0x4ac; //0x4ac
+	short drag_const_0x4ae; //0x4ae
 	int surface_type; //0x49D
 	int surface_type_b; //0x4A1
 	// ...
@@ -206,23 +217,9 @@ typedef struct tnfs_car_data {
 	int delta_time; //0x4D5
 	int fps; //0x4D9
 	// ...
-	int field444_0x520;
+	int field444_0x520; //0x4e1
 	int field445_0x524;
 	// ...
-
-	int ai_state;
-	int center_line_distance; //0x80
-	int side_width; //0x84
-	int field_088; //0x88
-	int field_08c; //0x8c
-	int target_angle; //0x1c
-	int car_road_speed; //0x15c
-	int speed_target; //0x160
-	int target_center_line; //0x164
-	int field_174; //0x174
-	int power_curve[100]; //0x178
-	int field_33c; //0x33c
-	int field_4e1;
 } tnfs_car_data;
 
 
@@ -239,11 +236,11 @@ typedef struct tnfs_track_data {
 	short slope; // 20
 	short slant; // 22
 	short heading; // 24
-    // unk1
+	// blank
 	short segment_cos; // 28
 	short segment_tan; // 30
 	short segment_sin; // 32
-	// unk2
+	// blank
 	// added for renderer
 	vector3f vf_margin_L;
 	vector3f vf_margin_R;

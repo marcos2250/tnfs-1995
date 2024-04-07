@@ -8,6 +8,7 @@ This project aims to reconstitute/reverse engineer accurately as possible the ph
 * 2D car driving simulation, with a 2-wheel tire grip model;
 * 3D box rigid body collision physics;
 * Engine, clutch and transmission simulation;
+* AI opponent driver;
 * Now supports loading TNFSSE "TRI" track files, or it will auto generate a random track, if not supplied;
 * Fixed point math;
 * No assets required;
@@ -26,7 +27,7 @@ Use the keys to drive:
 * Space - Handbrake
 * A/Z - Change gears
 * C - Change camera
-* D - Flip over the car
+* D - Crash opponent's car
 * R - Reset car
 * F1 - Turn ABS on/off
 * F2 - Turn TCS on/off

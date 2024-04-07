@@ -39,6 +39,11 @@ void handleKeys() {
 	}
 	if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
 		switch (event.key.keysym.sym) {
+		case SDLK_q:
+			car_data.position.x = xman_car_data.position.x;
+			car_data.position.y = 0x180000;
+			car_data.position.z = xman_car_data.position.z;
+			break;
 		case SDLK_a:
 			tnfs_change_gear_up();
 			break;

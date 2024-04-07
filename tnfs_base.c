@@ -341,8 +341,8 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->accel_lon = 0;
 	car->road_grip_increment = 0;
 	car->lap_number = 1;
-	car->field203_0x174 = 0x1e0;
-	car->field444_0x520 = 0;
+	car->field_174 = 0x1e0;
+	car->field444_0x520 = 2;
 	car->field445_0x524 = 0;
 	car->unknown_flag_475 = 0;
 	car->world_position.x = 0;
@@ -395,7 +395,7 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->collision_data.field4_0x48.x = 0;
 	car->collision_data.field4_0x48.y = 0;
 	car->collision_data.field4_0x48.z = -0x9cf5c;
-	car->collision_data.crashed_time = 0;
+	car->collision_data.crash_time_ai_state = 0;
 	car->collision_data.angular_speed.x = 0;
 	car->collision_data.angular_speed.y = 0;
 	car->collision_data.angular_speed.z = 0;
@@ -664,7 +664,7 @@ void tnfs_cheat_mode() {
 }
 
 void tnfs_crash_car() {
-	tnfs_collision_rollover_start(&car_data, 0, 0, -0xa0000);
+	tnfs_collision_rollover_start(&xman_car_data, 0, 0, -0xa0000);
 }
 
 /* common stub functions */

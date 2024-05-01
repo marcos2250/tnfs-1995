@@ -90,6 +90,7 @@ typedef struct {
 	// ...
 	int field_088; //0x88
 	int field_08c; //0x8c
+	int field16_0x90; //0x90
 	// ...
 } tnfs_collision_data;
 
@@ -195,6 +196,8 @@ typedef struct tnfs_car_data {
 	int front_yaw_factor; //0x459
 	int rear_yaw_factor; //0x45D
 	// ...
+	int field_461; //0x461
+	// ...
 	struct tnfs_car_specs *car_specs_ptr; //0x471
 	int unknown_flag_475; //0x475
 	// ...
@@ -217,9 +220,12 @@ typedef struct tnfs_car_data {
 	int delta_time; //0x4D5
 	int fps; //0x4D9
 	// ...
-	int field444_0x520; //0x4e1
-	int field445_0x524;
-	// ...
+
+	int field_4DD; //0x4dd 0x520
+	int field_4e4; //0x4e4 0x524
+	int field_4e8; //0x4e8 0x528
+
+	int field416_0x524;
 } tnfs_car_data;
 
 
@@ -257,7 +263,7 @@ typedef struct tnfs_surface_type {
 
 // global variables
 extern struct tnfs_car_specs car_specs;
-extern struct tnfs_car_data car_data;
+extern struct tnfs_car_data player_car;
 extern struct tnfs_track_data track_data[2400];
 extern struct tnfs_surface_type road_surface_type_array[3];
 extern struct tnfs_car_data xman_car_data;
@@ -271,7 +277,9 @@ extern int cheat_code_8010d1c4;
 extern char g_control_throttle;
 extern char g_control_brake;
 extern signed char g_control_steer;
-extern int DAT_8010d1cc;
+extern int g_number_of_players;
+extern int g_selected_cheat;
+extern int DAT_8010d30c;
 
 extern int selected_camera;
 extern tnfs_vec3 camera_position;

@@ -16,7 +16,6 @@ int general_flags = 0x14;
 int debug_sum = 0;
 int selected_track = 3; //rusty springs
 int DAT_8010d2f4 = 0;
-int DAT_8010d30c = 0;
 
 int g_car_road_segment;
 int DAT_8010c478 = 0;
@@ -97,7 +96,7 @@ int tnfs_drag_force(tnfs_car_data *car, signed int speed, char longitudinal) {
  */
 void tnfs_cheat_crash_cars() {
 	if (cheat_crashing_cars == 4) {
-		tnfs_collision_rollover_start(&car_data, 0xa0000, 0xa0000, 0xa0000);
+		tnfs_collision_rollover_start(&xman_car_data, 0xa0000, 0xa0000, 0xa0000);
 	}
 }
 
@@ -484,7 +483,7 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	car_data->fps = 30;
 
 	// custom scales/framerate speeds, not using
-	if (DAT_8010d1cc > 1 && DAT_8010d2f4 != 0) {
+	if (g_number_of_players > 1 && DAT_8010d2f4 != 0) {
 		//frameskip = (&tnfs_car_data_ptr)[1 - car_data->car_flag_0x480] + 0x4c) - car_data->road_segment_b) / 2;
 		frameskip = 0;
 		if (frameskip > 0) {

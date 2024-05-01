@@ -30,13 +30,13 @@ void drawRect(float x, float y, double a, float l, float w) {
 	_lineto((x + cax) * scale, (y + cay) * scale);
 }
 
-void drawRoad(float ox, float oy) {
+void drawRoad(float ox, float oy, int segment) {
 	int i, j, n, max;
 
 	max = road_segment_count - 1;
 	for (n = 0; n < 8; n++) {
 
-		i = car_data.road_segment_a - 1 + n;
+		i = segment - 1 + n;
 		if (i < 0) {
 			i = i + max;
 		} else if (i >= max) {
@@ -52,21 +52,11 @@ void drawRoad(float ox, float oy) {
 	}
 }
 
-void render() {
-	float x, y, a, as, s, c, cay, cax, cby, cbx;
+void drawCar(tnfs_car_data * car, float x, float y) {
+	float a, as, s, c, cay, cax, cby, cbx;
 
-	//inverted axis from 3d world
-	x = (float) car_data.position.z / 0x10000; //to meter scale
-	x -= 10;
-	y = (float) car_data.position.x / 0x10000;
-	y -= 20;
-	a = (float) car_data.angle_y / 2670179; //to radians
-	as = a + ((float) car_data.steer_angle / 2670179);
-
-	drawRoad(x, y);
-
-	x = 10;
-	y = 20;
+	a = (float) car->angle_y / 2670179; //to radians
+	as = a + ((float) car->steer_angle / 2670179);
 
 	//body
 	drawRect(x, y, a, 1, 2);
@@ -82,6 +72,21 @@ void render() {
 	drawRect(x + cbx, y + cby, as, 0.1, 0.3);
 	drawRect(x - cax, y - cay, a, 0.1, 0.3);
 	drawRect(x - cbx, y - cby, a, 0.1, 0.3);
+}
+
+void render() {
+	float x, y;
+
+	//inverted axis from 3d world
+	x = (float) car_data.position.z / 0x10000; //to meter scale
+	y = (float) car_data.position.x / 0x10000;
+	drawRoad(x - 10, y - 20, car_data.road_segment_a);
+
+	x -= (float) xman_car_data.position.z / 0x10000;
+	y -= (float) xman_car_data.position.x / 0x10000;
+	drawCar(&xman_car_data, 10 - x, 20 - y);
+
+	drawCar(&car_data, 10, 20);
 }
 
 int main(int argc, char **argv) {

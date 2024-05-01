@@ -10,7 +10,7 @@
 #include "tnfs_ai.h"
 
 tnfs_car_specs car_specs;
-tnfs_car_data car_data;
+tnfs_car_data player_car;
 tnfs_track_data track_data[2400];
 tnfs_surface_type road_surface_type_array[3];
 tnfs_car_data xman_car_data;
@@ -26,7 +26,8 @@ int cheat_code_8010d1c4 = 0;
 char g_control_throttle;
 char g_control_brake;
 signed char g_control_steer;
-int DAT_8010d1cc = 0;
+int g_number_of_players = 1;
+int DAT_8010d30c = 0;
 
 int selected_camera = 0;
 tnfs_vec3 camera_position;
@@ -341,9 +342,10 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->accel_lon = 0;
 	car->road_grip_increment = 0;
 	car->lap_number = 1;
-	car->field_174 = 0x1e0;
-	car->field444_0x520 = 2;
-	car->field445_0x524 = 0;
+	car->field_174 = 0x1e4;
+	car->field_4DD = 2;
+	car->field_4e4 = 0;
+	car->field_4e8 = 0;
 	car->unknown_flag_475 = 0;
 	car->world_position.x = 0;
 	car->world_position.y = 0;
@@ -400,6 +402,19 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->collision_data.angular_speed.y = 0;
 	car->collision_data.angular_speed.z = 0;
 	car->collision_data.field6_0x60 = 0x10a1c;
+
+	car->field_4DD = 2;
+	car->field_4e8 = 4;
+
+	// ai car flags
+	car->speed_target = 0;
+	car->collision_data.field_088 = 0;
+	car->collision_data.field16_0x90 = 0xcccc;
+	car->field_33c = 0;
+	car->field_4DD = 3;
+	car->field_4e4 = 0; //2
+	car->field_4e8 = 7;
+	car->field_174 = 0x1e4;
 }
 
 void tnfs_init_car() {
@@ -410,12 +425,12 @@ void tnfs_init_car() {
 		tnfs_create_car_specs();
 	}
 
-	aux = car_data.field445_0x524;
-	car_data.field444_0x520 = 2; // ??
-	car_data.position.z = 0; //0x600000;
-	car_data.road_segment_a = 0; //0x10;
-	car_data.road_segment_b = 0; //0x10;
-	car_data.lap_number = 1;
+	aux = player_car.field_4e4;
+	player_car.field_4DD = 2; // ??
+	player_car.position.z = 0; //0x600000;
+	player_car.road_segment_a = 0; //0x10;
+	player_car.road_segment_b = 0; //0x10;
+	player_car.lap_number = 1;
 
 	// rally mode tweaks
 	if (g_selected_cheat & 0x20) {
@@ -441,53 +456,53 @@ void tnfs_init_car() {
 		i += 2;
 	} while (i < car_specs.torque_table_entries);
 
-	car_data.car_length = car_specs.body_length;
-	car_data.car_width = car_specs.body_width;
-	car_data.abs_enabled = 0;
-	car_data.tcs_enabled = 0;
-	car_data.gear_auto_selected = 0;
-	car_data.unknown_0x498 = 0;
-	car_data.drag_const_0x4a8 = 0;
-	car_data.drag_const_0x4aa = 0;
+	player_car.car_length = car_specs.body_length;
+	player_car.car_width = car_specs.body_width;
+	player_car.abs_enabled = 0;
+	player_car.tcs_enabled = 0;
+	player_car.gear_auto_selected = 0;
+	player_car.unknown_0x498 = 0;
+	player_car.drag_const_0x4a8 = 0;
+	player_car.drag_const_0x4aa = 0;
 
 	/* Fiziks_InitCar() */
 	tnfs_init_surface_constants();
 
-	car_data.weight_distribution_front = math_mul(car_specs.mass_front, car_specs.inverse_mass);
-	car_data.weight_distribution_rear = math_mul(car_specs.mass_rear, car_specs.inverse_mass);
+	player_car.weight_distribution_front = math_mul(car_specs.mass_front, car_specs.inverse_mass);
+	player_car.weight_distribution_rear = math_mul(car_specs.mass_rear, car_specs.inverse_mass);
 
 	// unused specs
-	car_data.mass_front = math_mul(car_specs.mass_total, car_specs.inverse_mass_front);
-	car_data.mass_rear = math_mul(car_specs.mass_total, car_specs.inverse_mass_rear);
+	player_car.mass_front = math_mul(car_specs.mass_total, car_specs.inverse_mass_front);
+	player_car.mass_rear = math_mul(car_specs.mass_total, car_specs.inverse_mass_rear);
 
 	// drag coefficient to deccel factor
 	car_specs.drag = math_mul(car_specs.drag, car_specs.inverse_mass);
 
-	car_data.weight_transfer_factor = math_mul(car_specs.centre_of_gravity_height, car_specs.burnOutDiv);
-	car_data.front_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.front_friction_factor, car_data.weight_distribution_rear));
-	car_data.rear_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.rear_friction_factor, car_data.weight_distribution_front));
+	player_car.weight_transfer_factor = math_mul(car_specs.centre_of_gravity_height, car_specs.burnOutDiv);
+	player_car.front_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.front_friction_factor, player_car.weight_distribution_rear));
+	player_car.rear_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.rear_friction_factor, player_car.weight_distribution_front));
 
-	car_data.drag_const_0x4ac = (short)(car_data.drag_const_0x4a8 << 1);
-	car_data.tire_grip_front = car_data.front_friction_factor;
-	car_data.tire_grip_rear = car_data.rear_friction_factor;
-	car_data.drag_const_0x4ae = (short)(car_data.drag_const_0x4aa << 1);
+	player_car.drag_const_0x4ac = (short)(player_car.drag_const_0x4a8 << 1);
+	player_car.tire_grip_front = player_car.front_friction_factor;
+	player_car.tire_grip_rear = player_car.rear_friction_factor;
+	player_car.drag_const_0x4ae = (short)(player_car.drag_const_0x4aa << 1);
 
-	car_data.drag_const_0x4a8 = fix8(fix8(car_specs.front_friction_factor) * 10 * car_data.drag_const_0x4a8);
-	car_data.drag_const_0x4aa = fix8(fix8(car_specs.rear_friction_factor) * 10 * car_data.drag_const_0x4aa);
+	player_car.drag_const_0x4a8 = fix8(fix8(car_specs.front_friction_factor) * 10 * player_car.drag_const_0x4a8);
+	player_car.drag_const_0x4aa = fix8(fix8(car_specs.rear_friction_factor) * 10 * player_car.drag_const_0x4aa);
 
 	aux = math_mul(math_mul(car_specs.wheelbase, car_specs.wheelbase), 0x324);
 
-	car_data.wheel_base = math_div(aux, car_specs.wheelbase);
-	car_data.moment_of_inertia = math_div(math_mul(aux, car_specs.inertia_factor), car_specs.wheelbase);
-	car_data.front_yaw_factor = math_div(math_mul(car_specs.wheelbase, car_data.weight_distribution_front), aux);
-	car_data.rear_yaw_factor = math_div(math_mul(car_specs.wheelbase, car_data.weight_distribution_rear), aux);
+	player_car.wheel_base = math_div(aux, car_specs.wheelbase);
+	player_car.moment_of_inertia = math_div(math_mul(aux, car_specs.inertia_factor), car_specs.wheelbase);
+	player_car.front_yaw_factor = math_div(math_mul(car_specs.wheelbase, player_car.weight_distribution_front), aux);
+	player_car.rear_yaw_factor = math_div(math_mul(car_specs.wheelbase, player_car.weight_distribution_rear), aux);
 
-	car_data.collision_height_offset = 0x92f1;
-	car_data.collision_data.linear_acc_factor = 0xf646;
-	car_data.collision_data.angular_acc_factor = 0x7dd4;
-	car_data.collision_data.size.x = car_specs.body_width / 2;
-	car_data.collision_data.size.y = 0x92f1;
-	car_data.collision_data.size.z = car_specs.body_length / 2;
+	player_car.collision_height_offset = 0x92f1;
+	player_car.collision_data.linear_acc_factor = 0xf646;
+	player_car.collision_data.angular_acc_factor = 0x7dd4;
+	player_car.collision_data.size.x = car_specs.body_width / 2;
+	player_car.collision_data.size.y = 0x92f1;
+	player_car.collision_data.size.z = car_specs.body_length / 2;
 }
 
 /* basic game controls */
@@ -495,35 +510,35 @@ void tnfs_init_car() {
 void tnfs_controls_update() {
 	// steer ramp
 	if (g_control_steer > 0) {
-		car_data.steer_angle += 0x6C000;
-		if (car_data.steer_angle > 0x1B0000)
-			car_data.steer_angle = 0x1B0000;
+		player_car.steer_angle += 0x6C000;
+		if (player_car.steer_angle > 0x1B0000)
+			player_car.steer_angle = 0x1B0000;
 	} else if (g_control_steer < 0) {
-		car_data.steer_angle -= 0x6C000;
-		if (car_data.steer_angle < -0x1B0000)
-			car_data.steer_angle = -0x1B0000;
+		player_car.steer_angle -= 0x6C000;
+		if (player_car.steer_angle < -0x1B0000)
+			player_car.steer_angle = -0x1B0000;
 	} else {
-		car_data.steer_angle >>= 1;
+		player_car.steer_angle >>= 1;
 	}
 	// throttle ramp
 	if (g_control_throttle) {
-		car_data.throttle += 0x11;
-		if (car_data.throttle > 0xFF)
-			car_data.throttle = 0xFF;
+		player_car.throttle += 0x11;
+		if (player_car.throttle > 0xFF)
+			player_car.throttle = 0xFF;
 	} else {
-		car_data.throttle -= 0xC;
-		if (car_data.throttle < 0)
-			car_data.throttle = 0;
+		player_car.throttle -= 0xC;
+		if (player_car.throttle < 0)
+			player_car.throttle = 0;
 	}
 	// brake ramp
 	if (g_control_brake) {
-		car_data.brake += car_data.brake < 140 ? 0xC : 2;
-		if (car_data.brake > 0xFF)
-			car_data.brake = 0xFF;
+		player_car.brake += player_car.brake < 140 ? 0xC : 2;
+		if (player_car.brake > 0xFF)
+			player_car.brake = 0xFF;
 	} else {
-		car_data.brake -= 0x33;
-		if (car_data.brake < 0)
-			car_data.brake = 0;
+		player_car.brake -= 0x33;
+		if (player_car.brake < 0)
+			player_car.brake = 0;
 	}
 }
 
@@ -534,62 +549,62 @@ void tnfs_change_camera() {
 }
 
 void tnfs_change_gear_automatic(int shift) {
-	car_data.gear_auto_selected += shift;
+	player_car.gear_auto_selected += shift;
 
-	switch (car_data.gear_auto_selected) {
+	switch (player_car.gear_auto_selected) {
 	case 1:
-		car_data.gear_selected = -2;
-		car_data.is_gear_engaged = 1;
+		player_car.gear_selected = -2;
+		player_car.is_gear_engaged = 1;
 		printf("Gear: Reverse\n");
 		break;
 	case 2:
-		car_data.gear_selected = -1;
-		car_data.is_gear_engaged = 0;
+		player_car.gear_selected = -1;
+		player_car.is_gear_engaged = 0;
 		printf("Gear: Neutral\n");
 		break;
 	case 3:
-		car_data.gear_selected = 0;
-		car_data.is_gear_engaged = 1;
+		player_car.gear_selected = 0;
+		player_car.is_gear_engaged = 1;
 		printf("Gear: Drive\n");
 		break;
 	}
 }
 
 void tnfs_change_gear_manual(int shift) {
-	car_data.gear_selected += shift;
+	player_car.gear_selected += shift;
 
-	switch (car_data.gear_selected) {
+	switch (player_car.gear_selected) {
 	case -2:
-		car_data.is_gear_engaged = 1;
+		player_car.is_gear_engaged = 1;
 		printf("Gear: Reverse\n");
 		break;
 	case -1:
-		car_data.is_gear_engaged = 0;
+		player_car.is_gear_engaged = 0;
 		printf("Gear: Neutral\n");
 		break;
 	default:
-		car_data.is_gear_engaged = 1;
-		printf("Gear: %d\n", car_data.gear_selected + 1);
+		player_car.is_gear_engaged = 1;
+		printf("Gear: %d\n", player_car.gear_selected + 1);
 		break;
 	}
 }
 
 void tnfs_change_gear_up() {
-	if (car_data.gear_auto_selected == 0) {
-		if (car_data.gear_selected < car_specs.number_of_gears - 1)
+	if (player_car.gear_auto_selected == 0) {
+		if (player_car.gear_selected < car_specs.number_of_gears - 1)
 			tnfs_change_gear_manual(+1);
 	} else {
-		if (car_data.gear_auto_selected < 3)
+		if (player_car.gear_auto_selected < 3)
 			tnfs_change_gear_automatic(+1);
 	}
 }
 
 void tnfs_change_gear_down() {
-	if (car_data.gear_auto_selected == 0) {
-		if (car_data.gear_selected > -2)
+	if (player_car.gear_auto_selected == 0) {
+		if (player_car.gear_selected > -2)
 			tnfs_change_gear_manual(-1);
 	} else {
-		if (car_data.gear_auto_selected > 1)
+		if (player_car.gear_auto_selected > 1)
 			tnfs_change_gear_automatic(-1);
 	}
 }
@@ -597,46 +612,46 @@ void tnfs_change_gear_down() {
 /* additional features */
 
 void tnfs_abs() {
-	if (car_data.abs_enabled) {
-		car_data.abs_enabled = 0;
+	if (player_car.abs_enabled) {
+		player_car.abs_enabled = 0;
 		printf("ABS brakes off\n");
 	} else {
-		car_data.abs_enabled = 1;
+		player_car.abs_enabled = 1;
 		printf("ABS brakes on\n");
 	}
 }
 
 void tnfs_tcs() {
-	if (car_data.tcs_enabled) {
-		car_data.tcs_enabled = 0;
+	if (player_car.tcs_enabled) {
+		player_car.tcs_enabled = 0;
 		printf("Traction control off\n");
 	} else {
-		car_data.tcs_enabled = 1;
+		player_car.tcs_enabled = 1;
 		printf("Traction control on\n");
 	}
 }
 
 void tnfs_change_transmission_type() {
-	if (car_data.gear_auto_selected == 0) {
+	if (player_car.gear_auto_selected == 0) {
 		printf("Automatic Transmission mode\n");
-		car_data.gear_auto_selected = 2;
+		player_car.gear_auto_selected = 2;
 		tnfs_change_gear_automatic(0);
 	} else {
 		printf("Manual Transmission mode\n");
-		car_data.gear_auto_selected = 0;
+		player_car.gear_auto_selected = 0;
 		tnfs_change_gear_manual(0);
 	}
 }
 
 void tnfs_change_traction() {
-	if (car_data.car_specs_ptr->front_drive_percentage == 0x8000) {
-		car_data.car_specs_ptr->front_drive_percentage = 0x10000;
+	if (player_car.car_specs_ptr->front_drive_percentage == 0x8000) {
+		player_car.car_specs_ptr->front_drive_percentage = 0x10000;
 		printf("Traction: FWD\n");
-	} else if (car_data.car_specs_ptr->front_drive_percentage == 0) {
-		car_data.car_specs_ptr->front_drive_percentage = 0x8000;
+	} else if (player_car.car_specs_ptr->front_drive_percentage == 0) {
+		player_car.car_specs_ptr->front_drive_percentage = 0x8000;
 		printf("Traction: AWD\n");
 	} else {
-		car_data.car_specs_ptr->front_drive_percentage = 0;
+		player_car.car_specs_ptr->front_drive_percentage = 0;
 		printf("Traction: RWD\n");
 	}
 }
@@ -660,7 +675,7 @@ void tnfs_cheat_mode() {
 	}
 
 	tnfs_init_car();
-	tnfs_reset_car(&car_data);
+	tnfs_reset_car(&player_car);
 }
 
 void tnfs_crash_car() {
@@ -840,35 +855,20 @@ void tnfs_init_sim(char * trifile) {
 
 	// init player car
 	tnfs_init_car();
-	car_data.car_data_ptr = &car_data;
-	car_data.car_specs_ptr = &car_specs;
-	tnfs_reset_car(&car_data);
+	player_car.car_data_ptr = &player_car;
+	player_car.car_specs_ptr = &car_specs;
+	tnfs_reset_car(&player_car);
 
 	// create xman car, player car copy
-	memcpy(&xman_car_data, &car_data, sizeof(tnfs_car_data));
+	memcpy(&xman_car_data, &player_car, sizeof(tnfs_car_data));
 	xman_car_data.car_data_ptr = &xman_car_data;
 	xman_car_data.car_specs_ptr = &car_specs;
 	tnfs_reset_car(&xman_car_data);
 
-	car_data.position.x += 0x40000;
+	player_car.position.x += 0x40000;
 	xman_car_data.position.x -= 0x10000;
 
 	tnfs_ai_init();
-}
-
-/*
- * minimal routines for the X-man driver
- */
-void tnfs_ai_driver_update() {
-
-	tnfs_ai_update_vectors(&xman_car_data);
-
-	// fake lane change
-	xman_car_data.target_center_line = (xman_car_data.road_segment_a >> 2) & 0x10 ? 0x16000 : -0x16000;
-
-	tnfs_ai_main(&xman_car_data, 0, 0);
-
-	tnfs_track_fence_collision(&xman_car_data);
 }
 
 /*
@@ -881,9 +881,9 @@ void tnfs_update() {
 	// update camera
 	switch (selected_camera) {
 	case 1: //heli cam
-		camera_position.x = car_data.position.x;
-		camera_position.y = car_data.position.y + 0x60000;
-		camera_position.z = car_data.position.z - 0x100000;
+		camera_position.x = player_car.position.x;
+		camera_position.y = player_car.position.y + 0x60000;
+		camera_position.z = player_car.position.z - 0x100000;
 		break;
 	case 2: //opponent cam
 		camera_position.x = xman_car_data.position.x;
@@ -891,22 +891,22 @@ void tnfs_update() {
 		camera_position.z = xman_car_data.position.z - 0x100000;
 		break;
 	default: //chase cam
-		camera_position.x = car_data.position.x;
-		camera_position.y = car_data.position.y + 0x50000;
-		camera_position.z = car_data.position.z - 0x96000;
+		camera_position.x = player_car.position.x;
+		camera_position.y = player_car.position.y + 0x50000;
+		camera_position.z = player_car.position.z - 0x96000;
 		break;
 	}
 
 	// player
-	if (car_data.is_wrecked == 0) {
+	if (player_car.is_wrecked == 0) {
 		// driving mode loop
 		tnfs_controls_update();
-		tnfs_driving_main(&car_data);
+		tnfs_driving_main(&player_car);
 		// update render matrix
-		math_matrix_from_pitch_yaw_roll(&car_data.matrix, car_data.angle_x + car_data.body_pitch, car_data.angle_y, car_data.angle_z + car_data.body_roll);
+		math_matrix_from_pitch_yaw_roll(&player_car.matrix, player_car.angle_x + player_car.body_pitch, player_car.angle_y, player_car.angle_z + player_car.body_roll);
 	} else {
 		// crash mode loop
-		tnfs_collision_main(&car_data);
+		tnfs_collision_main(&player_car);
 	}
 
 	// opponent
@@ -917,17 +917,17 @@ void tnfs_update() {
 	}
 
 	// tweak to allow circuit track lap
-	if (car_data.road_segment_a == road_segment_count) {
-		car_data.road_segment_a = 0;
+	if (player_car.road_segment_a == road_segment_count) {
+		player_car.road_segment_a = 0;
 	}
 	if (xman_car_data.road_segment_a == road_segment_count - 5) {
 		xman_car_data.road_segment_a = 0;
 	}
 
-	node = car_data.road_segment_a;
-	car_data.road_ground_position.x = track_data[node].pos.x;
-	car_data.road_ground_position.y = track_data[node].pos.y;
-	car_data.road_ground_position.z = track_data[node].pos.z;
+	node = player_car.road_segment_a;
+	player_car.road_ground_position.x = track_data[node].pos.x;
+	player_car.road_ground_position.y = track_data[node].pos.y;
+	player_car.road_ground_position.z = track_data[node].pos.z;
 	node = xman_car_data.road_segment_a;
 	xman_car_data.road_ground_position.x = track_data[node].pos.x;
 	xman_car_data.road_ground_position.y = track_data[node].pos.y;

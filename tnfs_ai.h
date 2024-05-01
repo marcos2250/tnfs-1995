@@ -7,7 +7,6 @@
 
 
 void tnfs_ai_init();
-void tnfs_ai_update_vectors(tnfs_car_data *car);
-void tnfs_ai_main(tnfs_car_data *car, int a2, int a3);
+void tnfs_ai_driver_update();
 
 #endif /* TNFS_AI_H_ */

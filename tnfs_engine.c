@@ -26,7 +26,7 @@ void tnfs_engine_rev_limiter(tnfs_car_data *car) {
 	if (car->is_gear_engaged) {
 		if (car->rpm_vehicle > car->rpm_engine) {
 			if (car->rpm_vehicle + 500 <= car->rpm_engine) {
-				car->rpm_engine += fix8(car_data.car_specs_ptr->gear_ratio_table[car->gear_selected] * specs->clutchDropRpmInc);
+				car->rpm_engine += fix8(player_car.car_specs_ptr->gear_ratio_table[car->gear_selected] * specs->clutchDropRpmInc);
 			} else {
 				car->rpm_engine += specs->clutchDropRpmInc;
 			}

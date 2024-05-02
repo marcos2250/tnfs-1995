@@ -514,7 +514,7 @@ void tnfs_collision_data_get(tnfs_car_data *car) {
 void tnfs_collision_rollover_start_2(tnfs_car_data *car) {
 	tnfs_collision_data_set(car);
 	car->is_wrecked = 1;
-	car->field_4DD = 4;
+	car->field_4e1 = 4;
 	//FUN_8004ce14((tnfs_car_data *)&PTR_80103660);
 	car->field_174 = car->field_174 & 0xfffffdff;
 	car->collision_data.crash_time_ai_state = 300;
@@ -523,7 +523,7 @@ void tnfs_collision_rollover_start_2(tnfs_car_data *car) {
 		if (car != tnfs_car_data_ptr) {
 			return;
 		}
-	} else if (1 < car->field_4e4) {
+	} else if (1 < car->field_4e5) {
 		return;
 	}
 	//FUN_8003c09c(param_1);
@@ -1628,13 +1628,13 @@ void tnfs_collision_carcar() {
 
 			// FIXME xman always wrecked?
 			xman_car_data.is_wrecked = 1;
-			xman_car_data.field_4DD = 4;
+			xman_car_data.field_4e1 = 4;
 			xman_car_data.collision_data.crash_time_ai_state = 300;
 
 			if (player_car.speed > 0x100000 && player_car.is_wrecked == 0) {
 				// big car wreck
 				player_car.is_wrecked = 1;
-				player_car.field_4DD = 4;
+				player_car.field_4e1 = 4;
 				player_car.collision_data.crash_time_ai_state = 300;
 
 				// cinematic crash

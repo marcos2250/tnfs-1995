@@ -221,9 +221,9 @@ typedef struct tnfs_car_data {
 	int fps; //0x4D9
 	// ...
 
-	int field_4DD; //0x4dd 0x520
-	int field_4e4; //0x4e4 0x524
-	int field_4e8; //0x4e8 0x528
+	int field_4e1; //0x4e1 0x520 //2-player 3-opponent 4-wrecked 6-inactive
+	int field_4e5; //0x4e5 0x524 //car id?
+	int field_4e9; //0x4e9 0x528 //4-player 7-opponent
 
 	int field416_0x524;
 } tnfs_car_data;

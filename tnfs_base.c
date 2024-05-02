@@ -26,8 +26,8 @@ int cheat_code_8010d1c4 = 0;
 char g_control_throttle;
 char g_control_brake;
 signed char g_control_steer;
-int g_number_of_players = 1;
-int DAT_8010d30c = 0;
+int g_number_of_players = 1; //8010d1cc 001670af
+int DAT_8010d30c = 0; //8010d30c 0016707c
 
 int selected_camera = 0;
 tnfs_vec3 camera_position;
@@ -343,9 +343,7 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->road_grip_increment = 0;
 	car->lap_number = 1;
 	car->field_174 = 0x1e4;
-	car->field_4DD = 2;
-	car->field_4e4 = 0;
-	car->field_4e8 = 0;
+
 	car->unknown_flag_475 = 0;
 	car->world_position.x = 0;
 	car->world_position.y = 0;
@@ -403,17 +401,22 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->collision_data.angular_speed.z = 0;
 	car->collision_data.field6_0x60 = 0x10a1c;
 
-	car->field_4DD = 2;
-	car->field_4e8 = 4;
+	if (car == &player_car) {
+		car->field_4e1 = 2;
+		car->field_4e5 = 0;
+		car->field_4e9 = 4;
+	} else {
+		// ai car
+		car->field_4e1 = 3;
+		car->field_4e5 = 0;
+		car->field_4e9 = 7;
+	}
 
 	// ai car flags
 	car->speed_target = 0;
 	car->collision_data.field_088 = 0;
 	car->collision_data.field16_0x90 = 0xcccc;
 	car->field_33c = 0;
-	car->field_4DD = 3;
-	car->field_4e4 = 0; //2
-	car->field_4e8 = 7;
 	car->field_174 = 0x1e4;
 }
 
@@ -425,8 +428,9 @@ void tnfs_init_car() {
 		tnfs_create_car_specs();
 	}
 
-	aux = player_car.field_4e4;
-	player_car.field_4DD = 2; // ??
+	player_car.field_4e1 = 2;
+	player_car.field_4e5 = 0;
+	player_car.field_4e9 = 4;
 	player_car.position.z = 0; //0x600000;
 	player_car.road_segment_a = 0; //0x10;
 	player_car.road_segment_b = 0; //0x10;

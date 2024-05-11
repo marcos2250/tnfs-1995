@@ -90,7 +90,7 @@ void tnfs_engine_auto_shift_change(tnfs_car_data *car_data, tnfs_car_specs *car_
 	// speed to RPM
 	rpm_vehicle = fixmul(fixmul(car_specs->gear_ratio_table[gear + 2], car_specs->mps_to_rpm_factor), car_data->speed_local_lon) >> 16;
 
-	if (gear < car_specs->number_of_gears && rpm_vehicle > car_specs->gear_upshift_rpm[gear]) {
+	if (gear < (car_specs->number_of_gears - 3) && rpm_vehicle > car_specs->gear_upshift_rpm[gear]) {
 		// upshift
 		car_data->gear_selected++;
 	} else if (gear > 0 && rpm_vehicle < car_specs->gear_upshift_rpm[gear] / 2) {
@@ -133,7 +133,7 @@ int tnfs_engine_torque(tnfs_car_specs *specs, int rpm) {
 	if (rpm < specs->torque_table[0]) {
 		offset = 0;
 	} else {
-		offset = (rpm - specs->torque_table[0]) / 200;
+		offset = (rpm - specs->torque_table[0]) / 400;
 	}
 
 	if (offset < 0) {

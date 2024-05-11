@@ -108,7 +108,7 @@ int read_pbs_file(char * file) {
 	car_specs.final_drive = readFixed32(buffer, 0x5c);
 	car_specs.inverse_wheel_radius = readFixed32(buffer, 0x64);
 
-	for (i = 0; i <= 8; i++) {
+	for (i = 0; i < 8; i++) {
 		car_specs.gear_ratio_table[i] = readFixed32(buffer, i * 4 + 0x68);
 	}
 
@@ -120,13 +120,13 @@ int read_pbs_file(char * file) {
 	car_specs.rpm_redline = readFixed32(buffer, 0xac);
 	car_specs.rpm_idle = readFixed32(buffer, 0xb0);
 
-	for (i = 0; i <= car_specs.torque_table_entries; i++) {
+	for (i = 0; i < (car_specs.torque_table_entries * 2); i++) {
 		car_specs.torque_table[i] = readFixed32(buffer, i * 4 + 0xb4);
 	}
-	for (i = 0; i <= 6; i++) {
+	for (i = 0; i < 7; i++) {
 		car_specs.gear_upshift_rpm[i] = readFixed32(buffer, i * 4 + 0x294);
 	}
-	for (i = 0; i <= 8; i++) {
+	for (i = 0; i < 8; i++) {
 		car_specs.gear_efficiency[i] = readFixed32(buffer, i * 4 + 0x2b0);
 	}
 

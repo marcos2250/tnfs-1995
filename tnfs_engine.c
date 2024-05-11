@@ -93,7 +93,7 @@ void tnfs_engine_auto_shift_change(tnfs_car_data *car_data, tnfs_car_specs *car_
 	if (gear < (car_specs->number_of_gears - 3) && rpm_vehicle > car_specs->gear_upshift_rpm[gear]) {
 		// upshift
 		car_data->gear_selected++;
-	} else if (gear > 0 && rpm_vehicle < car_specs->gear_upshift_rpm[gear] / 2) {
+	} else if (gear > 0 && rpm_vehicle < car_specs->gear_upshift_rpm[gear - 1] / 2) {
 		// downshift
 		car_data->gear_selected--;
 	}

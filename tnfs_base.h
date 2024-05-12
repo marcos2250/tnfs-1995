@@ -266,7 +266,11 @@ extern struct tnfs_car_specs car_specs;
 extern struct tnfs_car_data player_car;
 extern struct tnfs_track_data track_data[2400];
 extern struct tnfs_surface_type road_surface_type_array[3];
+
 extern struct tnfs_car_data xman_car_data;
+extern tnfs_car_data* g_car_ptr_array[8];
+extern int g_total_cars_in_scene;
+
 
 extern char is_drifting;
 extern int g_game_time;

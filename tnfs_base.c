@@ -14,6 +14,8 @@ tnfs_car_data player_car;
 tnfs_track_data track_data[2400];
 tnfs_surface_type road_surface_type_array[3];
 tnfs_car_data xman_car_data;
+tnfs_car_data* g_car_ptr_array[8]; // 00153ba0/00153bec 8010c720/800f7e60
+int g_total_cars_in_scene = 2;
 
 // settings/flags
 char is_drifting;
@@ -857,6 +859,9 @@ void tnfs_init_sim(char * trifile) {
 
 	tnfs_init_track(trifile);
 
+	g_car_ptr_array[0] = &player_car;
+	g_car_ptr_array[1] = &xman_car_data;
+
 	// init player car
 	tnfs_init_car();
 	player_car.car_data_ptr = &player_car;
@@ -913,29 +918,31 @@ void tnfs_update() {
 		tnfs_collision_main(&player_car);
 	}
 
-	// opponent
-	if (xman_car_data.is_wrecked == 0) {
-		tnfs_ai_driver_update();
-	} else {
-		tnfs_collision_main(&xman_car_data);
-	}
+	// opponent(s)
+  for (int i = 1; i < g_total_cars_in_scene; i++) {
+    if (g_car_ptr_array[i]->is_wrecked == 0) {
+      tnfs_ai_driver_update(g_car_ptr_array[i]);
+    } else {
+      tnfs_collision_main(g_car_ptr_array[i]);
+    }
+  }
 
 	// tweak to allow circuit track lap
 	if (player_car.road_segment_a == road_segment_count) {
 		player_car.road_segment_a = 0;
 	}
-	if (xman_car_data.road_segment_a == road_segment_count - 5) {
-		xman_car_data.road_segment_a = 0;
+	for (int i = 1; i < g_total_cars_in_scene; i++) {
+    if (g_car_ptr_array[i]->road_segment_a == road_segment_count - 5) {
+      g_car_ptr_array[i]->road_segment_a = 0;
+    }
 	}
 
-	node = player_car.road_segment_a;
-	player_car.road_ground_position.x = track_data[node].pos.x;
-	player_car.road_ground_position.y = track_data[node].pos.y;
-	player_car.road_ground_position.z = track_data[node].pos.z;
-	node = xman_car_data.road_segment_a;
-	xman_car_data.road_ground_position.x = track_data[node].pos.x;
-	xman_car_data.road_ground_position.y = track_data[node].pos.y;
-	xman_car_data.road_ground_position.z = track_data[node].pos.z;
+  for (int i = 0; i < g_total_cars_in_scene; i++) {
+    node = g_car_ptr_array[i]->road_segment_a;
+    g_car_ptr_array[i]->road_ground_position.x = track_data[node].pos.x;
+    g_car_ptr_array[i]->road_ground_position.y = track_data[node].pos.y;
+    g_car_ptr_array[i]->road_ground_position.z = track_data[node].pos.z;
+  }
 
 	tnfs_collision_carcar();
 }

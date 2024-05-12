@@ -1644,16 +1644,14 @@ void tnfs_collision_carcar() {
 				tnfs_collision_carcar_exageration(&xman_car_data);
 			}
 
-			if (player_car.is_wrecked == 0) {
-				tnfs_collision_data_get(&player_car);
-				player_car.speed_x = -player_car.speed_x;
-				player_car.speed_z = -player_car.speed_z;
-			}
-			if (xman_car_data.is_wrecked == 0) {
-				tnfs_collision_data_get(&xman_car_data);
-				xman_car_data.speed_x = -xman_car_data.speed_x;
-				xman_car_data.speed_z = -xman_car_data.speed_z;
-			}
+      for (int i = 0; i < g_total_cars_in_scene; i++) {
+        if (g_car_ptr_array[i]->is_wrecked == 0) {
+          tnfs_collision_data_get(g_car_ptr_array[i]);
+          g_car_ptr_array[i]->speed_x = -g_car_ptr_array[i]->speed_x;
+          g_car_ptr_array[i]->speed_z = -g_car_ptr_array[i]->speed_z;
+        }
+      }
+
 		}
 	}
 }

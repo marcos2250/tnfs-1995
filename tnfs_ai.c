@@ -46,8 +46,8 @@ void tnfs_ai_init() {
     //g_car_ptr_array[i]->field_174 |= 0x1000; //backwards
     //g_car_ptr_array[i]->field_174 |= 0x20000; //stopped
 
-    for (i = 0; i <= 99; i++) {
-      g_car_ptr_array[i]->power_curve[i] = g_power_curve[i >> 2];
+    for (int j = 0; j < 100; j++) {
+      g_car_ptr_array[i]->power_curve[j] = g_power_curve[j >> 2];
     }
 	}
 

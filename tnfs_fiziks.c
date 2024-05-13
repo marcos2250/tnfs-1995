@@ -96,7 +96,9 @@ int tnfs_drag_force(tnfs_car_data *car, signed int speed, char longitudinal) {
  */
 void tnfs_cheat_crash_cars() {
 	if (cheat_crashing_cars == 4) {
-		tnfs_collision_rollover_start(&xman_car_data, 0xa0000, 0xa0000, 0xa0000);
+	  for (int i = 1; i < g_total_cars_in_scene; i++) {
+		  tnfs_collision_rollover_start(g_car_ptr_array[i], 0xa0000, 0xa0000, 0xa0000);
+    }
 	}
 }
 
@@ -627,7 +629,7 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	sideslip = math_mul(car_data->wheel_base, car_data->fps * car_data->angular_speed);
 	speed_lat_front = aux - (drag_lat / 2) + sideslip;
 	speed_lat_rear = -(speed_lat + aux) - (drag_lat / 2) - sideslip;
-	
+
 	// longitudinal speeds, front and rear
 	aux = -math_mul(car_data->weight_distribution_front, speed_lon);
 	speed_lon_rear = -(speed_lon + aux) - (drag_lon / 2);

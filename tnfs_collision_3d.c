@@ -1604,6 +1604,9 @@ tnfs_vec3 g_col_direction;
  * manage car-to-car collisions - adapted/simplified from TNFS original
  */
 void tnfs_collision_carcar() {
+  if (g_total_cars_in_scene == 1) {
+    return;
+  };
 	// both cars are near
 	if (abs(player_car.position.x - xman_car_data.position.x) < 0x30000
 			&& abs(player_car.position.y - xman_car_data.position.y) < 0x30000

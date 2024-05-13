@@ -685,7 +685,9 @@ void tnfs_cheat_mode() {
 }
 
 void tnfs_crash_car() {
-	tnfs_collision_rollover_start(&xman_car_data, 0, 0, -0xa0000);
+  for (int i = 1; i < g_total_cars_in_scene; i++) {
+	  tnfs_collision_rollover_start(g_car_ptr_array[i], 0, 0, -0xa0000);
+  }
 }
 
 /* common stub functions */

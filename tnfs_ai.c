@@ -1429,7 +1429,7 @@ void tnfs_ai_lane_change() {
  */
 void tnfs_ai_driver_update(tnfs_car_data *car) {
 	tnfs_ai_update_vectors(car);
-	tnfs_ai_lane_change(car);
+	tnfs_ai_lane_change();
 	tnfs_ai_main(car);
 	tnfs_track_fence_collision(car);
 }

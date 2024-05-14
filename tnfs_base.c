@@ -15,7 +15,7 @@ tnfs_surface_type road_surface_type_array[3];
 
 tnfs_car_data g_car_array[8];
 tnfs_car_data* g_car_ptr_array[8]; // 00153ba0/00153bec 8010c720/800f7e60
-int g_total_cars_in_scene = 4;
+int g_total_cars_in_scene = 2;
 
 // settings/flags
 char is_drifting;

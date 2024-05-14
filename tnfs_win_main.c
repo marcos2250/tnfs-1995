@@ -249,9 +249,11 @@ void render() {
 	drawRoad(x - 30, y - 30, car_data.road_segment_a);
 	drawCar(&car_data, 30, 30);
 
-	x -= (float) xman_car_data.position.z / 0x10000;
-	y -= (float) xman_car_data.position.x / 0x10000;
-	drawCar(&xman_car_data, 30 - x, 30 - y);
+  for (int i = 1; i < g_total_cars_in_scene; i++) {
+    x -= (float) g_car_ptr_array[i]->position.z / 0x10000;
+    y -= (float) g_car_ptr_array[i]->position.x / 0x10000;
+    drawCar(g_car_ptr_array[i], 30 - x, 30 - y);
+  }
 
 	// hud text
 	sprintf(hud, "%d m/s - %d rpm - gear %d", car_data.speed_local_lon >> 16, car_data.rpm_engine, car_data.gear_selected + 1);

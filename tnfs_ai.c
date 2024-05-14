@@ -35,8 +35,6 @@ int g_power_curve[] = { 0x5062, 0x4f1a, 0x4f1a, 0x55c2, 0x2937, 0x2c49, 0x28f5, 
 void tnfs_ai_init() {
 	int i;
 
-	player_car_ptr = &player_car;
-
 	for (i = 1; i < g_total_cars_in_scene; i++) {
     g_car_ptr_array[i]->field_174 = 0x1e4;
     //g_car_ptr_array[i]->field_174 |= 4; // run
@@ -52,7 +50,7 @@ void tnfs_ai_init() {
 	}
 
 	// globals
-	player_car_ptr = &player_car;
+	player_car_ptr = g_car_ptr_array[0];
 }
 
 void FUN_0044E11() {
@@ -369,7 +367,7 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 			car->car_road_speed -= accel * iVar4;
 			if (car->car_road_speed <= car->speed_target)
 				car->car_road_speed = car->speed_target;
-			if (ai_type && car->car_data_ptr->field_4e1 == 3 && car->car_road_speed - 0xa0000 > car->speed_target) {
+			if (ai_type && car->field_4e1 == 3 && car->car_road_speed - 0xa0000 > car->speed_target) {
 				car->brake = 0x11;
 			}
 		}
@@ -664,7 +662,7 @@ void tnfs_ai_main(tnfs_car_data *car) {
 			max_steer = 0x160000;
 
 		if (abs(car->steer_angle) > max_steer && (car->field_174 & 0x200000) == 0) {
-			FUN_0044E11(car->car_data_ptr);
+			FUN_0044E11(car);
 			if (car->field_174 & 8) {
 				if (FUN_0076FB9(car->road_segment_a))
 					tnfs_replay_highlight_record(0x52);
@@ -1412,7 +1410,7 @@ void tnfs_ai_lane_change() {
 								car->target_center_line -= car->field_33c;
 
 				            //if ((DAT_00165148 != 0) && (local_c0 != lane)) {
-				            //  FUN_00077a05(car,&player_car, local_c0, &car_speed_a);
+				            //  FUN_00077a05(car,g_car_ptr_array[0], local_c0, &car_speed_a);
 				            //}
 				            //if (((car->field_174 & 4) != 0) && (car->road_segment_b < 0x41)) {
 				            //  car->speed_target = ((0x10000 + 2016 * (65 - car->road_segment_b)) * car->speed_target + 0x8000) >> 16;
@@ -1431,7 +1429,7 @@ void tnfs_ai_lane_change() {
  */
 void tnfs_ai_driver_update(tnfs_car_data *car) {
 	tnfs_ai_update_vectors(car);
-	tnfs_ai_lane_change();
+	tnfs_ai_lane_change(car);
 	tnfs_ai_main(car);
 	tnfs_track_fence_collision(car);
 }

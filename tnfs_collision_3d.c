@@ -1604,58 +1604,65 @@ tnfs_vec3 g_col_direction;
  * manage car-to-car collisions - adapted/simplified from TNFS original
  */
 void tnfs_collision_carcar() {
-  if (g_total_cars_in_scene == 1) {
-    return;
-  };
-	// both cars are near
-	if (abs(player_car.position.x - xman_car_data.position.x) < 0x30000
-			&& abs(player_car.position.y - xman_car_data.position.y) < 0x30000
-			&& abs(player_car.position.z - xman_car_data.position.z) < 0x30000) {
+  for (int i = 0; i < g_total_cars_in_scene - 1; i++) {
+    for (int j = i + 1; j < g_total_cars_in_scene; j++) {
+      tnfs_car_data *carA = g_car_ptr_array[i];
+      tnfs_car_data *carB = g_car_ptr_array[j];
+      // both cars are near
+      if (abs(carA->position.x - carB->position.x) < 0x30000
+          && abs(carA->position.y - carB->position.y) < 0x30000
+          && abs(carA->position.z - carB->position.z) < 0x30000) {
 
-		g_col_position.x = 0;
-		g_col_position.y = 0;
-		g_col_position.z = 0;
-		g_col_direction.x = 0;
-		g_col_direction.y = 0;
-		g_col_direction.z = 0;
+        g_col_position.x = 0;
+        g_col_position.y = 0;
+        g_col_position.z = 0;
+        g_col_direction.x = 0;
+        g_col_direction.y = 0;
+        g_col_direction.z = 0;
 
-		// update collision structs
-		tnfs_collision_data_set(&player_car);
-		tnfs_collision_data_set(&xman_car_data);
+        // update collision structs
+        tnfs_collision_data_set(carA);
+        tnfs_collision_data_set(carB);
 
-		// if collided
-		if (tnfs_collision_carcar_box_detect(&player_car.collision_data, &xman_car_data.collision_data, &g_col_position, &g_col_direction)) {
+        // if collided
+        if (tnfs_collision_carcar_box_detect(&carA->collision_data, &carB->collision_data, &g_col_position, &g_col_direction)) {
 
-			// bounce off cars
-			tnfs_collision_carcar_rebound(&player_car.collision_data, &xman_car_data.collision_data, &g_col_position, &g_col_direction);
+          // bounce off cars
+          tnfs_collision_carcar_rebound(&carA->collision_data, &carB->collision_data, &g_col_position, &g_col_direction);
 
-			// FIXME xman always wrecked?
-			xman_car_data.is_wrecked = 1;
-			xman_car_data.field_4e1 = 4;
-			xman_car_data.collision_data.crash_time_ai_state = 300;
+          // FIXME xman always wrecked?
 
-			if (player_car.speed > 0x100000 && player_car.is_wrecked == 0) {
-				// big car wreck
-				player_car.is_wrecked = 1;
-				player_car.field_4e1 = 4;
-				player_car.collision_data.crash_time_ai_state = 300;
+	        carB->is_wrecked = 1;
+          carB->field_4e1 = 4;
+          carB->collision_data.crash_time_ai_state = 300;
 
-				// cinematic crash
-				tnfs_track_update_vectors(&player_car);
-				tnfs_track_update_vectors(&xman_car_data);
-				tnfs_collision_carcar_exageration(&player_car);
-				tnfs_collision_carcar_exageration(&xman_car_data);
-			}
+          if (carA->speed > 0x100000 && carA->is_wrecked == 0) {
+            // big car wreck
+            carA->is_wrecked = 1;
+            carA->field_4e1 = 4;
+            carA->collision_data.crash_time_ai_state = 300;
 
-      for (int i = 0; i < g_total_cars_in_scene; i++) {
-        if (g_car_ptr_array[i]->is_wrecked == 0) {
-          tnfs_collision_data_get(g_car_ptr_array[i]);
-          g_car_ptr_array[i]->speed_x = -g_car_ptr_array[i]->speed_x;
-          g_car_ptr_array[i]->speed_z = -g_car_ptr_array[i]->speed_z;
+            // cinematic crash
+            tnfs_track_update_vectors(carA);
+            tnfs_track_update_vectors(carB);
+            tnfs_collision_carcar_exageration(carA);
+            tnfs_collision_carcar_exageration(carB);
+          }
+
+          if (carA->is_wrecked == 0) {
+            tnfs_collision_data_get(carA);
+            carA->speed_x = -carA->speed_x;
+            carA->speed_z = -carA->speed_z;
+          }
+          if (carB->is_wrecked == 0) {
+            tnfs_collision_data_get(carB);
+            carB->speed_x = -carB->speed_x;
+            carB->speed_z = -carB->speed_z;
+          }
+
         }
       }
-
-		}
-	}
+    }
+  }
 }
 

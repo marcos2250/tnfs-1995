@@ -862,23 +862,35 @@ void tnfs_init_sim(char * trifile) {
 	tnfs_init_track(trifile);
 
 	g_car_ptr_array[0] = &player_car;
-	g_car_ptr_array[1] = &xman_car_data;
-
 	// init player car
 	tnfs_init_car();
 	player_car.car_data_ptr = &player_car;
 	player_car.car_specs_ptr = &car_specs;
+	player_car.road_segment_a = 18;
 	tnfs_reset_car(&player_car);
 
-	// create xman car, player car copy
-	memcpy(&xman_car_data, &player_car, sizeof(tnfs_car_data));
-	xman_car_data.car_data_ptr = &xman_car_data;
-	xman_car_data.car_specs_ptr = &car_specs;
-	tnfs_reset_car(&xman_car_data);
-
-	player_car.position.x += 0x40000;
-	xman_car_data.position.x -= 0x10000;
-
+	// create xman car(s), player car copy
+	if (g_total_cars_in_scene > 1) {
+    struct tnfs_car_data additional_ai_drivers[g_total_cars_in_scene - 1];
+    for (int i = 1; i < g_total_cars_in_scene; i++) {
+      if (i == 1) {
+        memcpy(&xman_car_data, &player_car, sizeof(tnfs_car_data));
+        g_car_ptr_array[1] = &xman_car_data;
+      } else {
+        memcpy(&additional_ai_drivers[i - 2], &player_car, sizeof(tnfs_car_data));
+        g_car_ptr_array[i] = &additional_ai_drivers[i - 2];
+      }
+      g_car_ptr_array[i]->car_data_ptr = g_car_ptr_array[i];
+      g_car_ptr_array[i]->car_specs_ptr = &car_specs;
+	    g_car_ptr_array[i]->road_segment_a = 18 + i * 2;
+      tnfs_reset_car(g_car_ptr_array[i]);
+      if (i % 2 == 1) {
+        g_car_ptr_array[i]->position.x -= 0x10000;
+      } else {
+	      g_car_ptr_array[i]->position.x += 0x40000;
+      }
+    }
+	}
 	tnfs_ai_init();
 }
 

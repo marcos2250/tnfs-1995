@@ -28,8 +28,6 @@ int DAT_001670B3 = 0;
 int DAT_001670BB = 0;
 
 tnfs_car_data* player_car_ptr;
-tnfs_car_data* g_car_ptr_array[2]; // 00153ba0/00153bec 8010c720/800f7e60
-int g_total_cars_in_scene = 2; // 8010d1d4
 
 int g_power_curve[] = { 0x5062, 0x4f1a, 0x4f1a, 0x55c2, 0x2937, 0x2c49, 0x28f5, 0x228f, 0x1df3, 0x19db, 0x7a14, 0x12f1, 0x11eb, //
 		0xffd, 0xdf4, 0xc8b, 0xb43, 0x978, 0x7ae, 0x69e, 0x5e3, 0x560, 0x45a, 0x418, 0 };
@@ -37,24 +35,22 @@ int g_power_curve[] = { 0x5062, 0x4f1a, 0x4f1a, 0x55c2, 0x2937, 0x2c49, 0x28f5, 
 void tnfs_ai_init() {
 	int i;
 
-	player_car_ptr = &player_car;
+	for (i = 1; i < g_total_cars_in_scene; i++) {
+    g_car_ptr_array[i]->field_174 = 0x1e4;
+    //g_car_ptr_array[i]->field_174 |= 4; // run
+    //g_car_ptr_array[i]->field_174 |= 8; //
+    //g_car_ptr_array[i]->field_174 |= 0x404; //steer more
+    //g_car_ptr_array[i]->field_174 |= 0x408; //
+    //g_car_ptr_array[i]->field_174 |= 0x1000; //backwards
+    //g_car_ptr_array[i]->field_174 |= 0x20000; //stopped
 
-	xman_car_data.field_174 = 0x1e4;
-	//xman_car_data.field_174 |= 4; // run
-	//xman_car_data.field_174 |= 8; //
-	//xman_car_data.field_174 |= 0x404; //steer more
-	//xman_car_data.field_174 |= 0x408; //
-	//xman_car_data.field_174 |= 0x1000; //backwards
-	//xman_car_data.field_174 |= 0x20000; //stopped
-
-	for (i = 0; i <= 99; i++) {
-		xman_car_data.power_curve[i] = g_power_curve[i >> 2];
+    for (int j = 0; j < 100; j++) {
+      g_car_ptr_array[i]->power_curve[j] = g_power_curve[j >> 2];
+    }
 	}
 
 	// globals
-	g_car_ptr_array[0] = &player_car;
-	g_car_ptr_array[1] = &xman_car_data;
-	player_car_ptr = &player_car;
+	player_car_ptr = g_car_ptr_array[0];
 }
 
 void FUN_0044E11() {
@@ -371,7 +367,7 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 			car->car_road_speed -= accel * iVar4;
 			if (car->car_road_speed <= car->speed_target)
 				car->car_road_speed = car->speed_target;
-			if (ai_type && car->car_data_ptr->field_4e1 == 3 && car->car_road_speed - 0xa0000 > car->speed_target) {
+			if (ai_type && car->field_4e1 == 3 && car->car_road_speed - 0xa0000 > car->speed_target) {
 				car->brake = 0x11;
 			}
 		}
@@ -666,7 +662,7 @@ void tnfs_ai_main(tnfs_car_data *car) {
 			max_steer = 0x160000;
 
 		if (abs(car->steer_angle) > max_steer && (car->field_174 & 0x200000) == 0) {
-			FUN_0044E11(car->car_data_ptr);
+			FUN_0044E11(car);
 			if (car->field_174 & 8) {
 				if (FUN_0076FB9(car->road_segment_a))
 					tnfs_replay_highlight_record(0x52);
@@ -1414,7 +1410,7 @@ void tnfs_ai_lane_change() {
 								car->target_center_line -= car->field_33c;
 
 				            //if ((DAT_00165148 != 0) && (local_c0 != lane)) {
-				            //  FUN_00077a05(car,&player_car, local_c0, &car_speed_a);
+				            //  FUN_00077a05(car,g_car_ptr_array[0], local_c0, &car_speed_a);
 				            //}
 				            //if (((car->field_174 & 4) != 0) && (car->road_segment_b < 0x41)) {
 				            //  car->speed_target = ((0x10000 + 2016 * (65 - car->road_segment_b)) * car->speed_target + 0x8000) >> 16;
@@ -1431,9 +1427,9 @@ void tnfs_ai_lane_change() {
 /*
  * minimal routines for the X-man driver
  */
-void tnfs_ai_driver_update() {
-	tnfs_ai_update_vectors(&xman_car_data);
+void tnfs_ai_driver_update(tnfs_car_data *car) {
+	tnfs_ai_update_vectors(car);
 	tnfs_ai_lane_change();
-	tnfs_ai_main(&xman_car_data);
-	tnfs_track_fence_collision(&xman_car_data);
+	tnfs_ai_main(car);
+	tnfs_track_fence_collision(car);
 }

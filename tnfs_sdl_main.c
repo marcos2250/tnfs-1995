@@ -33,7 +33,7 @@ void handleKeys() {
 			g_control_brake = 1;
 			break;
 		case SDLK_SPACE:
-			player_car.handbrake = 1;
+			g_car_array[0].handbrake = 1;
 			break;
 		}
 	}
@@ -46,7 +46,7 @@ void handleKeys() {
 			tnfs_change_gear_down();
 			break;
 		case SDLK_r:
-			tnfs_reset_car(&player_car);
+			tnfs_reset_car(g_car_ptr_array[0]);
 			break;
 		case SDLK_c:
 			tnfs_change_camera();
@@ -88,7 +88,7 @@ void handleKeys() {
 			g_control_steer = 0;
 			break;
 		case SDLK_SPACE:
-			player_car.handbrake = 0;
+			g_car_array[0].handbrake = 0;
 			break;
 		default:
 			break;
@@ -184,9 +184,9 @@ void drawRoad() {
 	for (int n = 0; n < 100; n++) {
 
 		if (selected_camera == 2) {
-			i = xman_car_data.road_segment_a;
+			i = g_car_array[1].road_segment_a;
 		} else {
-			i = player_car.road_segment_a;
+			i = g_car_array[0].road_segment_a;
 		}
 		i = i - 50 + n;
 		if (i < 0) {
@@ -217,7 +217,7 @@ void drawRoad() {
 
 void drawTach() {
 	float c,s,r;
-	r = ((float) player_car.rpm_engine / (float) player_car.rpm_redline) * 3.14 - 1.56;
+	r = ((float) g_car_array[0].rpm_engine / (float) g_car_array[0].rpm_redline) * 3.14 - 1.56;
 	c = -cosf(r);
 	s = sinf(r);
 
@@ -246,8 +246,9 @@ void renderGl() {
 	gluPerspective(90.0, 1, 0.1, 1000);
 
 	drawRoad();
-	drawVehicle(&player_car);
-	drawVehicle(&xman_car_data);
+	for (int i = 0; i < g_total_cars_in_scene; i++) {
+	  drawVehicle(g_car_ptr_array[i]);
+	}
 	drawTach();
 }
 

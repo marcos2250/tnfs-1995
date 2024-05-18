@@ -67,7 +67,7 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int lon_speed, in
 			crash_pitch = fix6(crash_speed_a * (collisionAngle >> 16));
 		}
 		if (crash_yaw != 0) {
-			tnfs_collision_rollover_start(car_data->car_data_ptr, fix2(crash_yaw), fix2(3 * crash_roll), fix2(3 * crash_pitch));
+			tnfs_collision_rollover_start(car_data, fix2(crash_yaw), fix2(3 * crash_roll), fix2(3 * crash_pitch));
 		}
 	} else {
 		if (abs(collisionAngle) < 0x130000 && car_data->speed_local_lon > 0) {

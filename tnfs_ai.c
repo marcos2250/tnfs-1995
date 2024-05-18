@@ -1135,7 +1135,10 @@ void tnfs_ai_lane_change() {
 			car = g_car_ptr_array[i];
 
 			if (car->field_4e1 != 6) {
-				tnfs_ai_update_vectors(car);
+			  // do not update vectors for player car
+			  if (i > 0) {
+				  tnfs_ai_update_vectors(car);
+			  }
 
 				// left side
 				distance = car->center_line_distance - car->side_width + 0x8000;

@@ -15,7 +15,7 @@ tnfs_surface_type road_surface_type_array[3];
 
 tnfs_car_data g_car_array[8];
 tnfs_car_data* g_car_ptr_array[8]; // 00153ba0/00153bec 8010c720/800f7e60
-int g_total_cars_in_scene = 2;
+int g_total_cars_in_scene = 8;
 
 // settings/flags
 char is_drifting;
@@ -344,7 +344,6 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->accel_lon = 0;
 	car->road_grip_increment = 0;
 	car->lap_number = 1;
-	car->field_174 = 0x1e4;
 
 	car->unknown_flag_475 = 0;
 	car->world_position.x = 0;
@@ -404,12 +403,12 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->collision_data.field6_0x60 = 0x10a1c;
 
 	if (car == g_car_ptr_array[0]) {
-		car->field_4e1 = 2;
+		car->crash_state = 2;
 		car->field_4e5 = 0;
 		car->field_4e9 = 4;
 	} else {
 		// ai car
-		car->field_4e1 = 3;
+		car->crash_state = 3;
 		car->field_4e5 = 0;
 		car->field_4e9 = 7;
 	}
@@ -417,9 +416,9 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	// ai car flags
 	car->speed_target = 0;
 	car->collision_data.field_088 = 0;
-	car->collision_data.field16_0x90 = 0xcccc;
+	car->collision_data.field16_0x90 = 0xb333; //0xcccc; //0xb333 - 0x10000
 	car->field_33c = 0;
-	car->field_174 = 0x1e4;
+	car->ai_state = 0x1e4;
 }
 
 void tnfs_init_car() {
@@ -430,7 +429,7 @@ void tnfs_init_car() {
 		tnfs_create_car_specs();
 	}
 
-	g_car_array[0].field_4e1 = 2;
+	g_car_array[0].crash_state = 2;
 	g_car_array[0].field_4e5 = 0;
 	g_car_array[0].field_4e9 = 4;
 	g_car_array[0].position.z = 0; //0x600000;
@@ -863,18 +862,19 @@ void tnfs_init_sim(char * trifile) {
 
 	// init player car
 	tnfs_init_car();
+	g_car_array[0].car_data_ptr = &g_car_array[0];
 	g_car_array[0].car_specs_ptr = &car_specs;
 	g_car_array[0].road_segment_a = 18;
 	tnfs_reset_car(&g_car_array[0]);
-  g_car_ptr_array[0] = &g_car_array[0];
+    g_car_ptr_array[0] = &g_car_array[0];
 
-	// create xman car(s), player car copy
+	// create AI car(s), player car copy
 	if (g_total_cars_in_scene > 1) {
     for (int i = 1; i < g_total_cars_in_scene; i++) {
       g_car_ptr_array[i] = &g_car_array[i];
       memcpy(&g_car_array[i], &g_car_array[0], sizeof(tnfs_car_data));
 
-      g_car_array[i].car_data_ptr = g_car_ptr_array[i];
+      g_car_array[i].car_data_ptr = &g_car_array[i];
       g_car_array[i].car_specs_ptr = &car_specs;
 	    g_car_array[i].road_segment_a = 18 + i * 2;
       tnfs_reset_car(&g_car_array[i]);
@@ -913,6 +913,9 @@ void tnfs_update() {
 		break;
 	}
 
+	// opponent(s)
+	tnfs_ai_drivers_update();
+
 	// player
 	if (g_car_array[0].is_wrecked == 0) {
 		// driving mode loop
@@ -924,15 +927,6 @@ void tnfs_update() {
 		// crash mode loop
 		tnfs_collision_main(g_car_ptr_array[0]);
 	}
-
-	// opponent(s)
-  for (int i = 1; i < g_total_cars_in_scene; i++) {
-    if (g_car_ptr_array[i]->is_wrecked == 0) {
-      tnfs_ai_driver_update(g_car_ptr_array[i]);
-    } else {
-      tnfs_collision_main(g_car_ptr_array[i]);
-    }
-  }
 
 	// tweak to allow circuit track lap
 	if (g_car_array[0].road_segment_a == road_segment_count) {

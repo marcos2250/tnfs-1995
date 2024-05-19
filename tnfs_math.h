@@ -147,6 +147,7 @@ int math_tan_3(int input);
 int math_atan2(int x, int y);
 void math_rotate_2d(int x1, int y1, int angle, int *x2, int *y2);
 int math_angle_wrap(int a);
+int math_angle14_32(short input);
 void math_matrix_set_rot_Z(tnfs_vec9 *param_1, int angle);
 void math_matrix_set_rot_Y(tnfs_vec9 *param_1, int angle);
 void math_matrix_set_rot_X(tnfs_vec9 *param_1, int angle);

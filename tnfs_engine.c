@@ -43,9 +43,9 @@ void tnfs_engine_rev_limiter(tnfs_car_data *car) {
 		}
 	} else if (car->throttle >= 13) {
 		if (car->gear_selected == -1) {
-			car->rpm_engine += car->car_specs_ptr->garRpmInc * car->throttle / 2 >> 8;
+			car->rpm_engine += car->car_specs_ptr->gasRpmInc * car->throttle / 2 >> 8;
 		} else {
-			car->rpm_engine += car->car_specs_ptr->garRpmInc * car->throttle >> 8;
+			car->rpm_engine += car->car_specs_ptr->gasRpmInc * car->throttle >> 8;
 		}
 		if (car->rpm_engine > max_rpm)
 			car->rpm_engine = max_rpm;

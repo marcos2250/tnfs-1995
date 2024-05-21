@@ -64,7 +64,7 @@ typedef struct tnfs_car_specs {
 	//  ...
 	int shift_timer; //0x354
 	int noGasRpmDec; //0x358
-	int garRpmInc; //0x35C
+	int gasRpmInc; //0x35C
 	int clutchDropRpmDec; //0x360
 	int clutchDropRpmInc; //0x364
 	int negTorque; //0x368
@@ -243,9 +243,9 @@ typedef struct tnfs_track_data {
 	short slant; // 22
 	short heading; // 24
 	// blank
-	short segment_cos; // 28
-	short segment_tan; // 30
-	short segment_sin; // 32
+	short side_normal_x; // 28
+	short side_normal_y; // 30
+	short side_normal_z; // 32
 	// blank
 	// added for renderer
 	vector3f vf_margin_L;

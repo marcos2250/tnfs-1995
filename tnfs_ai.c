@@ -35,16 +35,8 @@ int g_power_curve[] = { 0x5062, 0x4f1a, 0x4f1a, 0x55c2, 0x2937, 0x2c49, 0x28f5, 
 void tnfs_ai_init() {
 	int i;
 
-	g_car_ptr_array[1]->ai_state = 0x1e4;
-	g_car_ptr_array[2]->ai_state = 0x1e4;
-	g_car_ptr_array[3]->ai_state = 0x1e4;
-	g_car_ptr_array[4]->ai_state = 0x1e4;
-	g_car_ptr_array[5]->ai_state = 0x11e0;
-	g_car_ptr_array[6]->ai_state = 0x1e0;
-	g_car_ptr_array[7]->ai_state = 0x11e0;
-
 	//g_car_ptr_array[i]->ai_state = 0x1e0; //traffic car
-	//g_car_ptr_array[i]->ai_state = 0x1e4; //opoonent car
+	//g_car_ptr_array[i]->ai_state = 0x1e4; //opponent car
 	//g_car_ptr_array[i]->ai_state |= 4; // run full speed
 	//g_car_ptr_array[i]->ai_state |= 8; // chase player speed
 	//g_car_ptr_array[i]->ai_state |= 0x404; // police running
@@ -53,6 +45,9 @@ void tnfs_ai_init() {
 	//g_car_ptr_array[i]->ai_state |= 0x20000; //stopped
 
 	for (i = 1; i < g_total_cars_in_scene; i++) {
+
+		g_car_ptr_array[i]->ai_state = 0x1e4; // init all 7 ai cars as opponent cars
+
 		for (int j = 0; j < 100; j++) {
 			g_car_ptr_array[i]->power_curve[j] = g_power_curve[j >> 2];
 		}
@@ -1510,20 +1505,21 @@ void tnfs_ai_drivers_update() {
 
 		// manage traffic cars
 		if ((i > 4) // 5,6,7 are traffic cars
-				&& abs(player_car_ptr->road_segment_a - car->road_segment_a) > 200) { // is distant
+				&& (car->road_segment_a - player_car_ptr->road_segment_a > 200)) { // is distant
+
+			nextSegment = player_car_ptr->road_segment_a + 100;
+			nextSegment %= road_segment_count;
+
 			if (player_car_ptr->road_segment_a % 2) {
 				// forward traffic
-				nextSegment = player_car_ptr->road_segment_a - 100;
-				if (nextSegment < 0) nextSegment = 0;
 				car->ai_state = 0x1e0;
 				car->angle_y = math_angle14_32(track_data[nextSegment].heading);
 			} else {
 				// backwards traffic
-				nextSegment = player_car_ptr->road_segment_a + 100;
-				if (nextSegment > road_segment_count) nextSegment = road_segment_count;
 				car->ai_state = 0x11e0;
 				car->angle_y = -math_angle14_32(track_data[nextSegment].heading);
 			}
+
 			car->position.x = track_data[nextSegment].pos.x;
 			car->position.y = track_data[nextSegment].pos.y;
 			car->position.z = track_data[nextSegment].pos.z;
@@ -1534,10 +1530,11 @@ void tnfs_ai_drivers_update() {
 
 		tnfs_ai_lane_change();
 
-		if (g_car_ptr_array[i]->is_wrecked == 0) {
+		if (car->is_wrecked == 0) {
+			car->crash_state = 3;
 			tnfs_ai_main(car);
 		} else {
-			tnfs_collision_main(g_car_ptr_array[i]);
+			tnfs_collision_main(car);
 		}
 
 	}

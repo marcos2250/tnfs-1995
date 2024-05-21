@@ -1000,9 +1000,9 @@ void tnfs_height_road_position(tnfs_car_data *car_data, int mode) {
 	pA.y = track_data[node].pos.y;
 	pA.z = track_data[node].pos.z;
 
-	pB.x = (track_data[node].segment_cos) * 2 + pA.x;
-	pB.y = (track_data[node].segment_tan) * 2 + pA.y;
-	pB.z = (track_data[node].segment_sin) * 2 + pA.z;
+	pB.x = (track_data[node].side_normal_x) * 2 + pA.x;
+	pB.y = (track_data[node].side_normal_y) * 2 + pA.y;
+	pB.z = (track_data[node].side_normal_z) * 2 + pA.z;
 
 	node += 1;
 	pC.x = track_data[node].pos.x;

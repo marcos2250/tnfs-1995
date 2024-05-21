@@ -108,9 +108,9 @@ void auto_generate_track() {
 		track_data[i].pos.y = pos_y;
 		track_data[i].pos.z = pos_z;
 
-		track_data[i].segment_cos = (short)(math_cos_3(track_data[i].heading * -0x400) / 2);
-		track_data[i].segment_tan = (short)(math_tan_3(track_data[i].slant * -0x400) / 2);
-		track_data[i].segment_sin = (short)(math_sin_3(track_data[i].heading * -0x400) / 2);
+		track_data[i].side_normal_x = (short)(math_cos_3(track_data[i].heading * -0x400) / 2);
+		track_data[i].side_normal_y = (short)(math_tan_3(track_data[i].slant * -0x400) / 2);
+		track_data[i].side_normal_z = (short)(math_sin_3(track_data[i].heading * -0x400) / 2);
 
 		// next segment
 		pos_x += fixmul(math_sin_3(track_data[i].heading * 0x400), 0x80000);
@@ -261,7 +261,7 @@ void tnfs_create_car_specs() {
 	car_specs.thrust_to_acc_factor = 0x66;
 	car_specs.shift_timer = 3;
 	car_specs.noGasRpmDec = 0x12c; //300
-	car_specs.garRpmInc = 0x258; //600
+	car_specs.gasRpmInc = 0x258; //600
 	car_specs.clutchDropRpmDec = 0xb4; //180
 	car_specs.clutchDropRpmInc = 0x12c; //300
 	car_specs.negTorque = 0xd; //0.0001
@@ -819,9 +819,9 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	car->road_position.y = track_data[node].pos.y;
 	car->road_position.z = track_data[node].pos.z;
 
-	wall_normal.x = track_data[node].segment_cos << 1;
-	wall_normal.y = track_data[node].segment_tan << 1;
-	wall_normal.z = track_data[node].segment_sin << 1;
+	wall_normal.x = track_data[node].side_normal_x << 1;
+	wall_normal.y = track_data[node].side_normal_y << 1;
+	wall_normal.z = track_data[node].side_normal_z << 1;
 
 	// next node vector
 	node++;

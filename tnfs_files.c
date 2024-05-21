@@ -55,10 +55,10 @@ int read_tri_file(char * file) {
 		track_data[i].slant = readSigned16(buffer, 22);
 		track_data[i].heading = readSigned16(buffer, 24);
 
-		// 16-bit normals: signed -32768 to +32768
-		track_data[i].segment_cos = readSigned16(buffer, 28);
-		track_data[i].segment_tan = readSigned16(buffer, 30);
-		track_data[i].segment_sin = readSigned16(buffer, 32);
+		// 16-bit side normal: signed -32768 to +32768
+		track_data[i].side_normal_x = readSigned16(buffer, 28);
+		track_data[i].side_normal_y = readSigned16(buffer, 30);
+		track_data[i].side_normal_z = readSigned16(buffer, 32);
 
 		if (i > 0 && track_data[i].pos.x == 0 && track_data[i].pos.y == 0 && track_data[i].pos.z == 0) {
 			break;
@@ -142,7 +142,7 @@ int read_pbs_file(char * file) {
 	car_specs.thrust_to_acc_factor = readFixed32(buffer, 0x32c);
 	car_specs.shift_timer = readFixed32(buffer, 0x354);
 	car_specs.noGasRpmDec = readFixed32(buffer, 0x358);
-	car_specs.garRpmInc = readFixed32(buffer, 0x35c);
+	car_specs.gasRpmInc = readFixed32(buffer, 0x35c);
 	car_specs.clutchDropRpmDec = readFixed32(buffer, 0x360);
 	car_specs.clutchDropRpmInc = readFixed32(buffer, 0x364);
 	car_specs.negTorque = readFixed32(buffer, 0x368);

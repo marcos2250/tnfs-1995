@@ -849,6 +849,12 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	// ...
 }
 
+int tnfs_car_road_speed(tnfs_car_data *car) {
+	return ((car->collision_data.speed).x >> 8) * ((car->road_heading).x >> 8) //
+			+ ((car->road_heading).y >> 8) * ((car->collision_data.speed).y >> 8) //
+			+ ((car->road_heading).z >> 8) * (-(car->collision_data.speed).z >> 8);
+}
+
 /*
  * setup everything
  */

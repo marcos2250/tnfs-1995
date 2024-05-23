@@ -298,6 +298,7 @@ void tnfs_car_local_position_vector(tnfs_car_data * car_data, int * angle, int *
 int tnfs_road_segment_find(tnfs_car_data *car_data, int *current);
 int tnfs_road_segment_update(tnfs_car_data *car);
 void tnfs_track_update_vectors(tnfs_car_data *car);
+int tnfs_car_road_speed(tnfs_car_data *car);
 void tnfs_change_camera();
 void tnfs_change_gear_up();
 void tnfs_change_gear_down();

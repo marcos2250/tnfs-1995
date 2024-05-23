@@ -61,12 +61,6 @@ void FUN_0044E11() {
 	// stub
 }
 
-int FUN_00047121(tnfs_car_data *car) {
-	return ((car->collision_data.speed).x >> 8) * ((car->road_heading).x >> 8) //
-			+ ((car->road_heading).y >> 8) * ((car->collision_data.speed).y >> 8) //
-			+ ((car->road_heading).z >> 8) * (-(car->collision_data.speed).z >> 8);
-}
-
 int FUN_0076FB9(int segment) {
 	return 0;
 }
@@ -237,7 +231,7 @@ void tnfs_ai_update_vectors(tnfs_car_data *car) {
 
 	if (car->crash_state != 3) {
 		if (car->crash_state == 4) {
-			car->car_road_speed = FUN_00047121(car);
+			car->car_road_speed = tnfs_car_road_speed(car);
 		} else {
 			car->car_road_speed = FUN_0007bbfe(car);
 		}
@@ -1505,7 +1499,8 @@ void tnfs_ai_drivers_update() {
 
 		// manage traffic cars
 		if ((i > 4) // 5,6,7 are traffic cars
-				&& (car->road_segment_a - player_car_ptr->road_segment_a > 200)) { // is distant
+				&& ( abs(car->position.x - player_car_ptr->position.x) > 0x4000000 //
+				  || abs(car->position.z - player_car_ptr->position.z) > 0x4000000 ) ) { // is distant
 
 			nextSegment = player_car_ptr->road_segment_a + 100;
 			nextSegment %= road_segment_count;

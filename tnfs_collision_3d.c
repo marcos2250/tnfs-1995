@@ -325,7 +325,8 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	car->is_crashed = 1;
 	collision_data = &car->collision_data;
 
-	if (car == (tnfs_car_data*) 0x0) {
+	//if (car == (tnfs_car_data*) 0x0) {
+	if (car == &g_car_array[0]) {
 		aux = -car->rpm_engine + 1500;
 		if (aux < 0) {
 			aux += 1507;
@@ -1331,16 +1332,6 @@ int tnfs_collision_carcar_huge_func(tnfs_collision_data *body1, tnfs_collision_d
 
 
 
-int DAT_800eae1c = 0;
-int DAT_800eae20 = 0;
-int DAT_800eae24 = 0;
-int DAT_800eae30 = 0;
-int DAT_800eae40 = 0;
-int DAT_800eae48 = 0;
-int DAT_800eae4c = 0;
-int DAT_800eae50 = 0;
-int DAT_800eae54 = 0;
-
 int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_data *car2, tnfs_vec3 *col_position, tnfs_vec3 *col_direction) {
 	char bVar1;
 	int uVar2;
@@ -1445,7 +1436,9 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 				if (iVar10 < iVar7) {
 					iVar7 = iVar10;
 				}
-				if ((iVar12 < DAT_800eae48) && (DAT_800eae1c == 0)) {
+
+				if (iVar12 < 0x3333) { // PC
+				//if ((iVar12 < DAT_800eae48) && (DAT_800eae1c == 0)) { // PSX
 					uVar2 = math_vec3_length_XYZ(local_68.x, piVar5, aux);
 					iVar4 = math_inverse_value(uVar2);
 					bVar1 = 1;
@@ -1459,14 +1452,16 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 					local_38.z = car_dist.z;
 					math_vec3_normalize_fast(&local_38);
 					piVar5 = fixmul(local_48.x, local_38.x) + fixmul(local_48.y, local_38.y) + fixmul(local_48.z, local_38.z);
-					if (((DAT_800eae50 < piVar5) && (DAT_800eae20 == 0)) || (((DAT_800eae30 != 0 && (DAT_800eae54 < piVar5)) && (iVar7 < DAT_800eae4c)))) {
+					//if (((DAT_800eae50 < piVar5) && (DAT_800eae20 == 0)) || (((DAT_800eae30 != 0 && (DAT_800eae54 < piVar5)) && (iVar7 < DAT_800eae4c)))) { //PSX
+					if (piVar5 > 0xd999) { //PC
 						bVar1 = 1;
 						uVar2 = math_vec3_length_XYZ(local_68.x, piVar5, aux);
 						iVar4 = math_inverse_value(uVar2);
 					}
 				}
 			}
-			if ((bVar1) || (DAT_800eae24 != 0)) {
+			//if ((bVar1) || (DAT_800eae24 != 0)) { //PSX
+			if (bVar1) { //PC
 				iVar9 = -iVar4 >> 8;
 				iVar4 = iVar9 * ((car1->speed).x >> 8);
 				iVar7 = iVar9 * ((car1->speed).y >> 8);
@@ -1599,81 +1594,136 @@ void tnfs_collision_carcar_exageration(tnfs_car_data *car) {
 	car->collision_data.speed.z += (car->collision_data.matrix.bz >> 8) * 0x5b3;
 }
 
+int DAT_000f99f4 = 0;
 
-tnfs_vec3 g_col_position;
-tnfs_vec3 g_col_direction;
+int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
+
+	tnfs_vec3 col_direction;
+	tnfs_vec3 col_position;
+
+	int local_38 = 0;
+	int crash_speed = 0;
+	int local_30 = 0;
+	int local_2c = 0;
+	int doWreckCarA = 0;
+	int doWreckCarB = 0;
+	int max_crash_speed = 0xd0000;
+
+	if (!tnfs_collision_carcar_box_detect(&car1->collision_data, &car2->collision_data, &col_position, &col_direction)) {
+		return 0;
+	}
+	if (!tnfs_collision_carcar_rebound(&car1->collision_data, &car2->collision_data, &col_position, &col_direction)) {
+		return 0;
+	}
+
+	// FIXME *****
+	//if ((-1 < car1->field_4e5) && (car1->field_4e5 < g_number_of_players)) {
+	//if (car1 == &g_car_array[0]) {
+		local_38 = 1;
+		doWreckCarA = 1;
+		max_crash_speed = 0x100000;
+	//}
+	//if ((-1 < car2->field_4e5) && (car2->field_4e5 < g_number_of_players)) {
+	//if (car2 == &g_car_array[0]) {
+		local_38 = 1;
+		doWreckCarB = 1;
+		max_crash_speed = 0x100000;
+	//}
+	//if (local_20 > 0) {
+	//	local_1c = 1;
+	//}
+	//if ((car1 == DAT_00153bc4) || (_car2 == DAT_00153bc4)) {
+	//  local_34 = 1;
+	//}
+	//if ((car1 == (tnfs_car_data*) 0x0) || (car2 == (tnfs_car_data*) 0x0)) {
+	//	local_30 = 1;
+	//}
+	// FIXME *****
+	crash_speed = car1->speed;
+
+	if ((crash_speed < max_crash_speed) //
+			&& ((doWreckCarA && !car1->is_wrecked) || (doWreckCarB && !car2->is_wrecked))) {
+		if (car1->crash_state != 4) {
+			tnfs_collision_data_get(car1, car1->crash_state);
+		}
+		if (car1->crash_state != 4) {
+			tnfs_collision_data_get(car2, car2->crash_state);
+		}
+		car1->car_road_speed = tnfs_car_road_speed(car1);
+		car2->car_road_speed = tnfs_car_road_speed(car2);
+		if (abs(car1->car_road_speed) > 0x100000 || abs(car2->car_road_speed) > 0x100000) {
+			tnfs_replay_highlight_record((DAT_000f99f4 + (crash_speed * 2 + local_38 * 4 + local_2c * 8 + local_30) * 4));
+		}
+		return 1;
+	}
+
+	local_2c = 1;
+
+	tnfs_replay_highlight_record((DAT_000f99f4 + (crash_speed * 2 + local_38 * 4 + 8 + local_30) * 4));
+	//if (((&g_car_ptr_array)[DAT_0016707c] == _car1) && (_car1->crash_state != 4)) {
+	//	FUN_000667e4();
+	//}
+	//if (((&g_car_ptr_array)[DAT_0016707c] == _car2) && (_car2->crash_state != 4)) {
+	//	FUN_000667e4();
+	//}
+
+	car1->crash_state = 4;
+	car2->crash_state = 4;
+
+	if (abs((car1->collision_data.speed).x) > 0x8000 //
+ 	 || abs((car1->collision_data.speed).y) > 0x8000 //
+	 || abs((car1->collision_data.speed).z) > 0x8000) {
+		car1->collision_data.crash_time_ai_state = 300;
+	}
+
+	if (abs((car2->collision_data.speed).x) > 0x8000 //
+ 	 || abs((car2->collision_data.speed).y) > 0x8000 //
+	 || abs((car2->collision_data.speed).z) > 0x8000) {
+		car2->collision_data.crash_time_ai_state = 300;
+	}
+
+	if (doWreckCarA && !car1->is_wrecked) {
+		tnfs_track_update_vectors(car1);
+		car1->is_wrecked = 1;
+		tnfs_collision_carcar_exageration(car1);
+	}
+	if (doWreckCarB && !car2->is_wrecked) {
+		tnfs_track_update_vectors(car2);
+		car2->is_wrecked = 1;
+		tnfs_collision_carcar_exageration(car2);
+	}
+	return 1;
+}
+
+
 
 /*
  * manage car-to-car collisions - adapted/simplified from TNFS original
  */
 void tnfs_collision_carcar() {
-  for (int i = 0; i < g_total_cars_in_scene - 1; i++) {
-    for (int j = i + 1; j < g_total_cars_in_scene; j++) {
-      tnfs_car_data *carA = g_car_ptr_array[i];
-      tnfs_car_data *carB = g_car_ptr_array[j];
-      // both cars are near
-      if (abs(carA->position.x - carB->position.x) < 0x30000
-          && abs(carA->position.y - carB->position.y) < 0x30000
-          && abs(carA->position.z - carB->position.z) < 0x30000) {
 
-        g_col_position.x = 0;
-        g_col_position.y = 0;
-        g_col_position.z = 0;
-        g_col_direction.x = 0;
-        g_col_direction.y = 0;
-        g_col_direction.z = 0;
+	for (int i = 0; i < g_total_cars_in_scene - 1; i++) {
+		for (int j = i + 1; j < g_total_cars_in_scene; j++) {
+			tnfs_car_data *carA = g_car_ptr_array[i];
+			tnfs_car_data *carB = g_car_ptr_array[j];
 
-        // update collision structs
-        tnfs_collision_data_set(carA);
-        tnfs_collision_data_set(carB);
+			// both cars are near
+			if (abs(carA->position.x - carB->position.x) < 0x30000 //
+			&& abs(carA->position.y - carB->position.y) < 0x30000 //
+			&& abs(carA->position.z - carB->position.z) < 0x30000) {
 
-        // if collided
-        if (tnfs_collision_carcar_box_detect(&carA->collision_data, &carB->collision_data, &g_col_position, &g_col_direction)) {
+				// update collision structs
+				if (carA->crash_state != 4) {
+					tnfs_collision_data_set(carA);
+				}
+				if (carB->crash_state != 4) {
+					tnfs_collision_data_set(carB);
+				}
 
-          // bounce off cars
-          tnfs_collision_carcar_rebound(&carA->collision_data, &carB->collision_data, &g_col_position, &g_col_direction);
+				tnfs_collision_carcar_start(carA, carB);
+			}
+		}
+	}
 
-          // FIXME xman always wrecked?
-
-	        carB->is_wrecked = 1;
-          carB->crash_state = 4;
-          carB->collision_data.crash_time_ai_state = 300;
-
-          if (carA->speed > 0x100000 && carA->is_wrecked == 0) {
-            // big car wreck
-            carA->is_wrecked = 1;
-            carA->crash_state = 4;
-            carA->collision_data.crash_time_ai_state = 300;
-
-            // cinematic crash
-            tnfs_track_update_vectors(carA);
-            tnfs_track_update_vectors(carB);
-            tnfs_collision_carcar_exageration(carA);
-            tnfs_collision_carcar_exageration(carB);
-          }
-
-          if (carA->is_wrecked == 0) {
-        	if (carA->crash_state != 4) {
-        		tnfs_collision_data_get(carA, carA->crash_state);
-        	}
-            carA->speed_x = -carA->speed_x;
-            carA->speed_z = -carA->speed_z;
-            carA->crash_state = 4;
-          }
-          if (carB->is_wrecked == 0) {
-        	if (carA->crash_state != 4) {
-        		tnfs_collision_data_get(carB, carB->crash_state);
-        	}
-            carB->speed_x = -carB->speed_x;
-            carB->speed_z = -carB->speed_z;
-            carB->crash_state = 4;
-          }
-
-
-
-        }
-      }
-    }
-  }
 }
 

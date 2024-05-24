@@ -1646,7 +1646,7 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 		if (car1->crash_state != 4) {
 			tnfs_collision_data_get(car1, car1->crash_state);
 		}
-		if (car1->crash_state != 4) {
+		if (car2->crash_state != 4) {
 			tnfs_collision_data_get(car2, car2->crash_state);
 		}
 		car1->car_road_speed = tnfs_car_road_speed(car1);

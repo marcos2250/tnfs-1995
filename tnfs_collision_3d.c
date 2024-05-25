@@ -303,6 +303,36 @@ void tnfs_collision_update_vectors(tnfs_collision_data *body) {
 	math_matrix_multiply(&body->matrix, &body->matrix, &matrix);
 }
 
+/*
+ * after a crash, move updated collision_data back to car_data
+ */
+void tnfs_collision_data_get(tnfs_car_data *car, int param_2) {
+	tnfs_collision_data *body;
+
+	// ... some unknown functions here ...
+
+	body = &car->collision_data;
+	car->crash_state = param_2;
+	car->position.x = body->position.x;
+	car->position.y = body->position.y;
+	car->position.z = body->position.z;
+	car->position.x = car->position.x - fixmul(body->matrix.bx, car->collision_height_offset);
+	car->position.y = car->position.y - fixmul(body->matrix.by, car->collision_height_offset);
+	car->position.z = (body->matrix.bz >> 8) * (car->collision_height_offset >> 8) - car->position.z;
+	car->speed_x = body->speed.x;
+	car->speed_y = body->speed.y;
+	car->speed_z = body->speed.z;
+	car->speed_z = -car->speed_z;
+	car->speed_x = -car->speed_x;
+	car->angular_speed = ((-car->angular_speed - math_mul((body->angular_speed).y, 0x28be63)) >> 1) + car->angular_speed;
+	body->crash_time_ai_state = 0;
+	car->slide_front = 0;
+	car->slide_rear = 0;
+	//if ((-1 < car->unknown_flag_475) && (car->unknown_flag_475 < DAT_8010d1cc)) {
+	//  FUN_80030fe0(car);
+	//}
+}
+
 void tnfs_collision_main(tnfs_car_data *car) {
 	tnfs_collision_data *collision_data;
 	tnfs_vec3 roadNormal;
@@ -483,36 +513,6 @@ void tnfs_collision_data_set(tnfs_car_data *car) {
 	car->collision_data.position.x += fixmul(car->collision_data.matrix.bx, car->collision_height_offset);
 	car->collision_data.position.y += fixmul(car->collision_data.matrix.by, car->collision_height_offset);
 	car->collision_data.position.z += fixmul(car->collision_data.matrix.bz, car->collision_height_offset);
-}
-
-/*
- * after a crash, move updated collision_data back to car_data
- */
-void tnfs_collision_data_get(tnfs_car_data *car, int param_2) {
-	tnfs_collision_data *body;
-
-	// ... some unknown functions here ...
-
-	body = &car->collision_data;
-	car->crash_state = param_2;
-	car->position.x = body->position.x;
-	car->position.y = body->position.y;
-	car->position.z = body->position.z;
-	car->position.x = car->position.x - fixmul(body->matrix.bx, car->collision_height_offset);
-	car->position.y = car->position.y - fixmul(body->matrix.by, car->collision_height_offset);
-	car->position.z = (body->matrix.bz >> 8) * (car->collision_height_offset >> 8) - car->position.z;
-	car->speed_x = body->speed.x;
-	car->speed_y = body->speed.y;
-	car->speed_z = body->speed.z;
-	car->speed_z = -car->speed_z;
-	car->speed_x = -car->speed_x;
-	car->angular_speed = ((-car->angular_speed - math_mul((body->angular_speed).y, 0x28be63)) >> 1) + car->angular_speed;
-	body->crash_time_ai_state = 0;
-	car->slide_front = 0;
-	car->slide_rear = 0;
-	//if ((-1 < car->unknown_flag_475) && (car->unknown_flag_475 < DAT_8010d1cc)) {
-	//  FUN_80030fe0(car);
-	//}
 }
 
 void tnfs_collision_rollover_start_2(tnfs_car_data *car) {

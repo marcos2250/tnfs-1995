@@ -288,9 +288,9 @@ extern int selected_camera;
 extern tnfs_vec3 camera_position;
 
 // common functions
-void tnfs_init_sim();
+void tnfs_init_sim(char * trifile);
 void tnfs_replay_highlight_record(char a);
-void tnfs_reset_car();
+void tnfs_reset_car(tnfs_car_data *car);
 void tnfs_update();
 void tnfs_crash_car();
 void tnfs_sfx_play(int a, int b, int c, int d, int e, int f);

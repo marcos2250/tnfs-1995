@@ -155,3 +155,31 @@ int read_pbs_file(char * file) {
 	printf("Loaded car file %s.\n", file);
 	return 1;
 }
+
+/*
+ * Import an uncompressed PDN file
+ */
+int read_pdn_file(char *file, tnfs_car_data *car) {
+	unsigned char buffer[460];
+	FILE *ptr;
+	int i;
+
+	ptr = fopen(file,"rb");
+	if (!ptr) {
+		printf("File not found: %s\n", file);
+		return 0;
+	}
+
+	fread(buffer, 460, 1, ptr);
+
+  car->moment_of_inertia = readFixed32(buffer, 0xC);
+	for (i = 0; i < 100; i++) {
+		car->power_curve[i] = readFixed32(buffer, i * 4 + 0x1C);
+	}
+	car->car_specs_ptr->rpm_redline = readFixed32(buffer, 0x1C4);
+	car->car_specs_ptr->number_of_gears = readFixed32(buffer, 0x1C8);
+
+	fclose(ptr);
+	printf("Loaded car PDN file %s.\n", file);
+	return 1;
+}

@@ -882,7 +882,11 @@ void tnfs_init_sim(char * trifile) {
       memcpy(&g_car_array[i], &g_car_array[0], sizeof(tnfs_car_data));
 
       g_car_array[i].car_data_ptr = &g_car_array[i];
-      g_car_array[i].car_specs_ptr = &car_specs;
+
+      tnfs_car_specs cs;
+      memcpy(&cs, &g_car_array[0].car_specs_ptr, sizeof(tnfs_car_specs));
+      g_car_array[i].car_specs_ptr = &cs;
+
 	    g_car_array[i].road_segment_a = 18 + i * 2;
       tnfs_reset_car(&g_car_array[i]);
       if (i % 2 == 1) {

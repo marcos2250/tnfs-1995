@@ -1498,7 +1498,7 @@ void tnfs_ai_drivers_update() {
 		car = g_car_ptr_array[i];
 
 		// manage traffic cars
-		if ((i > 4) // 5,6,7 are traffic cars
+		if ((i >= g_racer_cars_in_scene) // indexes after all racers are traffic cars
 				&& ( abs(car->position.x - player_car_ptr->position.x) > 0x4000000 //
 				  || abs(car->position.z - player_car_ptr->position.z) > 0x4000000 ) ) { // is distant
 

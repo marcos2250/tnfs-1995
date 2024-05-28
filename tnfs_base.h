@@ -269,6 +269,7 @@ extern struct tnfs_surface_type road_surface_type_array[3];
 extern struct tnfs_car_data g_car_array[8];
 extern tnfs_car_data* g_car_ptr_array[8];
 extern int g_total_cars_in_scene;
+extern int g_racer_cars_in_scene;
 
 
 extern char is_drifting;

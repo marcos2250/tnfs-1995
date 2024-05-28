@@ -16,6 +16,7 @@ tnfs_surface_type road_surface_type_array[3];
 tnfs_car_data g_car_array[8];
 tnfs_car_data* g_car_ptr_array[8]; // 00153ba0/00153bec 8010c720/800f7e60
 int g_total_cars_in_scene = 8;
+int g_racer_cars_in_scene = 5;
 
 // settings/flags
 char is_drifting;
@@ -881,7 +882,11 @@ void tnfs_init_sim(char * trifile) {
       memcpy(&g_car_array[i], &g_car_array[0], sizeof(tnfs_car_data));
 
       g_car_array[i].car_data_ptr = &g_car_array[i];
-      g_car_array[i].car_specs_ptr = &car_specs;
+
+      tnfs_car_specs cs;
+      memcpy(&cs, &g_car_array[0].car_specs_ptr, sizeof(tnfs_car_specs));
+      g_car_array[i].car_specs_ptr = &cs;
+
 	    g_car_array[i].road_segment_a = 18 + i * 2;
       tnfs_reset_car(&g_car_array[i]);
       if (i % 2 == 1) {

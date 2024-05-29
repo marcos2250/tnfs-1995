@@ -122,7 +122,15 @@ void drawVehicle(tnfs_car_data * car) {
 	matrix[15] = 1;
 	glLoadMatrixf(matrix);
 
-	glColor3f(0.0f, 0.0f, 1.0f);
+	if (car->ai_state & 0x400) {
+		glColor3f(0.2f, 0.2f, 0.2f);
+	} else if (car->ai_state & 0x1000) {
+		glColor3f(0.0f, 0.4f, 0.0f);
+	} else if (car->ai_state & 0x2000) {
+		glColor3f(0.0f, 0.0f, 1.0f);
+	} else {
+		glColor3f(0.0f, 0.0f, 1.0f);
+	}
 
 	glBegin(GL_QUADS);
 

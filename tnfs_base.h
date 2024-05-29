@@ -84,7 +84,7 @@ typedef struct {
 	// ...
 	int linear_acc_factor; //0x68
 	int angular_acc_factor; //0x6c
-	// ...
+	int edge_length; //0x70
 	tnfs_vec3 size; //0x74
 	int crash_time_ai_state; //0x80
 	// ...
@@ -224,8 +224,6 @@ typedef struct tnfs_car_data {
 	int crash_state; //0x4e1 0x520 // 2-normal/player 3-normal/opponent 4-wrecked 6-inactive
 	int field_4e5; //0x4e5 0x524 //car id?
 	int field_4e9; //0x4e9 0x528 //4-player 7-opponent
-
-	int field416_0x524;
 } tnfs_car_data;
 
 
@@ -268,9 +266,9 @@ extern struct tnfs_surface_type road_surface_type_array[3];
 
 extern struct tnfs_car_data g_car_array[8];
 extern tnfs_car_data* g_car_ptr_array[8];
+extern tnfs_car_data* player_car_ptr;
 extern int g_total_cars_in_scene;
 extern int g_racer_cars_in_scene;
-
 
 extern char is_drifting;
 extern int g_game_time;
@@ -284,6 +282,10 @@ extern signed char g_control_steer;
 extern int g_number_of_players;
 extern int g_selected_cheat;
 extern int DAT_8010d30c;
+extern int DAT_800eae0c;
+extern int DAT_800eae10;
+extern int DAT_800eae14;
+extern int DAT_800eae18;
 
 extern int selected_camera;
 extern tnfs_vec3 camera_position;

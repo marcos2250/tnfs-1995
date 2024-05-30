@@ -135,9 +135,7 @@ int FUN_007D55E(tnfs_car_data *car) {
 }
 
 int FUN_00080c50(tnfs_car_data *car) {
-	if (car->speed_target != 0)
-		return car->speed_target;
-	return 0x400000;
+	return 0x500000;
 }
 
 void tnfs_ai_update_vectors(tnfs_car_data *car) {

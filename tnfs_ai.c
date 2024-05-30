@@ -1199,7 +1199,7 @@ void tnfs_ai_police_chase(tnfs_car_data *car, int lane, tnfs_vec3 *direction) {
 		}
 	}
 
-	
+
 	if (((car->ai_state & 0x80) != 0) || ((player_car_ptr->ai_state & 0x10000) != 0)) {
 		segment = car->road_segment_a;
 		iVar4 = FUN_0004796f(car, segment);
@@ -1455,7 +1455,9 @@ void tnfs_ai_lane_change() {
 						local_c4 = 0;
 
 						//if (car->ai_state & 8) { //???
+						if (g_racer_cars_in_scene < g_total_cars_in_scene) { // prevent police chase in full-grid race
 							tnfs_ai_police_chase(car, lane, &change_lane_vector);
+						}
 						//}
 						//if (car->ai_state & 4) {
 						//  FUN_00079af9(car,lane);
@@ -1768,8 +1770,8 @@ void tnfs_ai_drivers_update() {
 			printf("Respawn car %d at segment %d!\n", i, nextSegment);
 		}
 
-		// last one is a police car
-		if (i == g_total_cars_in_scene - 1) {
+		// last one is a police car, unless it's full-grid race
+		if (g_racer_cars_in_scene < g_total_cars_in_scene && i == g_total_cars_in_scene - 1) {
 			car->ai_state |= 0x400;
 			if (!g_police_on_chase) {
 				car->ai_state = 0x400;

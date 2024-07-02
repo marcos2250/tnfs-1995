@@ -421,7 +421,7 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	// ai car flags
 	car->speed_target = 0;
 	car->collision_data.field_088 = 0;
-	car->collision_data.field16_0x90 = 0xb333; //0xcccc; //0xb333 - 0x10000
+	car->collision_data.field16_0x90 = 0x10000; //0xb333; //0xcccc
 	car->field_33c = 0;
 	car->ai_state = 0x1e4;
 }
@@ -557,7 +557,7 @@ void tnfs_controls_update() {
 
 void tnfs_change_camera() {
 	selected_camera++;
-	if (selected_camera > 2)
+	if (selected_camera > 3)
 		selected_camera = 0;
 }
 
@@ -928,6 +928,12 @@ void tnfs_update() {
 		camera_position.y = g_car_array[1].position.y + 0x60000;
 		camera_position.z = g_car_array[1].position.z - 0x100000;
 		break;
+	case 3: //cop cam
+		node = g_total_cars_in_scene - 1;
+		camera_position.x = g_car_array[node].position.x;
+		camera_position.y = g_car_array[node].position.y + 0x60000;
+		camera_position.z = g_car_array[node].position.z - 0x100000;
+		break;
 	default: //chase cam
 		camera_position.x = g_car_array[0].position.x;
 		camera_position.y = g_car_array[0].position.y + 0x50000;
@@ -953,6 +959,8 @@ void tnfs_update() {
 		} else {
 			tnfs_collision_main(car);
 		}
+
+		player_car_ptr->car_road_speed = tnfs_car_road_speed(player_car_ptr);
 
 		// tweak to allow circuit track lap
 		if (car->road_segment_a > road_segment_count - 4) {

@@ -122,14 +122,14 @@ void drawVehicle(tnfs_car_data * car) {
 	matrix[15] = 1;
 	glLoadMatrixf(matrix);
 
-	if (car->ai_state & 0x400) {
-		glColor3f(0.2f, 0.2f, 0.2f);
-	} else if (car->ai_state & 0x1000) {
-		glColor3f(0.0f, 0.4f, 0.0f);
-	} else if (car->ai_state & 0x2000) {
-		glColor3f(0.0f, 0.0f, 1.0f);
+	if (car == player_car_ptr) {
+		glColor3f(0.0f, 0.0f, 1.0f); //player
+	} else if (car->ai_state & 0x4) {
+		glColor3f(1.0f, 0.0f, 0.0f); //opponents
+	} else if (car->ai_state & 0x8) {
+		glColor3f(0.2f, 0.2f, 0.2f); //police
 	} else {
-		glColor3f(0.0f, 0.0f, 1.0f);
+		glColor3f(0.0f, 0.5f, 0.0f); //traffic
 	}
 
 	glBegin(GL_QUADS);

@@ -515,7 +515,7 @@ void tnfs_collision_rollover_start_2(tnfs_car_data *car) {
 	car->is_wrecked = 1;
 	car->crash_state = 4;
 	//FUN_8004ce14((tnfs_car_data *)&PTR_80103660);
-	//car->ai_state = car->ai_state & 0xfffffdff;
+	car->ai_state = car->ai_state & 0xfffffdff;
 	car->collision_data.crash_time_ai_state = 300;
 	tnfs_replay_highlight_record(0x5c);
 	if (sound_flag == 0) {
@@ -1339,7 +1339,6 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 	int iVar8;
 	int iVar9;
 	int iVar10;
-	int iVar11;
 	int iVar12;
 	tnfs_vec9 mat_car2;
 	tnfs_vec9 mat_car1;
@@ -1418,13 +1417,13 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 				piVar5 = piVar3;
 			}
 			if (piVar5 > 0xF9A58) {
-				iVar7 = abs(iVar8);
-				iVar10 = abs(iVar9);
+				iVar7 = abs(car_dist.x);
+				iVar10 = abs(car_dist.y);
 				iVar12 = iVar7;
 				if (iVar7 < iVar10) {
 					iVar12 = iVar10;
 				}
-				iVar10 = abs(iVar11);
+				iVar10 = abs(car_dist.z);
 				if (iVar12 < iVar10) {
 					iVar12 = iVar10;
 				}

@@ -36,7 +36,7 @@ typedef struct {
 // fixed truncated multiplication
 #define fixmul(x,y) (int)(((x)>>8) * ((y)>>8))
 
-#ifdef __GNUC__
+#ifndef __WATCOMC__
 // generic round shift functions, PSX version
 #define fix15(a) (((a)<0 ? (a) + 0x7fff : (a)) >> 15)
 #define fix8(a)  (((a)<0 ? (a) + 0xff : (a)) >> 8)

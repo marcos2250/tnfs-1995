@@ -52,7 +52,7 @@ void drawRoad(float ox, float oy, int segment) {
 	}
 }
 
-void drawCar(tnfs_car_data * car, float x, float y) {
+void drawCar(tnfs_car_data *car, float x, float y) {
 	float a, as, s, c, cay, cax, cby, cbx;
 
 	a = (float) car->angle_y / 2670179; //to radians
@@ -75,20 +75,21 @@ void drawCar(tnfs_car_data * car, float x, float y) {
 }
 
 void render() {
-	float x, y;
+	int i;
+	float x0, y0, x1, y1;
 
 	//inverted axis from 3d world
-	x = (float) car_data.position.z / 0x10000; //to meter scale
-	y = (float) car_data.position.x / 0x10000;
-	drawRoad(x - 10, y - 20, car_data.road_segment_a);
+	x0 = (float) player_car_ptr->position.z / 0x10000; //to meter scale
+	y0 = (float) player_car_ptr->position.x / 0x10000;
+	drawRoad(x0 - 10, y0 - 20, player_car_ptr->road_segment_a);
 
-  for (int i = 1; i < g_total_cars_in_scene; i++) {
-    x -= (float) g_car_ptr_array[i]->position.z / 0x10000;
-    y -= (float) g_car_ptr_array[i]->position.x / 0x10000;
-    drawCar(g_car_ptr_array[i], 10 - x, 20 - y);
-  }
+	for (i = 1; i < g_total_cars_in_scene; i++) {
+		x1 = x0 - ((float) g_car_ptr_array[i]->position.z / 0x10000);
+		y1 = y0 - ((float) g_car_ptr_array[i]->position.x / 0x10000);
+		drawCar(g_car_ptr_array[i], 10 - x1, 20 - y1);
+	}
 
-	drawCar(&car_data, 10, 20);
+	drawCar(player_car_ptr, 10, 20);
 }
 
 int main(int argc, char **argv) {
@@ -117,13 +118,13 @@ int main(int argc, char **argv) {
 			case 72:
 				g_control_throttle = 1;
 				g_control_brake = 0;
-				car_data.handbrake = 0;
+				player_car_ptr->handbrake = 0;
 				g_control_steer = 0;
 				break;
 			case 80:
 				g_control_brake = 1;
 				g_control_throttle = 0;
-				car_data.handbrake = 0;
+				player_car_ptr->handbrake = 0;
 				break;
 			case 75:
 				g_control_steer = -1;
@@ -135,10 +136,10 @@ int main(int argc, char **argv) {
 				playing = 0;
 				break;
 			case 32:
-				car_data.handbrake = 1;
+				player_car_ptr->handbrake = 1;
 				break;
 			case 114:
-				tnfs_reset_car(&car_data);
+				tnfs_reset_car(player_car_ptr);
 				break;
 			case 97:
 				tnfs_change_gear_up();
@@ -150,7 +151,7 @@ int main(int argc, char **argv) {
 		}
 
 		_clearscreen(_GCLEARSCREEN);
-		printf("%d m/s - %d rpm - gear %d\n", car_data.speed_local_lon >> 16, car_data.rpm_engine, car_data.gear_selected + 1);
+		printf("%d m/s - %d rpm - gear %d\n", player_car_ptr->speed_local_lon >> 16, player_car_ptr->rpm_engine, player_car_ptr->gear_selected + 1);
 		render();
 
 		tnfs_update();

@@ -105,7 +105,7 @@ void keys_keyup(int charcode) {
 		g_control_steer = 0;
 		break;
 	case 32:
-		car_data.handbrake = 0;
+		player_car_ptr->handbrake = 0;
 		break;
 	}
 }
@@ -116,10 +116,10 @@ void keys_keypress(int charcode) {
 		playing = 0;
 		break;
 	case 32:
-		car_data.handbrake = 1;
+		player_car_ptr->handbrake = 1;
 		break;
 	case 114:
-		tnfs_reset_car(&car_data);
+		tnfs_reset_car(player_car_ptr);
 		break;
 	case 97:
 		tnfs_change_gear_up();
@@ -230,8 +230,9 @@ void drawCar(tnfs_car_data * car, float x, float y) {
 }
 
 void render() {
+	int i;
 	char hud[128];
-	float x, y;
+	float x0, y0, x1, y1;
 	HPEN hPen;
 
 	clearBackBuffer();
@@ -244,19 +245,19 @@ void render() {
 	SelectObject(hdc, CreateSolidBrush(RGB(0, 255, 255)));
 
 	//inverted axis from 3d world
-	x = (float) car_data.position.z / 0x10000; //to meter scale
-	y = (float) car_data.position.x / 0x10000;
-	drawRoad(x - 30, y - 30, car_data.road_segment_a);
-	drawCar(&car_data, 30, 30);
+	x0 = (float) player_car_ptr->position.z / 0x10000; //to meter scale
+	y0 = (float) player_car_ptr->position.x / 0x10000;
+	drawRoad(x0 - 30, y0 - 30, player_car_ptr->road_segment_a);
+	drawCar(player_car_ptr, 30, 30);
 
-  for (int i = 1; i < g_total_cars_in_scene; i++) {
-    x -= (float) g_car_ptr_array[i]->position.z / 0x10000;
-    y -= (float) g_car_ptr_array[i]->position.x / 0x10000;
-    drawCar(g_car_ptr_array[i], 30 - x, 30 - y);
-  }
+	for (i = 1; i < g_total_cars_in_scene; i++) {
+		x1 = x0 - ((float)g_car_ptr_array[i]->position.z / 0x10000);
+		y1 = y0 - ((float)g_car_ptr_array[i]->position.x / 0x10000);
+		drawCar(g_car_ptr_array[i], 30 - x1, 30 - y1);
+	}
 
 	// hud text
-	sprintf(hud, "%d m/s - %d rpm - gear %d", car_data.speed_local_lon >> 16, car_data.rpm_engine, car_data.gear_selected + 1);
+	sprintf(hud, "%d m/s - %d rpm - gear %d", player_car_ptr->speed_local_lon >> 16, player_car_ptr->rpm_engine, player_car_ptr->gear_selected + 1);
 	drawText(&hud, 10, 10);
 
 	IDirectDrawSurface_ReleaseDC(g_pDDSBack, &hdc);

@@ -6,12 +6,16 @@
 #include "tnfs_base.h"
 
 // globals
-int g_collision_force;
-int g_surf_distance;
+int g_carcar_bump_speed = 0; //DAT_000f9a70 800eae58
+int g_collision_force; // 000f9a74;
+int g_surf_distance; // 000f9a78
 int g_surf_clipping = 1;
-tnfs_vec3 g_collision_speed;
-int g_const_7333 = 0x7333;
-int g_const_CCCC = 0xCCCC;
+tnfs_vec3 g_collision_v_speed;
+int g_const_8CCC = 0x8ccc; //DAT_800eae70
+int g_const_7333 = 0x7333; //DAT_800eae74
+int g_const_CCCC = 0xCCCC; //DAT_800eae78
+int DAT_000f99f0 = 0;
+
 
 void tnfs_collision_rebound(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_vec3 *speed, tnfs_vec3 *normal) {
 	tnfs_vec3 cross_prod;
@@ -225,12 +229,12 @@ void tnfs_collision_detect(tnfs_collision_data *body, tnfs_vec3 *surf_normal, tn
 			tnfs_collision_rebound(body, &l_edge, &v_speed, surf_normal);
 
 			// never used values
-			g_collision_speed.x = fixmul(body->angular_speed.y, l_edge.z) - fixmul(body->angular_speed.z, l_edge.y) + body->speed.x;
-			g_collision_speed.y = fixmul(body->angular_speed.z, l_edge.x) - fixmul(body->angular_speed.x, l_edge.z) + body->speed.y;
-			g_collision_speed.z = fixmul(body->angular_speed.x, l_edge.y) - fixmul(body->angular_speed.y, l_edge.x) + body->speed.z;
-			v_speed.x = g_collision_speed.x;
-			v_speed.y = g_collision_speed.y;
-			v_speed.z = g_collision_speed.z;
+			g_collision_v_speed.x = fixmul(body->angular_speed.y, l_edge.z) - fixmul(body->angular_speed.z, l_edge.y) + body->speed.x;
+			g_collision_v_speed.y = fixmul(body->angular_speed.z, l_edge.x) - fixmul(body->angular_speed.x, l_edge.z) + body->speed.y;
+			g_collision_v_speed.z = fixmul(body->angular_speed.x, l_edge.y) - fixmul(body->angular_speed.y, l_edge.x) + body->speed.z;
+			v_speed.x = g_collision_v_speed.x;
+			v_speed.y = g_collision_v_speed.y;
+			v_speed.z = g_collision_v_speed.z;
 		}
 
 		// adjust height position
@@ -386,9 +390,9 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	// check if left or right fence
 	if (fixmul(fenceDistance.x, fenceNormal.x) + fixmul(fenceDistance.y, fenceNormal.y) + fixmul(fenceDistance.z, fenceNormal.z) < 1) {
 		aux = DAT_800eae0c;
-		//if ((bRam00000005 >> 4 != 0) && (cRam00000007 != '\x05')) {
-		//  aux = DAT_800eae10;
-		//}
+		if ((track_data[car->road_segment_a].fence_flag >> 4 != 0) && (track_data[car->road_segment_a].item_mode != '\x05')) {
+			aux = DAT_800eae10;
+		}
 		roadWidth = (track_data[car->road_segment_a].roadLeftFence * -0x2000 - aux) >> 16;
 
 		fencePosition.y = roadWidth * fenceNormal.y + roadPosition.y;
@@ -396,9 +400,9 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		fencePosition.z = roadWidth * fenceNormal.z + roadPosition.z;
 	} else {
 		aux = DAT_800eae0c;
-		//if (((bRam00000005 & 0xf) != 0) && (cRam00000007 != '\x05')) {
-		//  aux = DAT_800eae10;
-		//}
+		if (((track_data[car->road_segment_a].fence_flag  & 0xf) != 0) && (track_data[car->road_segment_a].item_mode != '\x05')) {
+			aux = DAT_800eae10;
+		}
 		roadWidth = (track_data[car->road_segment_a].roadRightFence * -0x2000 - aux) >> 16;
 
 		fenceNormal.x = -fenceNormal.x;
@@ -1496,10 +1500,6 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 	return iVar4;
 }
 
-
-int DAT_800eae58 = 0;
-int DAT_800eae70 = 0x8ccc;
-
 /*
  * Apply speed vectors change for a 2-body collision
  */
@@ -1535,8 +1535,8 @@ char tnfs_collision_carcar_rebound(tnfs_collision_data *body1, tnfs_collision_da
 	iVar6 = math_mul(iVar6, body2->angular_acc_factor);
 	iVar1 = math_div(((iVar2 - iVar1) - iVar3) + iVar4, (body1->linear_acc_factor >> 1) + (body2->linear_acc_factor >> 1) + (iVar5 >> 1) + (iVar6 >> 1));
 	if (-1 < iVar1) {
-		iVar2 = math_mul(DAT_800eae70, iVar1);
-		DAT_800eae58 = iVar2;
+		iVar2 = math_mul(g_const_8CCC, iVar1);
+		g_carcar_bump_speed = iVar2;
 		local_90.x = math_mul(iVar2, col_direction->x);
 		local_90.y = math_mul(iVar2, col_direction->y);
 		local_90.z = math_mul(iVar2, col_direction->z);
@@ -1596,7 +1596,7 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 	tnfs_vec3 col_position;
 
 	int local_38 = 0;
-	int crash_speed = 0;
+	int local_34 = 0;
 	int local_30 = 0;
 	int local_2c = 0;
 	int doWreckCarA = 0;
@@ -1610,32 +1610,28 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 		return 0;
 	}
 
-	// FIXME *****
-	//if ((-1 < car1->field_4e5) && (car1->field_4e5 < g_number_of_players)) {
-	//if (car1 == &g_car_array[0]) {
+	// ai opponents are "uncrashable"
+	//if ((car1->field_4e5 >= 0) && (car1->field_4e5 < g_number_of_players)) {
+	if ((car1->field_4e5 < g_number_of_players) || (car1->field_4e5 >= g_racer_cars_in_scene)) {
 		local_38 = 1;
 		doWreckCarA = 1;
 		max_crash_speed = 0x100000;
-	//}
-	//if ((-1 < car2->field_4e5) && (car2->field_4e5 < g_number_of_players)) {
-	//if (car2 == &g_car_array[0]) {
+	}
+	//if ((car2->field_4e5 >= 0) && (car2->field_4e5 < g_number_of_players)) {
+	if ((car2->field_4e5 < g_number_of_players) || (car2->field_4e5 >= g_racer_cars_in_scene)) {
 		local_38 = 1;
 		doWreckCarB = 1;
 		max_crash_speed = 0x100000;
-	//}
-	//if (local_20 > 0) {
-	//	local_1c = 1;
-	//}
+	}
+
 	//if ((car1 == DAT_00153bc4) || (_car2 == DAT_00153bc4)) {
 	//  local_34 = 1;
 	//}
 	//if ((car1 == (tnfs_car_data*) 0x0) || (car2 == (tnfs_car_data*) 0x0)) {
 	//	local_30 = 1;
 	//}
-	// FIXME *****
-	crash_speed = car1->speed;
 
-	if ((crash_speed < max_crash_speed) //
+	if ((g_carcar_bump_speed < max_crash_speed) //
 			&& ((doWreckCarA && !car1->is_wrecked) || (doWreckCarB && !car2->is_wrecked))) {
 		if (car1->crash_state != 4) {
 			tnfs_collision_data_get(car1, car1->crash_state);
@@ -1646,14 +1642,14 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 		car1->car_road_speed = tnfs_car_road_speed(car1);
 		car2->car_road_speed = tnfs_car_road_speed(car2);
 		if (abs(car1->car_road_speed) > 0x100000 || abs(car2->car_road_speed) > 0x100000) {
-			tnfs_replay_highlight_record((DAT_000f99f4 + (crash_speed * 2 + local_38 * 4 + local_2c * 8 + local_30) * 4));
+			tnfs_replay_highlight_record((DAT_000f99f4 + (local_34 * 2 + local_38 * 4 + local_2c * 8 + local_30) * 4));
 		}
 		return 1;
 	}
 
 	local_2c = 1;
 
-	//tnfs_replay_highlight_record((DAT_000f99f4 + (crash_speed * 2 + local_38 * 4 + 8 + local_30) * 4));
+	//tnfs_replay_highlight_record((DAT_000f99f4 + (local_34 * 2 + local_38 * 4 + 8 + local_30) * 4));
 	//if (((&g_car_ptr_array)[DAT_0016707c] == _car1) && (_car1->crash_state != 4)) {
 	//	FUN_000667e4();
 	//}
@@ -1689,8 +1685,6 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 	return 1;
 }
 
-
-int DAT_000f99f0 = 0;
 
 int tnfs_collision_carcar(tnfs_car_data *car1, tnfs_car_data *car2) {
 	int local_30;

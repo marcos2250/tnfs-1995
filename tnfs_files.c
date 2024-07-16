@@ -172,7 +172,7 @@ int read_pdn_file(char *file, tnfs_car_data *car) {
 
 	fread(buffer, 460, 1, ptr);
 
-  car->moment_of_inertia = readFixed32(buffer, 0xC);
+	car->moment_of_inertia = readFixed32(buffer, 0xC);
 	for (i = 0; i < 100; i++) {
 		car->power_curve[i] = readFixed32(buffer, i * 4 + 0x1C);
 	}

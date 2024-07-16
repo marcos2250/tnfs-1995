@@ -9,7 +9,7 @@
  * fixed multiplication as used in PSX version
  * PC version -> assembly code in math.h
  */
-#ifdef __GNUC__
+#ifndef __WATCOMC__
 int math_mul(int x, int y) {
 	return (((long long) x) * y + 0x8000) >> 16;
 }
@@ -358,5 +358,4 @@ void math_height_coordinates(tnfs_vec3 *p3, tnfs_vec3 *p2, tnfs_vec3 *p1, tnfs_v
 	p2->y = ((-((p2->z >> 8) * cross.z) - ((p2->x >> 8) * cross.x)) >> 8) * denominator;
 	p1->y = ((-(((p1->z - tA->z) >> 8) * cross.z) - (((p1->x - tA->x) >> 8) * cross.x)) >> 8) * denominator + tA->y;
 }
-
 

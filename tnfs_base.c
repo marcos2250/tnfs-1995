@@ -14,8 +14,8 @@ tnfs_track_data track_data[2400];
 tnfs_surface_type road_surface_type_array[3];
 
 tnfs_car_data g_car_array[8];
-tnfs_car_data* g_car_ptr_array[8]; // 00153ba0/00153bec 8010c720/800f7e60
-tnfs_car_data* player_car_ptr;
+tnfs_car_data *g_car_ptr_array[8]; // 00153ba0/00153bec 8010c720/800f7e60
+tnfs_car_data *player_car_ptr;
 int g_total_cars_in_scene = 8;
 int g_racer_cars_in_scene = 5;
 int g_number_of_players = 1; //8010d1cc 001670af
@@ -31,7 +31,6 @@ int cheat_code_8010d1c4 = 0;
 char g_control_throttle;
 char g_control_brake;
 signed char g_control_steer;
-int DAT_8010d30c = 0; //8010d30c 0016707c
 
 int DAT_800eae0c = 0x10000;
 int DAT_800eae10 = 0x34000;
@@ -126,7 +125,7 @@ void auto_generate_track() {
 	}
 }
 
-void tnfs_init_track(char * tri_file) {
+void tnfs_init_track(char *tri_file) {
 	int i;
 	int heading, s, c, t, dL, dR;
 
@@ -185,7 +184,7 @@ void tnfs_init_surface_constants() {
 	road_surface_type_array[2].is_unpaved = 1;
 
 	// rally mode surface constants
-	if (g_selected_cheat & 0x20) {
+	if (cheat_code_8010d1c4 & 0x20) {
 		for (i = 0; i < 3; i++) {
 			road_surface_type_array[i].roadFriction = 0x180;
 			road_surface_type_array[i].velocity_drag = 0x80;
@@ -409,9 +408,9 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->collision_data.angular_speed.z = 0;
 	car->collision_data.field6_0x60 = 0x10a1c;
 
-	if (car == g_car_ptr_array[0]) {
+	if (car == player_car_ptr) {
 		car->crash_state = 2;
-		car->field_4e9 = 4;
+		car->field_4e9 = 6; //4??
 	} else {
 		// ai car
 		car->crash_state = 3;
@@ -426,7 +425,7 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->ai_state = 0x1e4;
 }
 
-void tnfs_init_car() {
+void tnfs_init_car(tnfs_car_data *car) {
 	int i, aux;
 
 	// load car specs
@@ -434,18 +433,16 @@ void tnfs_init_car() {
 		tnfs_create_car_specs();
 	}
 
-	player_car_ptr = &g_car_array[0];
-
-	g_car_array[0].crash_state = 2;
-	g_car_array[0].field_4e5 = 0;
-	g_car_array[0].field_4e9 = 4;
-	g_car_array[0].position.z = 0; //0x600000;
-	g_car_array[0].road_segment_a = 0; //0x10;
-	g_car_array[0].road_segment_b = 0; //0x10;
-	g_car_array[0].lap_number = 1;
+	car->crash_state = 2;
+	car->field_4e5 = 0;
+	car->field_4e9 = 4;
+	car->position.z = 0; //0x600000;
+	car->road_segment_a = 0; //0x10;
+	car->road_segment_b = 0; //0x10;
+	car->lap_number = 1;
 
 	// rally mode tweaks
-	if (g_selected_cheat & 0x20) {
+	if (cheat_code_8010d1c4 & 0x20) {
 		for (i = 0; i < 512; i++)
 			car_specs.grip_table[i + 512] = car_specs.grip_table[i];
 
@@ -468,54 +465,54 @@ void tnfs_init_car() {
 		i += 2;
 	} while (i < car_specs.torque_table_entries);
 
-	g_car_array[0].car_length = car_specs.body_length;
-	g_car_array[0].car_width = car_specs.body_width;
-	g_car_array[0].abs_enabled = 0;
-	g_car_array[0].tcs_enabled = 0;
-	g_car_array[0].gear_auto_selected = 0;
-	g_car_array[0].unknown_0x498 = 0;
-	g_car_array[0].drag_const_0x4a8 = 0;
-	g_car_array[0].drag_const_0x4aa = 0;
+	car->car_length = car_specs.body_length;
+	car->car_width = car_specs.body_width;
+	car->abs_enabled = 0;
+	car->tcs_enabled = 0;
+	car->gear_auto_selected = 0;
+	car->unknown_0x498 = 0;
+	car->drag_const_0x4a8 = 0;
+	car->drag_const_0x4aa = 0;
 
 	/* Fiziks_InitCar() */
 	tnfs_init_surface_constants();
 
-	g_car_array[0].weight_distribution_front = math_mul(car_specs.mass_front, car_specs.inverse_mass);
-	g_car_array[0].weight_distribution_rear = math_mul(car_specs.mass_rear, car_specs.inverse_mass);
+	car->weight_distribution_front = math_mul(car_specs.mass_front, car_specs.inverse_mass);
+	car->weight_distribution_rear = math_mul(car_specs.mass_rear, car_specs.inverse_mass);
 
 	// unused specs
-	g_car_array[0].mass_front = math_mul(car_specs.mass_total, car_specs.inverse_mass_front);
-	g_car_array[0].mass_rear = math_mul(car_specs.mass_total, car_specs.inverse_mass_rear);
+	car->mass_front = math_mul(car_specs.mass_total, car_specs.inverse_mass_front);
+	car->mass_rear = math_mul(car_specs.mass_total, car_specs.inverse_mass_rear);
 
 	// drag coefficient to deccel factor
 	car_specs.drag = math_mul(car_specs.drag, car_specs.inverse_mass);
 
-	g_car_array[0].weight_transfer_factor = math_mul(car_specs.centre_of_gravity_height, car_specs.burnOutDiv);
-	g_car_array[0].front_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.front_friction_factor, g_car_array[0].weight_distribution_rear));
-	g_car_array[0].rear_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.rear_friction_factor, g_car_array[0].weight_distribution_front));
+	car->weight_transfer_factor = math_mul(car_specs.centre_of_gravity_height, car_specs.burnOutDiv);
+	car->front_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.front_friction_factor, car->weight_distribution_rear));
+	car->rear_friction_factor = math_mul(0x9cf5c, math_mul(car_specs.rear_friction_factor, car->weight_distribution_front));
 
-	g_car_array[0].drag_const_0x4ac = (short)(g_car_array[0].drag_const_0x4a8 << 1);
-	g_car_array[0].tire_grip_front = g_car_array[0].front_friction_factor;
-	g_car_array[0].tire_grip_rear = g_car_array[0].rear_friction_factor;
-	g_car_array[0].drag_const_0x4ae = (short)(g_car_array[0].drag_const_0x4aa << 1);
+	car->drag_const_0x4ac = (short) (car->drag_const_0x4a8 << 1);
+	car->tire_grip_front = car->front_friction_factor;
+	car->tire_grip_rear = car->rear_friction_factor;
+	car->drag_const_0x4ae = (short) (car->drag_const_0x4aa << 1);
 
-	g_car_array[0].drag_const_0x4a8 = fix8(fix8(car_specs.front_friction_factor) * 10 * g_car_array[0].drag_const_0x4a8);
-	g_car_array[0].drag_const_0x4aa = fix8(fix8(car_specs.rear_friction_factor) * 10 * g_car_array[0].drag_const_0x4aa);
+	car->drag_const_0x4a8 = fix8(fix8(car_specs.front_friction_factor) * 10 * car->drag_const_0x4a8);
+	car->drag_const_0x4aa = fix8(fix8(car_specs.rear_friction_factor) * 10 * car->drag_const_0x4aa);
 
 	aux = math_mul(math_mul(car_specs.wheelbase, car_specs.wheelbase), 0x324);
 
-	g_car_array[0].wheel_base = math_div(aux, car_specs.wheelbase);
-	g_car_array[0].moment_of_inertia = math_div(math_mul(aux, car_specs.inertia_factor), car_specs.wheelbase);
-	g_car_array[0].front_yaw_factor = math_div(math_mul(car_specs.wheelbase, g_car_array[0].weight_distribution_front), aux);
-	g_car_array[0].rear_yaw_factor = math_div(math_mul(car_specs.wheelbase, g_car_array[0].weight_distribution_rear), aux);
+	car->wheel_base = math_div(aux, car_specs.wheelbase);
+	car->moment_of_inertia = math_div(math_mul(aux, car_specs.inertia_factor), car_specs.wheelbase);
+	car->front_yaw_factor = math_div(math_mul(car_specs.wheelbase, car->weight_distribution_front), aux);
+	car->rear_yaw_factor = math_div(math_mul(car_specs.wheelbase, car->weight_distribution_rear), aux);
 
-	g_car_array[0].collision_height_offset = 0x92f1;
-	g_car_array[0].collision_data.linear_acc_factor = 0xf646;
-	g_car_array[0].collision_data.angular_acc_factor = 0x7dd4;
-	g_car_array[0].collision_data.size.x = car_specs.body_width / 2;
-	g_car_array[0].collision_data.size.y = 0x92f1;
-	g_car_array[0].collision_data.size.z = car_specs.body_length / 2;
-	g_car_array[0].collision_data.edge_length =  math_vec3_length(&g_car_array[0].collision_data.size);
+	car->collision_height_offset = 0x92f1;
+	car->collision_data.linear_acc_factor = 0xf646;
+	car->collision_data.angular_acc_factor = 0x7dd4;
+	car->collision_data.size.x = car_specs.body_width / 2;
+	car->collision_data.size.y = 0x92f1;
+	car->collision_data.size.z = car_specs.body_length / 2;
+	car->collision_data.edge_length = math_vec3_length(&car->collision_data.size);
 }
 
 /* basic game controls */
@@ -687,14 +684,15 @@ void tnfs_cheat_mode() {
 		cheat_code_8010d1c4 = 0x20;
 	}
 
-	tnfs_init_car();
+	tnfs_init_car(g_car_ptr_array[0]);
 	tnfs_reset_car(g_car_ptr_array[0]);
 }
 
 void tnfs_crash_car() {
-  for (int i = 1; i < g_total_cars_in_scene; i++) {
-	  tnfs_collision_rollover_start(g_car_ptr_array[i], 0, 0, -0xa0000);
-  }
+	int i;
+	for (i = 1; i < g_total_cars_in_scene; i++) {
+		tnfs_collision_rollover_start(g_car_ptr_array[i], 0, 0, -0xa0000);
+	}
 }
 
 /* common stub functions */
@@ -859,14 +857,16 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 
 int tnfs_car_road_speed(tnfs_car_data *car) {
 	return ((car->collision_data.speed).x >> 8) * ((car->road_heading).x >> 8) //
-			+ ((car->road_heading).y >> 8) * ((car->collision_data.speed).y >> 8) //
-			+ ((car->road_heading).z >> 8) * (-(car->collision_data.speed).z >> 8);
+	+ ((car->road_heading).y >> 8) * ((car->collision_data.speed).y >> 8) //
+	+ ((car->road_heading).z >> 8) * (-(car->collision_data.speed).z >> 8);
 }
 
 /*
  * setup everything
  */
-void tnfs_init_sim(char * trifile) {
+void tnfs_init_sim(char *trifile) {
+	int i;
+
 	g_game_time = 1000;
 	cheat_crashing_cars = 0;
 	cheat_code_8010d1c4 = 0;
@@ -875,35 +875,15 @@ void tnfs_init_sim(char * trifile) {
 	tnfs_init_track(trifile);
 
 	// init player car
-	tnfs_init_car();
+	tnfs_init_car(&g_car_array[0]);
 	g_car_array[0].car_data_ptr = &g_car_array[0];
 	g_car_array[0].car_specs_ptr = &car_specs;
 	g_car_array[0].road_segment_a = 18;
 	tnfs_reset_car(&g_car_array[0]);
-    g_car_ptr_array[0] = &g_car_array[0];
+	g_car_ptr_array[0] = &g_car_array[0];
+	player_car_ptr = &g_car_array[0];
 
-	// create AI car(s), player car copy
-	if (g_total_cars_in_scene > 1) {
-    for (int i = 1; i < g_total_cars_in_scene; i++) {
-      g_car_ptr_array[i] = &g_car_array[i];
-      memcpy(&g_car_array[i], &g_car_array[0], sizeof(tnfs_car_data));
-
-      g_car_array[i].car_data_ptr = &g_car_array[i];
-      g_car_array[i].field_4e5 = i;
-
-      tnfs_car_specs cs;
-      memcpy(&cs, &g_car_array[0].car_specs_ptr, sizeof(tnfs_car_specs));
-      g_car_array[i].car_specs_ptr = &cs;
-
-	    g_car_array[i].road_segment_a = 18 + i * 2;
-      tnfs_reset_car(&g_car_array[i]);
-      if (i % 2 == 1) {
-        g_car_array[i].position.x -= 0x10000;
-      } else {
-	      g_car_array[i].position.x += 0x40000;
-      }
-    }
-	}
+	// create AI car(s)
 	tnfs_ai_init();
 }
 
@@ -911,11 +891,11 @@ void tnfs_init_sim(char * trifile) {
  * minimal basic main loop
  */
 void tnfs_update() {
-	int node;
-	tnfs_car_data * car;
+	int i, node;
+	tnfs_car_data *car;
 
 	g_game_time++;
-	
+
 	// update camera
 	switch (selected_camera) {
 	case 1: //heli cam
@@ -941,34 +921,38 @@ void tnfs_update() {
 		break;
 	}
 
+	player_car_ptr->car_road_speed = tnfs_car_road_speed(player_car_ptr);
+
 	tnfs_controls_update();
 	tnfs_ai_collision_handler();
 	tnfs_ai_drivers_update();
 
 	// for each car
-	for (int i = 0; i < g_total_cars_in_scene; i++) {
+	for (i = 0; i < g_total_cars_in_scene; i++) {
 		car = g_car_ptr_array[i];
 
 		if (car->is_wrecked == 0) {
-			if (i == 0) {
+			if (i < g_number_of_players) {
 				tnfs_driving_main(car);
-				math_matrix_from_pitch_yaw_roll(&g_car_array[0].matrix, g_car_array[0].angle_x + g_car_array[0].body_pitch, g_car_array[0].angle_y, g_car_array[0].angle_z + g_car_array[0].body_roll);
+				math_matrix_from_pitch_yaw_roll(&car->matrix, car->angle_x + car->body_pitch, car->angle_y, car->angle_z + car->body_roll);
 			} else {
+				car->crash_state = 3;
 				tnfs_ai_driving_main(car);
 			}
 		} else {
 			tnfs_collision_main(car);
 		}
 
-		player_car_ptr->car_road_speed = tnfs_car_road_speed(player_car_ptr);
-
 		// tweak to allow circuit track lap
-		if (car->road_segment_a > road_segment_count - 4) {
+		if (car->road_segment_a > road_segment_count - 2) {
 			car->road_segment_a = 0;
+			car->road_segment_b = 0;
+			car->position = track_data[0].pos;
+			car->collision_data.position = track_data[0].pos;
+			tnfs_track_update_vectors(car);
 		}
-		node = car->road_segment_a;
-		car->road_ground_position.x = track_data[node].pos.x;
-		car->road_ground_position.y = track_data[node].pos.y;
-		car->road_ground_position.z = track_data[node].pos.z;
+
+		// set ground normal for the collision engine
+		car->road_ground_position = track_data[car->road_segment_a].pos;
 	}
 }

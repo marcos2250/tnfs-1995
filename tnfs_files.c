@@ -2,7 +2,7 @@
  * tnfs_file.c
  * Readers for TNFS files
  */
-#include <stdio.h>
+#include <stdio.h> 
 #include "tnfs_math.h"
 #include "tnfs_base.h"
 
@@ -31,9 +31,10 @@ int read_tri_file(char * file) {
 		return 0;
 	}
 
+	// 0x98C block: Virtual road
 	road_segment_count = 0;
 	for (i = 0; i < 2400; i++) {
-		fseek(ptr, i * 36 + 2444, SEEK_SET);
+		fseek(ptr, i * 36 + 0x98C, SEEK_SET);
 		fread(buffer, 36, 1, ptr);
 
 		track_data[i].roadLeftMargin = buffer[0];
@@ -65,6 +66,16 @@ int read_tri_file(char * file) {
 		}
 		road_segment_count++;
 	}
+
+	// 0x15B0C block: Track slice AI speed reference
+	for (i = 0; i < 600; i++) {
+		fseek(ptr, i * 3 + 0x15B0C, SEEK_SET);
+		fread(buffer, 3, 1, ptr);
+		g_track_speed[i].ai_speed_1 = buffer[0];
+		g_track_speed[i].ai_speed_2 = buffer[1];
+		g_track_speed[i].traffic_speed_limit = buffer[2];
+	}
+
 	fclose(ptr);
 	printf("Loaded track %s with %d segments.\n", file, road_segment_count);
 	return 1;

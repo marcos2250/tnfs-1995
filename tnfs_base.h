@@ -199,7 +199,7 @@ typedef struct tnfs_car_data {
 	int field_461; //0x461
 	// ...
 	struct tnfs_car_specs *car_specs_ptr; //0x471
-	int unknown_flag_475; //0x475
+	int car_id2; //0x475
 	// ...
 	int unknown_0x498;
 	int tcs_enabled; //0x491
@@ -222,7 +222,7 @@ typedef struct tnfs_car_data {
 	// ...
 
 	int crash_state; //0x4e1 0x520 // 2-normal/player 3-normal/opponent 4-wrecked 6-inactive
-	int field_4e5; //0x4e5 0x524 //car id?
+	int car_id; //0x4e5 0x524 //car id number 0..7
 	int field_4e9; //0x4e9 0x528 //4-player 7-opponent
 } tnfs_car_data;
 
@@ -259,14 +259,45 @@ typedef struct tnfs_surface_type {
 	int is_unpaved;
 } tnfs_surface_type;
 
+typedef struct tnfs_speed_presets {
+	char ai_speed_1;
+	char traffic_speed_limit;
+	char ai_speed_2;
+} tnfs_track_speed;
+
+typedef struct tnfs_traffic_cfg {
+	int field_0x8;
+	int field_0x79;
+	int field_0x65;
+	int field_0x69;
+	int field_0x6d;
+} tnfs_traffic_cfg;
+
+typedef struct tnfs_unk_struct {
+	int DAT_001654f4;
+	int DAT_001654f8;
+	int DAT_00165500;
+	int DAT_00165504;
+	int DAT_00165508;
+} tnfs_unk_struct;
+
+typedef struct tnfs_camera {
+	int id; //0 in_car; 1 tail cam; 2 chase cam
+	tnfs_vec3 position;
+} tnfs_camera;
+
 // global variables
 extern struct tnfs_car_specs car_specs;
 extern struct tnfs_track_data track_data[2400];
 extern struct tnfs_surface_type road_surface_type_array[3];
+extern struct tnfs_speed_presets g_track_speed[900]; // 000FDB8C road speed limit array
 
 extern struct tnfs_car_data g_car_array[8];
-extern tnfs_car_data* g_car_ptr_array[8];
-extern tnfs_car_data* player_car_ptr;
+extern tnfs_car_data *g_car_ptr_array[8];
+extern tnfs_car_data *player_car_ptr;
+extern tnfs_traffic_cfg *g_traffic_cfg_ptr[8];
+extern tnfs_unk_struct g_unk_struct[8];
+
 extern int g_total_cars_in_scene;
 extern int g_racer_cars_in_scene;
 
@@ -281,18 +312,47 @@ extern char g_control_brake;
 extern signed char g_control_steer;
 extern int g_number_of_players;
 extern int g_selected_cheat;
-extern int DAT_8010d30c;
-extern int DAT_800eae0c;
-extern int DAT_800eae10;
-extern int DAT_800eae14;
-extern int DAT_800eae18;
-
 extern int selected_camera;
-extern tnfs_vec3 camera_position;
+extern tnfs_camera camera;
+
+
+extern int DAT_000F9BB0;
+extern int DAT_000f99e4;
+extern int DAT_000f99e8;
+extern int DAT_000f99ec; //800eae14
+extern int DAT_000f99f0;
+extern int DAT_000FDB94;
+extern int DAT_000FDCEC;
+extern int DAT_000FDCF0;
+extern int DAT_000f9A70;
+extern int DAT_001039d4; //800db6bc
+extern int DAT_001039d8; //800db6c0
+extern int DAT_001039dc;
+extern int DAT_00144914;
+extern int DAT_00143844;
+extern int DAT_0014DCC4;
+extern int DAT_0014dccc; // segment id mask
+extern int DAT_00153B20;
+extern int DAT_00153B24;
+extern tnfs_car_data * DAT_00153BC4;
+extern int DAT_001651c0[4];
+extern int DAT_0016513C;
+extern int DAT_00165144;
+extern int DAT_00165148;
+extern int DAT_00165190;
+extern int DAT_00165320;
+extern tnfs_car_data *DAT_00165334;
+extern int DAT_0016533C;
+extern int DAT_00165340;
+extern int DAT_0016707C;
+extern int DAT_001670B3; //DAT_8010d1d0
+extern int DAT_001670BB;
+
 
 // common functions
 void tnfs_init_sim(char * trifile);
 void tnfs_replay_highlight_record(char a);
+void tnfs_camera_set(tnfs_camera * camera, int id);
 void tnfs_reset_car(tnfs_car_data *car);
 void tnfs_update();
 void tnfs_crash_car();
@@ -301,6 +361,7 @@ void tnfs_car_local_position_vector(tnfs_car_data * car_data, int * angle, int *
 int tnfs_road_segment_find(tnfs_car_data *car_data, int *current);
 int tnfs_road_segment_update(tnfs_car_data *car);
 void tnfs_track_update_vectors(tnfs_car_data *car);
+int tnfs_car_road_speed_collided(tnfs_car_data *car);
 int tnfs_car_road_speed(tnfs_car_data *car);
 void tnfs_change_camera();
 void tnfs_change_gear_up();

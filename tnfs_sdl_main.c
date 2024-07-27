@@ -116,9 +116,9 @@ void drawVehicle(tnfs_car_data * car) {
 	matrix[9] = (float) car->matrix.cy / 0x10000;
 	matrix[10] = (float) -car->matrix.cz / 0x10000;
 	matrix[11] = 0;
-	matrix[12] = ((float) (car->position.x - camera_position.x)) / 0x10000;
-	matrix[13] = ((float) (car->position.y - camera_position.y)) / 0x10000;
-	matrix[14] = ((float) (-car->position.z + camera_position.z)) / 0x10000;
+	matrix[12] = ((float) (car->position.x - camera.position.x)) / 0x10000;
+	matrix[13] = ((float) (car->position.y - camera.position.y)) / 0x10000;
+	matrix[14] = ((float) (-car->position.z + camera.position.z)) / 0x10000;
 	matrix[15] = 1;
 	glLoadMatrixf(matrix);
 
@@ -180,9 +180,9 @@ void drawRoad() {
 	matrix[0] = 1; matrix[1] = 0; matrix[2] = 0; matrix[3] = 0;
 	matrix[4] = 0; matrix[5] = 1; matrix[6] = 0; matrix[7] = 0;
 	matrix[8] = 0; matrix[9] = 0; matrix[10] = 1; matrix[11] = 0;
-	matrix[12] = ((float) -camera_position.x) / 0x10000;
-	matrix[13] = ((float) -camera_position.y) / 0x10000;
-	matrix[14] = ((float) camera_position.z) / 0x10000;
+	matrix[12] = ((float) -camera.position.x) / 0x10000;
+	matrix[13] = ((float) -camera.position.y) / 0x10000;
+	matrix[14] = ((float) camera.position.z) / 0x10000;
 	matrix[15] = 1;
 	glLoadMatrixf(matrix);
 	glColor3f(0.0f, 0.0f, 0.0);

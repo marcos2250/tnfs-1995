@@ -181,7 +181,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	abs_speed = abs(rebound_speed_x);
 	if ((fence_flag == 0) && (abs_speed >= 0x60001)) {
 		if (sound_flag == 0) {
-			if (car_data->unknown_flag_475 == 0) {
+			if (car_data->car_id2 == 0) {
 				if (DAT_80111a40 != 0) {
 					if (distance <= 0)
 						sfxA = 0x280000;
@@ -193,7 +193,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 				}
 			}
 		} else {
-			if (car_data->unknown_flag_475 <= 0) {
+			if (car_data->car_id2 <= 0) {
 				sfxA = 0x400000;
 			} else {
 				sfxA = 0xc00000;

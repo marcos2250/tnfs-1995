@@ -16,7 +16,7 @@ int general_flags = 0x14; //800dc5a0 DAT_0014383c
 int debug_sum = 0;
 int selected_track = 3; //rusty springs
 int DAT_8010d2f4 = 0;
-int DAT_8010d30c = 0; //8010d30c 0016707c
+int DAT_0016707c = 0; //8010d30c 0016707c
 
 int g_car_road_segment;
 int DAT_8010c478 = 0; //DAT_00144f10
@@ -592,7 +592,7 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 		if (car_data->gear_shift_interval > 12 || car_data->is_shifting_gears < 1)
 			--car_data->gear_shift_interval;
 
-		if (car_data->unknown_flag_475 == DAT_8010d30c //
+		if (car_data->car_id2 == DAT_0016707C //
 		&& car_data->gear_shift_interval == 11 //
 		&& selected_camera == 0 // dashboard view
 		&& car_data->is_shifting_gears < 1) {
@@ -1070,7 +1070,7 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 
 	if ((cheat_code_8010d1c4 & 0x20) == 0) {
 		aux = ((car->delta_time >> 2) * 0x9cf5c);
-		car->speed_y -= ((aux >> 14) - (aux >> 0x1f) >> 1);
+		car->speed_y -= ((aux >> 14) - (aux >> 0x1f)) >> 1;
 	}
 
 	// next frame falling height
@@ -1112,7 +1112,7 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 			car->time_off_ground = -2;
 			car->angle_x = angleX;
 			car->angle_z = angleZ;
-			if (car->unknown_flag_475 == 0)
+			if (car->car_id2 == 0)
 				DAT_8010c478 = 5;
 		}
 
@@ -1121,7 +1121,7 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 		else
 			car->time_off_ground = 0;
 
-		if (car->time_off_ground == -1 && car->unknown_flag_475 == 0) {
+		if (car->time_off_ground == -1 && car->car_id2 == 0) {
 			tnfs_sfx_play(-1, 4, 1, abs(car->speed_y), 1, 0x50000);
 		}
 

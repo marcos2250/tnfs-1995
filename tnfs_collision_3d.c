@@ -1657,8 +1657,8 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 			tnfs_collision_data_get(car2, car2->crash_state);
 		}
 		if ((doWreckCarA && !car1->is_wrecked) || (doWreckCarB && !car2->is_wrecked)) {
-			car1->car_road_speed = tnfs_car_road_speed_collided(car1);
-			car2->car_road_speed = tnfs_car_road_speed_collided(car2);
+			car1->car_road_speed = tnfs_car_road_speed_2(car1);
+			car2->car_road_speed = tnfs_car_road_speed_2(car2);
 			if (abs(car1->car_road_speed) > 0x100000 || abs(car2->car_road_speed) > 0x100000) {
 				tnfs_replay_highlight_record((DAT_000f99f4 + (local_34 * 2 + local_38 * 4 + local_2c * 8 + local_30) * 4));
 			}

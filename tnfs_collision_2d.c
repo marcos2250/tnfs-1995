@@ -215,7 +215,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 		rebound_speed_x = fix2(rebound_speed_x);
 	}
 	if (rebound_speed_z < -0x30000) {
-		if ((cheat_code_8010d1c4 & 0x20) == 0) {
+		if ((g_cheat_code_psx_pc & 0x20) == 0) {
 			rebound_speed_z = abs_speed + rebound_speed_z;
 			lm_speed = fix2(abs_speed);
 		} else {
@@ -226,7 +226,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 			rebound_speed_z = 0;
 		}
 	} else if (rebound_speed_z > 0x30000) {
-		if ((cheat_code_8010d1c4 & 0x20) == 0) {
+		if ((g_cheat_code_psx_pc & 0x20) == 0) {
 			lm_speed = fix2(abs_speed);
 			aux = abs_speed;
 		} else {

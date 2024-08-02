@@ -758,7 +758,7 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	angular_accel = math_mul(car_data->rear_yaw_factor, ftire_lat_rear) - math_mul(car_data->front_yaw_factor, ftire_lat_front);
 
 	// Rally Mode on PSX version, makes the car drift longer
-	if ((cheat_code_8010d1c4 & 0x20) && car_data->wheels_on_ground) {
+	if ((g_cheat_code_psx_pc & 0x20) && car_data->wheels_on_ground) {
 		DAT_800eb20c = car_data->speed_local_lon;
 		if (DAT_800eb20c > 0x10000) {
 			DAT_800eb20c = 0x10000;
@@ -1068,7 +1068,7 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 	/* apply gravity */
 	car->speed_y -= ((car->delta_time >> 2) * 0x9cf5c) >> 14;
 
-	if ((cheat_code_8010d1c4 & 0x20) == 0) {
+	if ((g_cheat_code_psx_pc & 0x20) == 0) {
 		aux = ((car->delta_time >> 2) * 0x9cf5c);
 		car->speed_y -= ((aux >> 14) - (aux >> 0x1f)) >> 1;
 	}
@@ -1097,7 +1097,7 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 		car->speed_y = -fixmul(car->speed_local_lat, math_sin_3(angleZ)) - fixmul(car->speed_local_lon, math_sin_3(angleX));
 
 		if (car->time_off_ground > 20) {
-			if (cheat_code_8010d1c4 & 0x20)
+			if (g_cheat_code_psx_pc & 0x20)
 				//bounce = fix2(car_data->time_off_ground / 6) * (((car_data->delta_time >> 2) * 0x9cf5c) >> 14); //PSX
 				bounce = (((car->delta_time >> 2) * 0x9cf5c) >> 14) * (((car->time_off_ground >> 0x1f) - car->time_off_ground) >> 1);
 			else

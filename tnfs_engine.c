@@ -208,7 +208,7 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 	thrust = fix2(thrust * fix6(specs->final_drive_torque_ratio));
 
 	// rally mode
-	if (((cheat_code_8010d1c4 & 0x20) != 0) // rally mode enabled
+	if (((g_cheat_code_psx_pc & 0x20) != 0) // rally mode enabled
 			&& (car->throttle > 0xfa) // full throttle
 			&& (car->gear_selected > 0) // forward gear
 			&& (car->speed_local_lon < 0x190000)) { // low speeds

@@ -19,11 +19,11 @@ tnfs_car_data g_car_array[8];
 tnfs_car_data *g_car_ptr_array[8]; // 00153ba0/00153bec 8010c720/800f7e60
 tnfs_car_data *player_car_ptr;
 int g_total_cars_in_scene = 8;
-int g_racer_cars_in_scene = 6; //001670AB DAT_8010d1c8
-
+int g_racer_cars_in_scene = 2; //001670AB DAT_8010d1c8
 int g_number_of_players = 1; //8010d1cc 001670af
 
 // settings/flags
+int g_police_on_chase = 0; //DAT_000fdb90
 char is_drifting;
 int g_game_time = 0;
 int road_segment_count = 0;
@@ -68,9 +68,9 @@ int DAT_000FDB94 = 0;
 int DAT_000FDCEC = 0;
 int DAT_000FDCF0 = 0;
 int DAT_000f9A70 = 0;
-int DAT_001039d4 = 0; //800db6bc
-int DAT_001039d8 = 0; //800db6c0
-int DAT_001039dc = 0;
+int DAT_001039d4 = 0xFFFF; //800db6bc
+int DAT_001039d8 = 0x12345678; //800db6c0
+int DAT_001039dc = 0x12345679; // random value
 int DAT_00144914 = 0;
 int DAT_00143844 = 0;
 int DAT_0014DCC4 = 0;
@@ -86,7 +86,7 @@ int DAT_0016533C = 0;
 int DAT_00165340 = 0;
 int DAT_0016707C = 0; //player car id?
 int DAT_001670B3 = 1; //DAT_8010d1d0
-int DAT_001670BB = 0;
+int DAT_001670BB = 5;
 
 
 /* create a random track and a generic car */
@@ -371,6 +371,10 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->angle_x *= -1;
 	car->angle_z *= -1;
 
+	if (car->ai_state & 0x1000) {
+		car->angle_y *= -1;
+	}
+
 	car->body_pitch = 0;
 	car->body_roll = 0;
 	car->angle_dx = 0;
@@ -437,27 +441,40 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->collision_data.field4_0x48.x = 0;
 	car->collision_data.field4_0x48.y = 0;
 	car->collision_data.field4_0x48.z = -0x9cf5c;
-	car->collision_data.crash_time_ai_state = 0;
+	car->collision_data.state_timer = 0;
 	car->collision_data.angular_speed.x = 0;
 	car->collision_data.angular_speed.y = 0;
 	car->collision_data.angular_speed.z = 0;
 	car->collision_data.field6_0x60 = 0x10a1c;
 
+	// ai car flags
+	car->speed_target = 0;
+	car->collision_data.field_084 = 0;
+	car->collision_data.field_088 = 0;
+	car->collision_data.field_08c = 0;
+	car->collision_data.field_090 = 0x10000; //0xb333; //0xcccc
+	car->field_158 = 0;
+	car->field_33c = 0;
+	car->crash_state = 3;
+	car->field_461 = 0;
+
 	if (car == player_car_ptr) {
+		// player car
 		car->crash_state = 2;
 		car->field_4e9 = 6; //4??
+		car->ai_state = 0x1e0;
+		g_police_on_chase = 0;
+	} else if (car == g_car_ptr_array[7]) {
+		// police car
+		car->ai_state = 0x1e8;
+		g_police_on_chase = 0;
+		car->field_4e9 = 7;
 	} else {
 		// ai car
 		car->crash_state = 3;
 		car->field_4e9 = 7;
+		car->steer_angle = car->angle_y;
 	}
-
-	// ai car flags
-	car->speed_target = 0;
-	car->collision_data.field_088 = 0;
-	car->collision_data.field16_0x90 = 0x10000; //0xb333; //0xcccc
-	car->field_33c = 0;
-	car->ai_state = 0x1e4;
 }
 
 void tnfs_init_car(tnfs_car_data *car) {
@@ -861,7 +878,7 @@ void FUN_00080b78(tnfs_car_data *car) {
 	if ((car->ai_state & 4) == 0) {
 		car->field_33c = DAT_001651c0[uVar1];
 	} else {
-		car->field_33c = g_traffic_cfg_ptr[car->car_id2]->field_0x79;
+		car->field_33c = g_traffic_cfg_ptr[car->car_id2]->field_0x79[uVar1];
 	}
 }
 
@@ -869,7 +886,7 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	int node;
 	tnfs_vec3 heading;
 	tnfs_vec3 wall_normal;
-	int iVar7, iVar9, uVar5;
+	int iVar9, uVar5;
 
 	// current node
 	node = car->road_segment_a;
@@ -905,11 +922,10 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	car->road_heading.z = heading.z;
 
 	// unknown function
-	iVar7 = car->car_id;
-	if ((iVar7 < 0) || (g_number_of_players <= iVar7)) {
+	if ((car->car_id < 0) || (car->car_id >= g_number_of_players)) {
 		iVar9 = DAT_800eb6a4;
-		if ((g_number_of_players <= iVar7) && (iVar7 < g_racer_cars_in_scene)) {
-			iVar9 = g_traffic_cfg_ptr[iVar7]->field_0x8;
+		if ((g_number_of_players <= car->car_id) && (car->car_id < g_racer_cars_in_scene)) {
+			iVar9 = g_traffic_cfg_ptr[car->car_id]->field_0x8;
 		}
 		DAT_001039d8 = DAT_001039d4 * DAT_001039dc;
 		DAT_001039d4 = DAT_001039d8 & 0xffff;
@@ -959,7 +975,11 @@ void tnfs_init_sim(char *trifile) {
 	g_traffic_cfg.field_0x65 = 0x3cccc;
 	g_traffic_cfg.field_0x69 = 0x4ccc;
 	g_traffic_cfg.field_0x6d = 0x1b;
-	g_traffic_cfg.field_0x79 = 0x14;
+	g_traffic_cfg.field_0x79[0] = 0x48;
+	g_traffic_cfg.field_0x79[1] = 0x10000;
+	g_traffic_cfg.field_0x79[2] = 0x10000;
+	g_traffic_cfg.field_0x79[3] = 0x10000;
+
 	for (i = 0; i < 8; i++) {
 		g_traffic_cfg_ptr[i] = &g_traffic_cfg;
 
@@ -994,26 +1014,29 @@ void tnfs_update() {
 
 	// update camera
 	switch (selected_camera) {
+	case 0: //chase cam
+		camera.car_id = 0;
+		camera.position.x = g_car_array[0].position.x;
+		camera.position.y = g_car_array[0].position.y + 0x50000;
+		camera.position.z = g_car_array[0].position.z - 0x96000;
+		break;
 	case 1: //heli cam
+		camera.car_id = 0;
 		camera.position.x = g_car_array[0].position.x;
 		camera.position.y = g_car_array[0].position.y + 0x60000;
 		camera.position.z = g_car_array[0].position.z - 0x100000;
 		break;
 	case 2: //opponent cam
+		camera.car_id = 1;
 		camera.position.x = g_car_array[1].position.x;
 		camera.position.y = g_car_array[1].position.y + 0x60000;
 		camera.position.z = g_car_array[1].position.z - 0x100000;
 		break;
 	case 3: //cop cam
-		node = g_total_cars_in_scene - 1;
-		camera.position.x = g_car_array[node].position.x;
-		camera.position.y = g_car_array[node].position.y + 0x60000;
-		camera.position.z = g_car_array[node].position.z - 0x100000;
-		break;
-	default: //chase cam
-		camera.position.x = g_car_array[0].position.x;
-		camera.position.y = g_car_array[0].position.y + 0x50000;
-		camera.position.z = g_car_array[0].position.z - 0x96000;
+		camera.car_id = g_total_cars_in_scene - 1;
+		camera.position.x = g_car_array[camera.car_id].position.x;
+		camera.position.y = g_car_array[camera.car_id].position.y + 0x60000;
+		camera.position.z = g_car_array[camera.car_id].position.z - 0x100000;
 		break;
 	}
 
@@ -1021,7 +1044,6 @@ void tnfs_update() {
 
 	tnfs_controls_update();
 	tnfs_ai_collision_handler();
-	tnfs_ai_respawn_cars();
 
 	// for each car
 	for (i = 0; i < g_total_cars_in_scene; i++) {

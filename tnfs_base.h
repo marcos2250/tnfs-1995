@@ -86,11 +86,11 @@ typedef struct {
 	int angular_acc_factor; //0x6c
 	int edge_length; //0x70
 	tnfs_vec3 size; //0x74
-	int crash_time_ai_state; //0x80
-	// ...
+	int state_timer; //0x80
+	int field_084; //0x84
 	int field_088; //0x88
 	int field_08c; //0x8c
-	int field16_0x90; //0x90
+	int field_090; //0x90
 	// ...
 } tnfs_collision_data;
 
@@ -128,6 +128,7 @@ typedef struct tnfs_car_data {
 	int collision_height_offset;
 	tnfs_collision_data collision_data;
 
+	int field_158; //0x158 random group index
 	int car_road_speed; //0x15c
 	int speed_target; //0x160
 	int target_center_line; //0x164
@@ -260,14 +261,14 @@ typedef struct tnfs_surface_type {
 } tnfs_surface_type;
 
 typedef struct tnfs_speed_presets {
-	char ai_speed_1;
-	char traffic_speed_limit;
-	char ai_speed_2;
+	char ai_speed_1; // legal speed
+	char traffic_speed_limit; // safe speed
+	char ai_speed_2; // top speed
 } tnfs_track_speed;
 
 typedef struct tnfs_traffic_cfg {
 	int field_0x8;
-	int field_0x79;
+	int field_0x79[3];
 	int field_0x65;
 	int field_0x69;
 	int field_0x6d;
@@ -279,11 +280,22 @@ typedef struct tnfs_unk_struct {
 	int DAT_00165500;
 	int DAT_00165504;
 	int DAT_00165508;
+	int DAT_0016550c;
 } tnfs_unk_struct;
+
+typedef struct tnfs_random_struct {
+	short id; // 0
+	short a;  // 1
+	short b;  // 2
+	short c;  // 3
+	short d;  // 4
+	short e;  // 5
+} tnfs_random_struct;
 
 typedef struct tnfs_camera {
 	int id; //0 in_car; 1 tail cam; 2 chase cam
 	tnfs_vec3 position;
+	int car_id;
 } tnfs_camera;
 
 // global variables
@@ -297,10 +309,12 @@ extern tnfs_car_data *g_car_ptr_array[8];
 extern tnfs_car_data *player_car_ptr;
 extern tnfs_traffic_cfg *g_traffic_cfg_ptr[8];
 extern tnfs_unk_struct g_unk_struct[8];
+extern tnfs_traffic_cfg g_traffic_cfg;
 
 extern int g_total_cars_in_scene;
 extern int g_racer_cars_in_scene;
 
+extern int g_police_on_chase;
 extern char is_drifting;
 extern int g_game_time;
 extern int road_segment_count;
@@ -368,5 +382,6 @@ void tnfs_change_transmission_type();
 void tnfs_abs();
 void tnfs_tcs();
 void tnfs_cheat_mode();
+void FUN_00080b78(tnfs_car_data *car);
 
 #endif /* TNFS_BASE_H_ */

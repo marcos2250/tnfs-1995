@@ -338,7 +338,7 @@ void tnfs_collision_data_get(tnfs_car_data *car, int crash_state) {
 	car->speed_z = -car->speed_z;
 	car->speed_x = -car->speed_x;
 	car->angular_speed = ((-car->angular_speed - math_mul((body->angular_speed).y, 0x28be63)) >> 1) + car->angular_speed;
-	body->crash_time_ai_state = 0;
+	body->state_timer = 0;
 	car->slide_front = 0;
 	car->slide_rear = 0;
 	if (car->car_id2 > 0 && car->car_id2 < g_number_of_players) {
@@ -435,8 +435,8 @@ void tnfs_collision_main(tnfs_car_data *car) {
 
 	/* ... lots of code goes here -- crash recovery ... */
 	// simplified version
-	if (car->collision_data.crash_time_ai_state > 0) {
-		car->collision_data.crash_time_ai_state--;
+	if (car->collision_data.state_timer > 0) {
+		car->collision_data.state_timer--;
 	} else {
 		tnfs_reset_car(car);
 		return;
@@ -534,7 +534,7 @@ void tnfs_collision_rollover_start_2(tnfs_car_data *car) {
 	car->crash_state = 4;
 	//FUN_8004ce14((tnfs_car_data *)&PTR_80103660);
 	car->ai_state = car->ai_state & 0xfffffdff;
-	car->collision_data.crash_time_ai_state = 300;
+	car->collision_data.state_timer = 300;
 	tnfs_replay_highlight_record(0x5c);
 	if (sound_flag == 0) {
 		if (car != player_car_ptr) {
@@ -1684,13 +1684,13 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 	if (abs((car1->collision_data.speed).x) > 0x8000 //
  	 || abs((car1->collision_data.speed).y) > 0x8000 //
 	 || abs((car1->collision_data.speed).z) > 0x8000) {
-		car1->collision_data.crash_time_ai_state = 300;
+		car1->collision_data.state_timer = 300;
 	}
 
 	if (abs((car2->collision_data.speed).x) > 0x8000 //
  	 || abs((car2->collision_data.speed).y) > 0x8000 //
 	 || abs((car2->collision_data.speed).z) > 0x8000) {
-		car2->collision_data.crash_time_ai_state = 300;
+		car2->collision_data.state_timer = 300;
 	}
 
 	if (doWreckCarA && !car1->is_wrecked) {

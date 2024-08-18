@@ -191,11 +191,7 @@ void drawRoad() {
 	max = road_segment_count - 1;
 	for (int n = 0; n < 100; n++) {
 
-		if (selected_camera == 2) {
-			i = g_car_array[1].road_segment_a;
-		} else {
-			i = g_car_array[0].road_segment_a;
-		}
+		i = g_car_array[camera.car_id].road_segment_a;
 		i = i - 50 + n;
 		if (i < 0) {
 			i = i + max;

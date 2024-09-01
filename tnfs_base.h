@@ -90,7 +90,7 @@ typedef struct {
 	int field_084; //0x84
 	int field_088; //0x88
 	int field_08c; //0x8c
-	int field_090; //0x90
+	int traffic_base_speed; //0x90
 	// ...
 } tnfs_collision_data;
 
@@ -136,10 +136,10 @@ typedef struct tnfs_car_data {
 	int ai_state; //0x174
 	int power_curve[100]; //0x178
 	// ...
-	int field_33c; //0x33c
+	int lane_slack; //0x33c
 	// ...
-	int angle_dx; //0x354
-	int angle_dy; //0x358
+	int angle_dy; //0x354
+	// ...
 	tnfs_vec3 world_position; //0x35c
 	int body_roll; //0x365
 	int body_pitch; //0x369
@@ -224,9 +224,8 @@ typedef struct tnfs_car_data {
 
 	int crash_state; //0x4e1 0x520 // 2-normal/player 3-normal/opponent 4-wrecked 6-inactive
 	int car_id; //0x4e5 0x524 //car id number 0..7
-	int field_4e9; //0x4e9 0x528 //4-player 7-opponent
+	int field_4e9; //0x4e9 0x528 //0-parked police //4-enable swerve, 5/6/7-enable collision
 } tnfs_car_data;
-
 
 typedef struct tnfs_track_data {
 	unsigned char roadLeftMargin; // 0
@@ -260,28 +259,55 @@ typedef struct tnfs_surface_type {
 	int is_unpaved;
 } tnfs_surface_type;
 
-typedef struct tnfs_speed_presets {
-	char ai_speed_1; // legal speed
-	char traffic_speed_limit; // safe speed
-	char ai_speed_2; // top speed
+typedef struct tnfs_track_speed {
+	char top_speed;
+	char legal_speed;
+	char safe_speed;
 } tnfs_track_speed;
 
-typedef struct tnfs_traffic_cfg {
-	int field_0x8;
-	int field_0x79[3];
-	int field_0x65;
-	int field_0x69;
-	int field_0x6d;
-} tnfs_traffic_cfg;
+typedef struct tnfs_ai_skill_cfg {
+	// ...
+	int opp_desired_ahead; //0x18
+	int cop_warning_time; //0x1c
+	int max_player_runways; //0x20
+	// ...
+	int traffic_density; //0x30
+	int number_of_traffic_cars; //0x34
+	int traffic_speed_factors[4]; //0x38
+	int opp_desired_speed_c; //0x48
+	int lane_slack[4]; //0x4c
+	int opponent_glue_0[21]; //0x5c
+	int opponent_glue_1[21]; //0xb0
+	int opponent_glue_2[21]; //0x104
+	int opponent_glue_3[21]; //0x158
+} tnfs_ai_skill_cfg;
 
-typedef struct tnfs_unk_struct {
-	int DAT_001654f4;
-	int DAT_001654f8;
-	int DAT_00165500;
-	int DAT_00165504;
-	int DAT_00165508;
-	int DAT_0016550c;
-} tnfs_unk_struct;
+typedef struct tnfs_stats_data {
+	int lap_timer[17]; //0x0
+	// ...
+	int field_0x65; //0x65
+	int field_0x69; //0x69
+	int opp_oncoming_look_ahead; //0x6d
+	// ...
+	int field_0x89; //0x89
+	// ...
+	int field412_0x1c0; //0x1c0
+	// ...
+	int best_accel_time_1; //0x198
+	int best_accel_time_2; //0x19c
+	int best_brake_time_1; //0x1a0
+	int best_brake_time_2; //0x1a4
+	int quarter_mile_speed; //0x1a8
+	int quarter_mile_time; //0x1ac
+	int penalty_count; //0x1b0
+	int runaways_count; //0x1b4
+	int field_0x1b8; //0x1b8
+	// ...
+	int prev_lap_time; //0x1bc
+	// ...
+	int top_speed; //0x1c4
+	int field_0x1c8; //0x1c8
+} tnfs_stats_data;
 
 typedef struct tnfs_random_struct {
 	short id; // 0
@@ -302,17 +328,19 @@ typedef struct tnfs_camera {
 extern struct tnfs_car_specs car_specs;
 extern struct tnfs_track_data track_data[2400];
 extern struct tnfs_surface_type road_surface_type_array[3];
-extern struct tnfs_speed_presets g_track_speed[900]; // 000FDB8C road speed limit array
+extern struct tnfs_track_speed g_track_speed[900]; // 000FDB8C road speed limit array
 
 extern struct tnfs_car_data g_car_array[8];
 extern tnfs_car_data *g_car_ptr_array[8];
 extern tnfs_car_data *player_car_ptr;
-extern tnfs_traffic_cfg *g_traffic_cfg_ptr[8];
-extern tnfs_unk_struct g_unk_struct[8];
-extern tnfs_traffic_cfg g_traffic_cfg;
+extern tnfs_ai_skill_cfg *g_ai_cfg_ptr[8];
+extern tnfs_stats_data g_stats_data[8];
+extern tnfs_ai_skill_cfg g_ai_skill_cfg;
 
 extern int g_total_cars_in_scene;
 extern int g_racer_cars_in_scene;
+extern int g_number_of_cops; //DAT_8010d1d0
+extern int g_number_of_traffic_cars;
 
 extern int g_police_on_chase;
 extern char is_drifting;
@@ -328,7 +356,6 @@ extern int g_number_of_players;
 extern int g_selected_cheat;
 extern int selected_camera;
 extern tnfs_camera camera;
-
 
 extern int DAT_000F9BB0;
 extern int DAT_000f99e4;
@@ -349,15 +376,10 @@ extern int DAT_0014dccc; // segment id mask
 extern int DAT_00153B20;
 extern int DAT_00153B24;
 extern tnfs_car_data * DAT_00153BC4;
-extern int DAT_001651c0[4];
 extern int DAT_0016513C;
 extern int DAT_00165148;
-extern int DAT_00165190;
 extern int DAT_0016533C;
-extern int DAT_00165340;
 extern int DAT_0016707C;
-extern int DAT_001670B3; //DAT_8010d1d0
-extern int DAT_001670BB;
 
 
 // common functions
@@ -382,6 +404,7 @@ void tnfs_change_transmission_type();
 void tnfs_abs();
 void tnfs_tcs();
 void tnfs_cheat_mode();
-void FUN_00080b78(tnfs_car_data *car);
+void tnfs_ai_get_speed_factor(tnfs_car_data *car);
+void tnfs_ai_get_lane_slack(tnfs_car_data *car);
 
 #endif /* TNFS_BASE_H_ */

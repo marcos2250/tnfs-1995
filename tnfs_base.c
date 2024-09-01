@@ -13,14 +13,16 @@ tnfs_car_specs car_specs;
 tnfs_track_data track_data[2400];
 tnfs_surface_type road_surface_type_array[3];
 tnfs_track_speed g_track_speed[900];
-tnfs_traffic_cfg g_traffic_cfg;
+tnfs_ai_skill_cfg g_ai_skill_cfg;
 
 tnfs_car_data g_car_array[8];
 tnfs_car_data *g_car_ptr_array[8]; // 00153ba0/00153bec 8010c720/800f7e60
 tnfs_car_data *player_car_ptr;
 int g_total_cars_in_scene = 8;
-int g_racer_cars_in_scene = 2; //001670AB DAT_8010d1c8
-int g_number_of_players = 1; //8010d1cc 001670af
+int g_racer_cars_in_scene = 2; // (including player) 001670AB DAT_8010d1c8
+int g_number_of_players = 1; //001670af 8010d1cc
+int g_number_of_cops = 1; //001670B3 8010d1d0
+int g_number_of_traffic_cars = 5; //001670BB
 
 // settings/flags
 int g_police_on_chase = 0; //DAT_000fdb90
@@ -53,8 +55,8 @@ static const unsigned int g_torque_table[120] = {
 		5000, 560, 5200, 550, 5400, 550, 5600, 530, 5800, 510, 6000, 500, 6200, 490, 6400, 480, 6600, 470, 6800, 460
 };
 
-tnfs_traffic_cfg * g_traffic_cfg_ptr[8]; //DAT_00165150
-tnfs_unk_struct g_unk_struct[8];
+tnfs_ai_skill_cfg * g_ai_cfg_ptr[8]; //DAT_00165150
+tnfs_stats_data g_stats_data[8];
 
 int DAT_800eb6a4 = 0; //800eb6a4
 int DAT_8010d310 = 0; //8010d310
@@ -78,15 +80,11 @@ int DAT_0014dccc = 0xFFFF; // segment id mask
 int DAT_00153B20 = 0;
 int DAT_00153B24 = 0;
 tnfs_car_data * DAT_00153BC4 = 0;
-int DAT_001651c0[4] = { 0, 0, 0, 0 };
 int DAT_0016513C = 0;
 int DAT_00165148 = 0;
-int DAT_00165190 = 0;
 int DAT_0016533C = 0;
 int DAT_00165340 = 0;
 int DAT_0016707C = 0; //player car id?
-int DAT_001670B3 = 1; //DAT_8010d1d0
-int DAT_001670BB = 5;
 
 
 /* create a random track and a generic car */
@@ -159,9 +157,9 @@ void auto_generate_track() {
 
 	// track section speed
 	for (i = 0; i < 900; i++) {
-		g_track_speed[i].ai_speed_1 = 0x42;
-		g_track_speed[i].ai_speed_2 = 0x1b;
-		g_track_speed[i].traffic_speed_limit = 0x2c;
+		g_track_speed[i].top_speed = 0x42;
+		g_track_speed[i].legal_speed = 0x1b;
+		g_track_speed[i].safe_speed = 0x2c;
 	}
 }
 
@@ -377,7 +375,7 @@ void tnfs_reset_car(tnfs_car_data *car) {
 
 	car->body_pitch = 0;
 	car->body_roll = 0;
-	car->angle_dx = 0;
+	car->angle_dy = 0;
 	car->angular_speed = 0;
 	car->speed_x = 0;
 	car->speed_y = 0;
@@ -452,28 +450,28 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->collision_data.field_084 = 0;
 	car->collision_data.field_088 = 0;
 	car->collision_data.field_08c = 0;
-	car->collision_data.field_090 = 0x10000; //0xb333; //0xcccc
+	car->collision_data.traffic_base_speed = 0x10000; //0xb333; //0xcccc
 	car->field_158 = 0;
-	car->field_33c = 0;
+	car->lane_slack = 0;
 	car->crash_state = 3;
 	car->field_461 = 0;
+	car->field_4e9 = 7;
 
 	if (car == player_car_ptr) {
 		// player car
 		car->crash_state = 2;
-		car->field_4e9 = 6; //4??
 		car->ai_state = 0x1e0;
 		g_police_on_chase = 0;
-	} else if (car == g_car_ptr_array[7]) {
-		// police car
-		car->ai_state = 0x1e8;
-		g_police_on_chase = 0;
-		car->field_4e9 = 7;
 	} else {
-		// ai car
+		// ai cars
 		car->crash_state = 3;
-		car->field_4e9 = 7;
 		car->steer_angle = car->angle_y;
+		if (car->car_id == 2) {
+			// police car
+			car->ai_state = 0x1e8;
+			g_police_on_chase = 0;
+			printf("respawn cop car\n");
+		}
 	}
 }
 
@@ -487,7 +485,7 @@ void tnfs_init_car(tnfs_car_data *car) {
 
 	car->crash_state = 2;
 	car->car_id = 0;
-	car->field_4e9 = 4;
+	car->field_4e9 = 7;
 	car->position.z = 0; //0x600000;
 	car->road_segment_a = 0; //0x10;
 	car->road_segment_b = 0; //0x10;
@@ -870,15 +868,31 @@ int tnfs_road_segment_update(tnfs_car_data *car) {
 	return changed;
 }
 
-void FUN_00080b78(tnfs_car_data *car) {
-	int uVar1;
+/*
+ * #Traffic Speed Factors: Traffic Cars will select one of these 4 multipliers,
+ * # and drive at the "Safe Speed" times this multiplier
+ */
+void tnfs_ai_get_speed_factor(tnfs_car_data *car) {
+	int skill;
 	DAT_001039d8 = DAT_001039d4 * DAT_001039dc;
 	DAT_001039d4 = DAT_001039d8 & 0xffff;
-	uVar1 = (DAT_001039d8 & 0xffff00) >> 8 & 3;
+	skill = (DAT_001039d8 & 0xffff00) >> 8 & 3;
+	car->collision_data.traffic_base_speed = g_ai_skill_cfg.traffic_speed_factors[skill];
+}
+
+/*
+ * #Lane Slack.  Determines how close the cars drive along the centre line.  Measured in units from the
+ * # centre of a lane towards the centre of the road.
+ */
+void tnfs_ai_get_lane_slack(tnfs_car_data *car) {
+	int skill;
+	DAT_001039d8 = DAT_001039d4 * DAT_001039dc;
+	DAT_001039d4 = DAT_001039d8 & 0xffff;
+	skill = (DAT_001039d8 & 0xffff00) >> 8 & 3;
 	if ((car->ai_state & 4) == 0) {
-		car->field_33c = DAT_001651c0[uVar1];
+		car->lane_slack = g_ai_skill_cfg.lane_slack[skill];
 	} else {
-		car->field_33c = g_traffic_cfg_ptr[car->car_id2]->field_0x79[uVar1];
+		car->lane_slack = g_ai_cfg_ptr[car->car_id2]->lane_slack[skill];
 	}
 }
 
@@ -925,12 +939,12 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	if ((car->car_id < 0) || (car->car_id >= g_number_of_players)) {
 		iVar9 = DAT_800eb6a4;
 		if ((g_number_of_players <= car->car_id) && (car->car_id < g_racer_cars_in_scene)) {
-			iVar9 = g_traffic_cfg_ptr[car->car_id]->field_0x8;
+			iVar9 = g_stats_data[car->car_id].field_0x89;
 		}
 		DAT_001039d8 = DAT_001039d4 * DAT_001039dc;
 		DAT_001039d4 = DAT_001039d8 & 0xffff;
 		if (iVar9 * ((DAT_001039d8 & 0xffff00) >> 8) >> 0x10 == 1) {
-			FUN_00080b78(car);
+			tnfs_ai_get_speed_factor(car);
 		}
 		// also in PSX
 		if (((g_cheat_code_psx_pc & 2) != 0) && (DAT_8010d310 == 0)) {
@@ -961,7 +975,7 @@ int tnfs_car_road_speed_2(tnfs_car_data *car) {
  * setup everything
  */
 void tnfs_init_sim(char *trifile) {
-	int i;
+	int i, j;
 
 	g_game_time = 200;
 	cheat_crashing_cars = 0;
@@ -970,24 +984,134 @@ void tnfs_init_sim(char *trifile) {
 
 	tnfs_init_track(trifile);
 
-	// unknown AI constants
-	g_traffic_cfg.field_0x8 = 0x3333;
-	g_traffic_cfg.field_0x65 = 0x3cccc;
-	g_traffic_cfg.field_0x69 = 0x4ccc;
-	g_traffic_cfg.field_0x6d = 0x1b;
-	g_traffic_cfg.field_0x79[0] = 0x48;
-	g_traffic_cfg.field_0x79[1] = 0x10000;
-	g_traffic_cfg.field_0x79[2] = 0x10000;
-	g_traffic_cfg.field_0x79[3] = 0x10000;
+	// AI skill constants
+	g_ai_skill_cfg.opp_desired_ahead = 0x140000;
+	g_ai_skill_cfg.cop_warning_time = 400;
+	g_ai_skill_cfg.max_player_runways = 2;
+	g_ai_skill_cfg.traffic_density = 0x1f4;
+	g_ai_skill_cfg.number_of_traffic_cars = 4;
+	g_ai_skill_cfg.traffic_speed_factors[0] = 0x10000;
+	g_ai_skill_cfg.traffic_speed_factors[1] = 0xe665;
+	g_ai_skill_cfg.traffic_speed_factors[2] = 0xb333;
+	g_ai_skill_cfg.traffic_speed_factors[3] = 0x9999;
+	g_ai_skill_cfg.opp_desired_speed_c = math_mul(0x960000, 0x471c); //0x29aa68;
+	g_ai_skill_cfg.lane_slack[0] = 0x10000;
+	g_ai_skill_cfg.lane_slack[1] = -0x10000;
+	g_ai_skill_cfg.lane_slack[2] = 0x8000;
+	g_ai_skill_cfg.lane_slack[3] = 0xCCCC;
+
+	g_ai_skill_cfg.opponent_glue_0[0] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_0[1] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_0[2] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_0[3] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_0[4] = 0x1cccc;
+	g_ai_skill_cfg.opponent_glue_0[5] = 0x1cccc;
+	g_ai_skill_cfg.opponent_glue_0[6] = 0x19999;
+	g_ai_skill_cfg.opponent_glue_0[7] = 0x16666;
+	g_ai_skill_cfg.opponent_glue_0[8] = 0x13333;
+	g_ai_skill_cfg.opponent_glue_0[9] = 0x11999;
+	g_ai_skill_cfg.opponent_glue_0[10] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_0[11] = 0xf851;
+	g_ai_skill_cfg.opponent_glue_0[12] = 0xeb85;
+	g_ai_skill_cfg.opponent_glue_0[13] = 0xe666;
+	g_ai_skill_cfg.opponent_glue_0[14] = 0xd999;
+	g_ai_skill_cfg.opponent_glue_0[15] = 0xcccc;
+	g_ai_skill_cfg.opponent_glue_0[16] = 0xc000;
+	g_ai_skill_cfg.opponent_glue_0[17] = 0xb333;
+	g_ai_skill_cfg.opponent_glue_0[18] = 0xa666;
+	g_ai_skill_cfg.opponent_glue_0[19] = 0xa666;
+	g_ai_skill_cfg.opponent_glue_0[20] = 0x9999;
+
+	g_ai_skill_cfg.opponent_glue_1[0] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_1[1] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_1[2] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_1[3] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_1[4] = 0x1cccc;
+	g_ai_skill_cfg.opponent_glue_1[5] = 0x16666;
+	g_ai_skill_cfg.opponent_glue_1[6] = 0x14ccc;
+	g_ai_skill_cfg.opponent_glue_1[7] = 0x13333;
+	g_ai_skill_cfg.opponent_glue_1[8] = 0x11999;
+	g_ai_skill_cfg.opponent_glue_1[9] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_1[10] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_1[11] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_1[12] = 0xe666;
+	g_ai_skill_cfg.opponent_glue_1[13] = 0xe666;
+	g_ai_skill_cfg.opponent_glue_1[14] = 0xd999;
+	g_ai_skill_cfg.opponent_glue_1[15] = 0xcccc;
+	g_ai_skill_cfg.opponent_glue_1[16] = 0xc000;
+	g_ai_skill_cfg.opponent_glue_1[17] = 0xc000;
+	g_ai_skill_cfg.opponent_glue_1[18] = 0xb333;
+	g_ai_skill_cfg.opponent_glue_1[19] = 0xb333;
+	g_ai_skill_cfg.opponent_glue_1[20] = 0x9999;
+
+	g_ai_skill_cfg.opponent_glue_2[0] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_2[1] = 0x30000;
+	g_ai_skill_cfg.opponent_glue_2[2] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_2[3] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_2[4] = 0x18000;
+	g_ai_skill_cfg.opponent_glue_2[5] = 0x18000;
+	g_ai_skill_cfg.opponent_glue_2[6] = 0x18000;
+	g_ai_skill_cfg.opponent_glue_2[7] = 0x18000;
+	g_ai_skill_cfg.opponent_glue_2[8] = 0x13333;
+	g_ai_skill_cfg.opponent_glue_2[9] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_2[10] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_2[11] = 0xcccc;
+	g_ai_skill_cfg.opponent_glue_2[12] = 0xcccc;
+	g_ai_skill_cfg.opponent_glue_2[13] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_2[14] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_2[15] = 0x60000;
+	g_ai_skill_cfg.opponent_glue_2[16] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_2[17] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_2[18] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_2[19] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_2[20] = 0x90000;
+
+	g_ai_skill_cfg.opponent_glue_3[0] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_3[1] = 0x30000;
+	g_ai_skill_cfg.opponent_glue_3[2] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_3[3] = 0x20000;
+	g_ai_skill_cfg.opponent_glue_3[4] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_3[5] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_3[6] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_3[7] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_3[8] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_3[9] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_3[10] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_3[11] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_3[12] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_3[13] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_3[14] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_3[15] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_3[16] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_3[17] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_3[18] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_3[19] = 0x90000;
+	g_ai_skill_cfg.opponent_glue_3[20] = 0x90000;
 
 	for (i = 0; i < 8; i++) {
-		g_traffic_cfg_ptr[i] = &g_traffic_cfg;
+		g_ai_cfg_ptr[i] = &g_ai_skill_cfg;
 
-		g_unk_struct[i].DAT_00165500 = 0;
-		g_unk_struct[i].DAT_00165504 = 0;
-		g_unk_struct[i].DAT_00165508 = 0;
-		g_unk_struct[i].DAT_001654f4 = 0;
-		g_unk_struct[i].DAT_001654f8 = 0;
+		g_stats_data[i].opp_oncoming_look_ahead = 0x1b;
+		g_stats_data[i].field_0x65 = 0x3cccc;
+		g_stats_data[i].field_0x69 = 0x4ccc;
+		g_stats_data[i].field_0x89 = 0x3333;
+
+		g_stats_data[i].best_accel_time_1 = 99999;
+		g_stats_data[i].best_accel_time_2 = 99999;
+		g_stats_data[i].best_brake_time_2 = 999;
+		g_stats_data[i].best_brake_time_1 = 999;
+		g_stats_data[i].quarter_mile_speed = 0;
+		g_stats_data[i].quarter_mile_time = 99999;
+		g_stats_data[i].penalty_count = 0;
+		g_stats_data[i].runaways_count = 0;
+		g_stats_data[i].field_0x1b8 = 0;
+		g_stats_data[i].prev_lap_time = 0;
+		g_stats_data[i].field412_0x1c0 = 0;
+		g_stats_data[i].top_speed = 0;
+		g_stats_data[i].field_0x1c8 = 0;
+		for (j = 0; j < 17; j++) {
+			g_stats_data[j].lap_timer[j] = 0;
+		}
 	}
 
 	// init player car
@@ -1007,7 +1131,7 @@ void tnfs_init_sim(char *trifile) {
  * minimal basic main loop
  */
 void tnfs_update() {
-	int i, node;
+	int i;
 	tnfs_car_data *car;
 
 	g_game_time++;
@@ -1033,7 +1157,7 @@ void tnfs_update() {
 		camera.position.z = g_car_array[1].position.z - 0x100000;
 		break;
 	case 3: //cop cam
-		camera.car_id = g_total_cars_in_scene - 1;
+		camera.car_id = g_racer_cars_in_scene;
 		camera.position.x = g_car_array[camera.car_id].position.x;
 		camera.position.y = g_car_array[camera.car_id].position.y + 0x60000;
 		camera.position.z = g_car_array[camera.car_id].position.z - 0x100000;

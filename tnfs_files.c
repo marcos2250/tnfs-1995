@@ -71,9 +71,9 @@ int read_tri_file(char * file) {
 	for (i = 0; i < 600; i++) {
 		fseek(ptr, i * 3 + 0x15B0C, SEEK_SET);
 		fread(buffer, 3, 1, ptr);
-		g_track_speed[i].ai_speed_1 = buffer[0];
-		g_track_speed[i].ai_speed_2 = buffer[1];
-		g_track_speed[i].traffic_speed_limit = buffer[2];
+		g_track_speed[i].top_speed = buffer[0];
+		g_track_speed[i].legal_speed = buffer[1];
+		g_track_speed[i].safe_speed = buffer[2];
 	}
 
 	fclose(ptr);
@@ -187,8 +187,8 @@ int read_pdn_file(char *file, tnfs_car_data *car) {
 	for (i = 0; i < 100; i++) {
 		car->power_curve[i] = readFixed32(buffer, i * 4 + 0x1C);
 	}
-	car->car_specs_ptr->rpm_redline = readFixed32(buffer, 0x1C4);
-	car->car_specs_ptr->number_of_gears = readFixed32(buffer, 0x1C8);
+	//car->car_specs_ptr->rpm_redline = readFixed32(buffer, 0x1C4);
+	//car->car_specs_ptr->number_of_gears = readFixed32(buffer, 0x1C8);
 
 	fclose(ptr);
 	printf("Loaded car PDN file %s.\n", file);

@@ -2,13 +2,13 @@
 
 Recreation and analysis of the physics engine from the classic racing game from 1995.
 
-This project aims to reconstitute/reverse engineer accurately as possible the physics formulas used in the game, decompiled from DOS, PSX and 3DO binaries, and manually rewritten to C.
+This project aims to recreate, by reverse engineering, accurately as possible the physics formulas used in the game, decompiled from DOS, PSX and 3DO binaries, and manually rewritten to C.
 
 ## Features
 * 2D car driving simulation, with a 2-wheel tire grip model;
 * 3D box rigid body collision physics;
 * Engine, clutch and transmission simulation;
-* AI opponent driver;
+* AI opponent, traffic and police cars;
 * Now supports loading TNFSSE "TRI" track files, or it will auto generate a random track, if not supplied;
 * Fixed point math;
 * No assets required;

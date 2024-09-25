@@ -186,16 +186,15 @@ void drawRect(float x, float y, double a, float l, float w) {
 }
 
 void drawRoad(float ox, float oy, int segment) {
-	int i, j, n, max;
+	int i, j, n;
 
-	max = road_segment_count - 1;
 	for (n = 0; n < 12; n++) {
 
 		i = segment - 4 + n;
 		if (i < 0) {
-			i = i + max;
-		} else if (i >= max) {
-			i = i - max;
+			i = i + road_segment_count;
+		} else if (i >= road_segment_count) {
+			i = i - road_segment_count;
 		}
 		j = i + 1;
 

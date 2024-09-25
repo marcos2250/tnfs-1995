@@ -24,6 +24,7 @@ int read_tri_file(char * file) {
 	unsigned char buffer[36];
 	FILE *ptr;
 	int i;
+	int c;
 
 	ptr = fopen(file,"rb");
 	if (!ptr) {
@@ -44,7 +45,7 @@ int read_tri_file(char * file) {
 
 		track_data[i].num_lanes = buffer[4];
 		track_data[i].fence_flag = buffer[5];
-		track_data[i].verge_slide = buffer[6];
+		track_data[i].shoulder_surface_type = buffer[6];
 		track_data[i].item_mode = buffer[7];
 
 		track_data[i].pos.x = readFixed32(buffer, 8);
@@ -74,6 +75,14 @@ int read_tri_file(char * file) {
 		g_track_speed[i].top_speed = buffer[0];
 		g_track_speed[i].legal_speed = buffer[1];
 		g_track_speed[i].safe_speed = buffer[2];
+	}
+
+	// fill remaining nodes for circuit track
+	c = 0;
+	for (i = road_segment_count; i < 2400; i++) {
+		track_data[i] = track_data[c];
+		g_track_speed[i >> 2] = g_track_speed[c >> 2];
+		c++;
 	}
 
 	fclose(ptr);

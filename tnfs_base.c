@@ -9,33 +9,39 @@
 #include "tnfs_collision_3d.h"
 #include "tnfs_ai.h"
 
-tnfs_car_specs car_specs;
 tnfs_track_data track_data[2400];
 tnfs_surface_type road_surface_type_array[3];
-tnfs_track_speed g_track_speed[900];
-tnfs_ai_skill_cfg g_ai_skill_cfg;
+tnfs_track_speed g_track_speed[600];
 
+tnfs_car_specs car_specs;
 tnfs_car_data g_car_array[8];
 tnfs_car_data *g_car_ptr_array[8]; // 00153ba0/00153bec 8010c720/800f7e60
 tnfs_car_data *player_car_ptr;
-int g_total_cars_in_scene = 8;
+tnfs_ai_skill_cfg g_ai_skill_cfg;
+tnfs_ai_opp_data g_ai_opp_data[8];
+tnfs_stats_data g_stats_data[8];
+
+int g_total_cars_in_scene = 7;
 int g_racer_cars_in_scene = 2; // (including player) 001670AB DAT_8010d1c8
 int g_number_of_players = 1; //001670af 8010d1cc
 int g_number_of_cops = 1; //001670B3 8010d1d0
-int g_number_of_traffic_cars = 5; //001670BB
+int g_number_of_traffic_cars = 4; //001670BB
 
 // settings/flags
-int g_police_on_chase = 0; //DAT_000fdb90
 char is_drifting;
 int g_game_time = 0;
 int road_segment_count = 0;
 int sound_flag = 0;
 int g_selected_cheat = 0;
 int cheat_crashing_cars = 0;
-int g_cheat_code_psx_pc = 0;
+int g_game_settings = 0;
 char g_control_throttle;
 char g_control_brake;
 signed char g_control_steer;
+int g_police_on_chase = 0; //000fdb90
+int g_police_speeding_ticket = 0; //0016513C
+int g_police_chase_time = 0; //0016533c
+
 tnfs_camera camera;
 int selected_camera = 0;
 tnfs_vec3 camera_position;
@@ -54,9 +60,6 @@ static const unsigned int g_torque_table[120] = {
 		3000, 590, 3200, 592, 3400, 600, 3600, 610, 3800, 600, 4000, 580, 4200, 570, 4400, 570, 4600, 560, 4800, 560,
 		5000, 560, 5200, 550, 5400, 550, 5600, 530, 5800, 510, 6000, 500, 6200, 490, 6400, 480, 6600, 470, 6800, 460
 };
-
-tnfs_ai_skill_cfg * g_ai_cfg_ptr[8]; //DAT_00165150
-tnfs_stats_data g_stats_data[8];
 
 int DAT_800eb6a4 = 0; //800eb6a4
 int DAT_8010d310 = 0; //8010d310
@@ -80,9 +83,7 @@ int DAT_0014dccc = 0xFFFF; // segment id mask
 int DAT_00153B20 = 0;
 int DAT_00153B24 = 0;
 tnfs_car_data * DAT_00153BC4 = 0;
-int DAT_0016513C = 0;
 int DAT_00165148 = 0;
-int DAT_0016533C = 0;
 int DAT_00165340 = 0;
 int DAT_0016707C = 0; //player car id?
 
@@ -135,7 +136,7 @@ void auto_generate_track() {
 		track_data[i].roadRightMargin = 0x35;
 		track_data[i].num_lanes = 0x11;
 		track_data[i].fence_flag = 0;
-		track_data[i].verge_slide = 0x22;
+		track_data[i].shoulder_surface_type = 0x22;
 		track_data[i].item_mode = 0x3;
 
 		track_data[i].slope = slope;
@@ -156,7 +157,7 @@ void auto_generate_track() {
 	}
 
 	// track section speed
-	for (i = 0; i < 900; i++) {
+	for (i = 0; i < 600; i++) {
 		g_track_speed[i].top_speed = 0x42;
 		g_track_speed[i].legal_speed = 0x1b;
 		g_track_speed[i].safe_speed = 0x2c;
@@ -222,7 +223,7 @@ void tnfs_init_surface_constants() {
 	road_surface_type_array[2].is_unpaved = 1;
 
 	// rally mode surface constants
-	if (g_cheat_code_psx_pc & 0x20) {
+	if (g_game_settings & 0x20) {
 		for (i = 0; i < 3; i++) {
 			road_surface_type_array[i].roadFriction = 0x180;
 			road_surface_type_array[i].velocity_drag = 0x80;
@@ -450,17 +451,23 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->collision_data.field_084 = 0;
 	car->collision_data.field_088 = 0;
 	car->collision_data.field_08c = 0;
-	car->collision_data.traffic_base_speed = 0x10000; //0xb333; //0xcccc
+	car->collision_data.traffic_speed_factor = 0x10000; //0xb333; //0xcccc
 	car->field_158 = 0;
 	car->lane_slack = 0;
 	car->crash_state = 3;
 	car->field_461 = 0;
 	car->field_4e9 = 7;
+	car->field_170 = 0xf333;
+	car->field_168 = 0x140000;
+	car->field_16c = 0xccc;
+	car->field_158 = 0;
 
 	if (car == player_car_ptr) {
 		// player car
+		car->car_model_id = 5; //DVIPER
 		car->crash_state = 2;
 		car->ai_state = 0x1e0;
+		car->field_158 = 1;
 		g_police_on_chase = 0;
 	} else {
 		// ai cars
@@ -492,7 +499,7 @@ void tnfs_init_car(tnfs_car_data *car) {
 	car->lap_number = 1;
 
 	// rally mode tweaks
-	if (g_cheat_code_psx_pc & 0x20) {
+	if (g_game_settings & 0x20) {
 		for (i = 0; i < 512; i++)
 			car_specs.grip_table[i + 512] = car_specs.grip_table[i];
 
@@ -520,7 +527,6 @@ void tnfs_init_car(tnfs_car_data *car) {
 	car->abs_enabled = 0;
 	car->tcs_enabled = 0;
 	car->gear_auto_selected = 0;
-	car->unknown_0x498 = 0;
 	car->drag_const_0x4a8 = 0;
 	car->drag_const_0x4aa = 0;
 
@@ -719,7 +725,7 @@ void tnfs_change_traction() {
 void tnfs_cheat_mode() {
 	g_selected_cheat++;
 	cheat_crashing_cars = 0;
-	g_cheat_code_psx_pc = 0;
+	g_game_settings = 0;
 
 	if (g_selected_cheat > 2) {
 		g_selected_cheat = 0;
@@ -731,7 +737,7 @@ void tnfs_cheat_mode() {
 	}
 	if (g_selected_cheat == 2) {
 		printf("Cheat mode: Rally Mode\n");
-		g_cheat_code_psx_pc = 0x20;
+		g_game_settings = 0x20;
 	}
 
 	tnfs_init_car(g_car_ptr_array[0]);
@@ -877,7 +883,7 @@ void tnfs_ai_get_speed_factor(tnfs_car_data *car) {
 	DAT_001039d8 = DAT_001039d4 * DAT_001039dc;
 	DAT_001039d4 = DAT_001039d8 & 0xffff;
 	skill = (DAT_001039d8 & 0xffff00) >> 8 & 3;
-	car->collision_data.traffic_base_speed = g_ai_skill_cfg.traffic_speed_factors[skill];
+	car->collision_data.traffic_speed_factor = g_ai_skill_cfg.traffic_speed_factors[skill];
 }
 
 /*
@@ -892,7 +898,7 @@ void tnfs_ai_get_lane_slack(tnfs_car_data *car) {
 	if ((car->ai_state & 4) == 0) {
 		car->lane_slack = g_ai_skill_cfg.lane_slack[skill];
 	} else {
-		car->lane_slack = g_ai_cfg_ptr[car->car_id2]->lane_slack[skill];
+		car->lane_slack = g_ai_opp_data[car->car_id2].lane_slack[skill];
 	}
 }
 
@@ -935,19 +941,19 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	car->road_heading.y = heading.y;
 	car->road_heading.z = heading.z;
 
-	// unknown function
+	// unknown purpose
 	if ((car->car_id < 0) || (car->car_id >= g_number_of_players)) {
 		iVar9 = DAT_800eb6a4;
 		if ((g_number_of_players <= car->car_id) && (car->car_id < g_racer_cars_in_scene)) {
-			iVar9 = g_stats_data[car->car_id].field_0x89;
+			iVar9 = g_ai_opp_data[car->car_id].field_0x89;
 		}
 		DAT_001039d8 = DAT_001039d4 * DAT_001039dc;
 		DAT_001039d4 = DAT_001039d8 & 0xffff;
 		if (iVar9 * ((DAT_001039d8 & 0xffff00) >> 8) >> 0x10 == 1) {
-			tnfs_ai_get_speed_factor(car);
+			tnfs_ai_get_lane_slack(car);
 		}
 		// also in PSX
-		if (((g_cheat_code_psx_pc & 2) != 0) && (DAT_8010d310 == 0)) {
+		if (((g_game_settings & 2) != 0) && (DAT_8010d310 == 0)) {
 			DAT_001039d8 = DAT_001039d4 * DAT_001039dc;
 			uVar5 = DAT_001039d4 & 0xffff00;
 			DAT_001039d4 = DAT_001039d4 & 0xffff;
@@ -979,7 +985,7 @@ void tnfs_init_sim(char *trifile) {
 
 	g_game_time = 200;
 	cheat_crashing_cars = 0;
-	g_cheat_code_psx_pc = 0;
+	g_game_settings = 0;
 	sound_flag = 0;
 
 	tnfs_init_track(trifile);
@@ -1089,12 +1095,19 @@ void tnfs_init_sim(char *trifile) {
 	g_ai_skill_cfg.opponent_glue_3[20] = 0x90000;
 
 	for (i = 0; i < 8; i++) {
-		g_ai_cfg_ptr[i] = &g_ai_skill_cfg;
-
-		g_stats_data[i].opp_oncoming_look_ahead = 0x1b;
-		g_stats_data[i].field_0x65 = 0x3cccc;
-		g_stats_data[i].field_0x69 = 0x4ccc;
-		g_stats_data[i].field_0x89 = 0x3333;
+		g_ai_opp_data[i].id = i;
+		g_ai_opp_data[i].opp_oncoming_look_ahead = 0x1b;
+		g_ai_opp_data[i].field_0x65 = 0x3cccc;
+		g_ai_opp_data[i].field_0x69 = 0x4ccc;
+		g_ai_opp_data[i].field_0x89 = 0x3333;
+		g_ai_opp_data[i].field_0x55 = 0x10000; //???
+		g_ai_opp_data[i].field_0x59 = 0x10000;
+		for (j = 0; j < 4; j++) {
+			g_ai_opp_data[i].lane_slack[i] = 0;
+		}
+		for (j = 0; j < 21; j++) {
+			g_ai_opp_data[i].opponent_glue_factors[j] = 0x10000;
+		}
 
 		g_stats_data[i].best_accel_time_1 = 99999;
 		g_stats_data[i].best_accel_time_2 = 99999;
@@ -1133,6 +1146,7 @@ void tnfs_init_sim(char *trifile) {
 void tnfs_update() {
 	int i;
 	tnfs_car_data *car;
+	int reset;
 
 	g_game_time++;
 
@@ -1185,12 +1199,19 @@ void tnfs_update() {
 		}
 
 		// tweak to allow circuit track lap
-		if (car->road_segment_a > road_segment_count - 2) {
+		reset = 0;
+		if ((car->road_segment_a > road_segment_count - 2) && (car->car_road_speed > 0x1000)) {
 			car->road_segment_a = 0;
 			car->road_segment_b = 0;
-			car->position = track_data[0].pos;
-			car->collision_data.position = track_data[0].pos;
-			tnfs_track_update_vectors(car);
+			reset = 1;
+		} else if ((car->road_segment_a == 0) && (car->car_road_speed < -0x1000)) {
+			car->road_segment_a = car->road_segment_b = road_segment_count - 2;
+			reset = 1;
+		}
+		if (reset //
+			&& ((abs(car->position.x - track_data[car->road_segment_a].pos.x) > 0x1000000)
+			|| (abs(car->position.z - track_data[car->road_segment_a].pos.z) > 0x1000000))) {
+			tnfs_reset_car(car);
 		}
 
 		// set ground point for the collision engine

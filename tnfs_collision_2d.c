@@ -145,7 +145,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	rebound_speed_x = 0;
 	if (distance < roadLeftMargin * -0x2000) {
 		// left road side
-		car_data->surface_type = track_data[car_data->road_segment_a].verge_slide >> 4;
+		car_data->surface_type = track_data[car_data->road_segment_a].shoulder_surface_type >> 4;
 		aux = roadLeftFence * -0x2000 + tnfs_collision_car_size(car_data, fence_angle);
 		if (distance < aux) {
 			fenceSide = -0x100;
@@ -155,7 +155,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 
 	} else if (distance > roadRightMargin * 0x2000) {
 		// right road side
-		car_data->surface_type = track_data[car_data->road_segment_a].verge_slide & 0xf;
+		car_data->surface_type = track_data[car_data->road_segment_a].shoulder_surface_type & 0xf;
 		aux = roadRightFence * 0x2000 - tnfs_collision_car_size(car_data, fence_angle);
 		if (distance > aux) {
 			fenceSide = 0x100;
@@ -215,7 +215,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 		rebound_speed_x = fix2(rebound_speed_x);
 	}
 	if (rebound_speed_z < -0x30000) {
-		if ((g_cheat_code_psx_pc & 0x20) == 0) {
+		if ((g_game_settings & 0x20) == 0) {
 			rebound_speed_z = abs_speed + rebound_speed_z;
 			lm_speed = fix2(abs_speed);
 		} else {
@@ -226,7 +226,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 			rebound_speed_z = 0;
 		}
 	} else if (rebound_speed_z > 0x30000) {
-		if ((g_cheat_code_psx_pc & 0x20) == 0) {
+		if ((g_game_settings & 0x20) == 0) {
 			lm_speed = fix2(abs_speed);
 			aux = abs_speed;
 		} else {

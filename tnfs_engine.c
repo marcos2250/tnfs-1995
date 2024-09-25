@@ -117,7 +117,7 @@ void tnfs_engine_auto_shift_control(tnfs_car_data *car) {
 			car->throttle_previous_pos = car->throttle;
 			car->is_engine_cutoff = 1;
 			car->is_gear_engaged = 0;
-			if (car->unknown_0x498 == 4 && (g_game_time & 0x31) == 16) {
+			if (car->car_model_id == 4 && (g_game_time & 0x31) == 16) { // F512TR
 				car->is_shifting_gears = car->car_specs_ptr->shift_timer + 3;
 			} else {
 				car->is_shifting_gears = car->car_specs_ptr->shift_timer;
@@ -208,7 +208,7 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 	thrust = fix2(thrust * fix6(specs->final_drive_torque_ratio));
 
 	// rally mode
-	if (((g_cheat_code_psx_pc & 0x20) != 0) // rally mode enabled
+	if (((g_game_settings & 0x20) != 0) // rally mode enabled
 			&& (car->throttle > 0xfa) // full throttle
 			&& (car->gear_selected > 0) // forward gear
 			&& (car->speed_local_lon < 0x190000)) { // low speeds

@@ -192,12 +192,25 @@ int read_pdn_file(char *file, tnfs_car_data *car) {
 
 	fread(buffer, 460, 1, ptr);
 
-	car->moment_of_inertia = readFixed32(buffer, 0xC);
+	car->collision_data.size.x = readFixed32(buffer, 0);
+	car->collision_data.size.y = readFixed32(buffer, 4);
+	car->collision_data.size.z = readFixed32(buffer, 8);
+	car->collision_data.moment_of_inertia = readFixed32(buffer, 0xC);
+	car->collision_data.mass = readFixed32(buffer, 0x10);
+
+	car->field_168 = readFixed32(buffer, 0x14);
+	car->field_170 = readFixed32(buffer, 0x18);
+
 	for (i = 0; i < 100; i++) {
 		car->power_curve[i] = readFixed32(buffer, i * 4 + 0x1C);
 	}
-	//car->car_specs_ptr->rpm_redline = readFixed32(buffer, 0x1C4);
-	//car->car_specs_ptr->number_of_gears = readFixed32(buffer, 0x1C8);
+
+	for (i = 0; i < 6; i++) {
+		car->top_speed_per_gear[i] = readFixed32(buffer, i * 4 + 0x1AC);
+	}
+
+	car->pdn_max_rpm = readFixed32(buffer, 0x1C4);
+	car->pdn_number_of_gears = readFixed32(buffer, 0x1C8);
 
 	fclose(ptr);
 	printf("Loaded car PDN file %s.\n", file);

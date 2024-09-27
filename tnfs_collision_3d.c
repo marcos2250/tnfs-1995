@@ -449,7 +449,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		if (sound_flag == 0) {
 			tnfs_car_local_position_vector(car, &local_28, &local_24);
 		}
-		if (car->collision_data.field6_0x60 > 0x80000) {
+		if (car->collision_data.mass > 0x80000) {
 			tnfs_car_local_position_vector(car, &local_28, &local_24);
 			if (car->car_id2 == 0) {
 				local_24 = 1;
@@ -1486,9 +1486,9 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 				local_58.y = car_dist.y;
 				local_58.z = car_dist.z;
 				math_vec3_normalize(&local_58);
-				iVar4 = car1->field6_0x60 + car2->field6_0x60;
-				iVar9 = math_div(car1->field6_0x60, iVar4);
-				iVar8 = math_div(car2->field6_0x60, iVar4);
+				iVar4 = car1->mass + car2->mass;
+				iVar9 = math_div(car1->mass, iVar4);
+				iVar8 = math_div(car2->mass, iVar4);
 				iVar8 = iVar8 >> 2;
 				iVar9 = iVar9 >> 2;
 				iVar4 = -(iVar8 * local_58.x >> 0xe);

@@ -15,6 +15,11 @@ int math_mul(int x, int y) {
 }
 #endif
 
+int math_mul_floor(int x, int y) {
+	return math_mul(x >> 1, y >> 1) << 2;
+}
+
+
 /*
  * fixed division, eg. 0x2800 / 0x4b2 => 0x884e6
  */

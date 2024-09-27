@@ -134,6 +134,7 @@ value [ eax ];
 
 
 int math_mul(int x, int y);
+int math_mul_floor(int x, int y);
 int math_div(int x, int y);
 int math_inverse_value(int param_1);
 int math_sin(int input);

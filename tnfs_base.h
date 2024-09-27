@@ -86,7 +86,8 @@ typedef struct tnfs_car_specs {
 	 */
 	int roll_axis_height; //0x94
 
-	// ...
+	int weight_transfer_factor; //unused
+
 	/*
 	 * #cutoff-slip angles greater than this are assumed to
 	 * # be equal to this value.  As slip angles become too great
@@ -95,11 +96,10 @@ typedef struct tnfs_car_specs {
 	 */
 	int cutoff_slip_angle; //0xa4
 
-	// ...
+	int normal_coeff_loss; //unused
 	int rpm_redline; //0xac
 	int rpm_idle; //0xb0
 	unsigned int torque_table[120]; //0xb4
-	//  ...
 	int gear_upshift_rpm[7]; //0x294
 	int gear_efficiency[8]; //0x2b0
 
@@ -136,7 +136,12 @@ typedef struct tnfs_car_specs {
 	/// ...
 	int final_drive_torque_ratio; //0x328
 	int thrust_to_acc_factor; //0x32c
-	//  ...
+	int throttle_on_ramp; //unused
+	int throttle_off_ramp; //unused
+	int brake_on_ramp_1; //unused
+	int brake_on_ramp_2; //unused
+	int brake_off_ramp_1; //unused
+	int brake_off_ramp_2; //unused
 	int shift_timer; //0x354
 	int noGasRpmDec; //0x358
 	int gasRpmInc; //0x35C
@@ -163,8 +168,8 @@ typedef struct {
 	tnfs_vec3 angular_speed; //0x3c
 	tnfs_vec3 field4_0x48;
 	// ...
-	int field6_0x60; //0x60
-	// ...
+	int mass; //0x60
+	int moment_of_inertia; //0x64
 	int linear_acc_factor; //0x68
 	int angular_acc_factor; //0x6c
 	int edge_length; //0x70
@@ -221,6 +226,15 @@ typedef struct tnfs_car_data {
 	int ai_state; //0x174
 	int power_curve[100]; //0x178
 	// ...
+
+	/*
+	 * #top speeds per gear (mph) must be 6 figures, if less than 6 gears set first to 0
+	 */
+	int top_speed_per_gear[6]; //0x308
+
+	int ai_gear_ratios[6]; //0x320
+
+	int pdn_max_rpm; //0x338
 	int lane_slack; //0x33c
 	// ...
 	int angle_dy; //0x354
@@ -283,7 +297,7 @@ typedef struct tnfs_car_data {
 	int rear_yaw_factor; //0x45D
 	// ...
 	int field_461; //0x461
-	// ...
+	int pdn_number_of_gears; //0x46c
 	struct tnfs_car_specs *car_specs_ptr; //0x471
 	int car_id2; //0x475
 	// ...
@@ -416,15 +430,39 @@ typedef struct tnfs_ai_opp_data {
 	int opponent_glue_factors[21]; //0x4
 	int field_0x55; //0x55
 	int field_0x59; //0x59
-	// ...
-	int field_0x65; //0x65
+
+	/*
+	 * #dpjl 94.07.07: how far the opponent needs to be from you before he starts
+	 * # to try to block you (s.slices)
+	 */
+	int opp_block_look_behind; //0x5d
+
+	int opp_block_behind_distance; //0x61
+
+	/*
+	 * #dpjl 94.07.08: how fast the opponent changes lanes
+	 */
+	int opp_lane_change_speeds; //0x65
+
+
 	int field_0x69; //0x69
 
 	/*
 	 * #dpjl 94.07.08 Limit how far ahead opponents look ahead for oncoming traffic
 	 */
 	int opp_oncoming_look_ahead; //0x6d
-	// ...
+
+	/*
+	 * #dpjl 94.07.10ish Opponent will swerve into oncoming lane on tight curves
+	 * #left lane merit = oncoming_corner_swerve[skill]*delta yaw
+	 */
+	int opp_oncoming_corner_swerve; //0x71
+
+	/*
+	 * #dpjl 94.07.10: Opponent will cut corners (go into opposing lanes) on CCW turns
+	 */
+	int opp_cut_corners; //0x75
+
 	int lane_slack[4];
 	int field_0x89; //0x89
 } tnfs_ai_opp_data;
@@ -439,7 +477,7 @@ typedef struct tnfs_stats_data {
 	int quarter_mile_speed; //0x1a8
 	int quarter_mile_time; //0x1ac
 	int penalty_count; //0x1b0
-	int runaways_count; //0x1b4
+	int warning_count; //0x1b4
 	int field_0x1b8; //0x1b8
 	// ...
 	int prev_lap_time; //0x1bc

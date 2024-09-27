@@ -444,7 +444,6 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->collision_data.angular_speed.x = 0;
 	car->collision_data.angular_speed.y = 0;
 	car->collision_data.angular_speed.z = 0;
-	car->collision_data.field6_0x60 = 0x10a1c;
 
 	// ai car flags
 	car->speed_target = 0;
@@ -457,9 +456,6 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->crash_state = 3;
 	car->field_461 = 0;
 	car->field_4e9 = 7;
-	car->field_170 = 0xf333;
-	car->field_168 = 0x140000;
-	car->field_16c = 0xccc;
 	car->field_158 = 0;
 
 	if (car == player_car_ptr) {
@@ -563,6 +559,8 @@ void tnfs_init_car(tnfs_car_data *car) {
 	car->rear_yaw_factor = math_div(math_mul(car_specs.wheelbase, car->weight_distribution_rear), aux);
 
 	car->collision_height_offset = 0x92f1;
+	car->collision_data.mass = 0x10a1c;
+	car->collision_data.moment_of_inertia = 0x10000;
 	car->collision_data.linear_acc_factor = 0xf646;
 	car->collision_data.angular_acc_factor = 0x7dd4;
 	car->collision_data.size.x = car_specs.body_width / 2;
@@ -1096,18 +1094,22 @@ void tnfs_init_sim(char *trifile) {
 
 	for (i = 0; i < 8; i++) {
 		g_ai_opp_data[i].id = i;
-		g_ai_opp_data[i].opp_oncoming_look_ahead = 0x1b;
-		g_ai_opp_data[i].field_0x65 = 0x3cccc;
-		g_ai_opp_data[i].field_0x69 = 0x4ccc;
-		g_ai_opp_data[i].field_0x89 = 0x3333;
-		g_ai_opp_data[i].field_0x55 = 0x10000; //???
-		g_ai_opp_data[i].field_0x59 = 0x10000;
-		for (j = 0; j < 4; j++) {
-			g_ai_opp_data[i].lane_slack[i] = 0;
-		}
 		for (j = 0; j < 21; j++) {
 			g_ai_opp_data[i].opponent_glue_factors[j] = 0x10000;
 		}
+		g_ai_opp_data[i].field_0x55 = 0x10000; //???
+		g_ai_opp_data[i].field_0x59 = 0x10000;
+		g_ai_opp_data[i].opp_block_look_behind = 0xf;
+		g_ai_opp_data[i].opp_block_behind_distance = 0x50000; //
+		g_ai_opp_data[i].opp_lane_change_speeds = 0x3cccc; //3.8
+		g_ai_opp_data[i].field_0x69 = 0x4ccc; //0.3
+		g_ai_opp_data[i].opp_oncoming_look_ahead = 0x1b;
+		g_ai_opp_data[i].opp_oncoming_corner_swerve = 0;
+		g_ai_opp_data[i].opp_cut_corners = 0x1b;
+		for (j = 0; j < 4; j++) {
+			g_ai_opp_data[i].lane_slack[i] = 0;
+		}
+		g_ai_opp_data[i].field_0x89 = 0x3333; //0.2
 
 		g_stats_data[i].best_accel_time_1 = 99999;
 		g_stats_data[i].best_accel_time_2 = 99999;
@@ -1116,7 +1118,7 @@ void tnfs_init_sim(char *trifile) {
 		g_stats_data[i].quarter_mile_speed = 0;
 		g_stats_data[i].quarter_mile_time = 99999;
 		g_stats_data[i].penalty_count = 0;
-		g_stats_data[i].runaways_count = 0;
+		g_stats_data[i].warning_count = 0;
 		g_stats_data[i].field_0x1b8 = 0;
 		g_stats_data[i].prev_lap_time = 0;
 		g_stats_data[i].field412_0x1c0 = 0;

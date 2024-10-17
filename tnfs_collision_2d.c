@@ -25,9 +25,9 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int lon_speed, in
 	else
 		d_angle = angle - aux_angle;
 
-	rotAngle = d_angle - car_data->angle_y + (-(d_angle - car_data->angle_y < 0) & 0x1000000);
+	rotAngle = d_angle - car_data->angle.y + (-(d_angle - car_data->angle.y < 0) & 0x1000000);
 	if (rotAngle <= 0x800000)
-		collisionAngle = d_angle - car_data->angle_y + (-(d_angle - car_data->angle_y < 0) & 0x1000000);
+		collisionAngle = d_angle - car_data->angle.y + (-(d_angle - car_data->angle.y < 0) & 0x1000000);
 	else
 		collisionAngle = 0x1000000 - rotAngle;
 	if (collisionAngle > 0x400000) {
@@ -73,12 +73,12 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int lon_speed, in
 		if (abs(collisionAngle) < 0x130000 && car_data->speed_local_lon > 0) {
 			if (fence_side <= 0) {
 				if (rotAngle < 0x130000) {
-					car_data->angle_y += rotAngle;
+					car_data->angle.y += rotAngle;
 					car_data->angular_speed = 0x9FFFC + 4;
 				}
 			} else {
 				if (rotAngle > 0xed0001) {
-					car_data->angle_y += rotAngle;
+					car_data->angle.y += rotAngle;
 					car_data->angular_speed -= 0x9FFFC + 4;
 				}
 			}
@@ -91,7 +91,7 @@ int tnfs_collision_car_size(tnfs_car_data *car_data, int fence_angle) {
 	int x;
 
 	// fast cosine
-	x = abs(fence_angle - car_data->angle_y) >> 0x10;
+	x = abs(fence_angle - car_data->angle.y) >> 0x10;
 	if (x > 0xc1) {
 		x = 0x100 - x;
 	} else if (x > 0x80) {
@@ -120,47 +120,47 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	int fence_cos;
 	int re_speed;
 	int lm_speed;
-	int road_segment_pos_x;
-	int road_segment_pos_z;
+	int roadPositionX;
+	int roadPositionZ;
 	int roadLeftMargin;
 	int roadRightMargin;
 	int roadLeftFence;
 	int roadRightFence;
 
-	road_segment_pos_x = track_data[car_data->road_segment_a].pos.x;
-	road_segment_pos_z = track_data[car_data->road_segment_a].pos.z;
+	roadPositionX = track_data[car_data->track_slice & g_slice_mask].pos.x;
+	roadPositionZ = track_data[car_data->track_slice & g_slice_mask].pos.z;
 
-	roadLeftMargin = track_data[car_data->road_segment_a].roadLeftMargin;
-	roadRightMargin = track_data[car_data->road_segment_a].roadRightMargin;
-	roadLeftFence = track_data[car_data->road_segment_a].roadLeftFence;
-	roadRightFence = track_data[car_data->road_segment_a].roadRightFence;
+	roadLeftMargin = track_data[car_data->track_slice & g_slice_mask].roadLeftMargin;
+	roadRightMargin = track_data[car_data->track_slice & g_slice_mask].roadRightMargin;
+	roadLeftFence = track_data[car_data->track_slice & g_slice_mask].roadLeftFence;
+	roadRightFence = track_data[car_data->track_slice & g_slice_mask].roadRightFence;
 
-	fence_angle = track_data[car_data->road_segment_a].heading * 0x400;
+	fence_angle = track_data[car_data->track_slice & g_slice_mask].heading * 0x400;
 	fence_sin = math_sin_3(fence_angle);
 	fence_cos = math_cos_3(fence_angle);
 	fence_flag = 0;
 	fenceSide = 0;
-	distance = fixmul(fence_sin, road_segment_pos_z - car_data->position.z) - fixmul(fence_cos, road_segment_pos_x - car_data->position.x);
+	distance = fixmul(fence_sin, roadPositionZ - car_data->position.z) - fixmul(fence_cos, roadPositionX - car_data->position.x);
 
 	rebound_speed_x = 0;
 	if (distance < roadLeftMargin * -0x2000) {
 		// left road side
-		car_data->surface_type = track_data[car_data->road_segment_a].shoulder_surface_type >> 4;
+		car_data->surface_type = track_data[car_data->track_slice & g_slice_mask].shoulder_surface_type >> 4;
 		aux = roadLeftFence * -0x2000 + tnfs_collision_car_size(car_data, fence_angle);
 		if (distance < aux) {
 			fenceSide = -0x100;
 			rebound_speed_x = aux - distance - 0x4ccc;
-			fence_flag = track_data[car_data->road_segment_a].fence_flag >> 4;
+			fence_flag = track_data[car_data->track_slice & g_slice_mask].fence_flag >> 4;
 		}
 
 	} else if (distance > roadRightMargin * 0x2000) {
 		// right road side
-		car_data->surface_type = track_data[car_data->road_segment_a].shoulder_surface_type & 0xf;
+		car_data->surface_type = track_data[car_data->track_slice & g_slice_mask].shoulder_surface_type & 0xf;
 		aux = roadRightFence * 0x2000 - tnfs_collision_car_size(car_data, fence_angle);
 		if (distance > aux) {
 			fenceSide = 0x100;
 			rebound_speed_x = distance + 0x4ccc - aux;
-			fence_flag = track_data[car_data->road_segment_a].fence_flag & 0xf;
+			fence_flag = track_data[car_data->track_slice & g_slice_mask].fence_flag & 0xf;
 		}
 	} else {
 		car_data->surface_type = 0;

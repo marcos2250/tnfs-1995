@@ -132,7 +132,6 @@ value [ eax ];
 
 #define abs(a) ((a)>=0 ? (a) : -(a))
 
-
 int math_mul(int x, int y);
 int math_mul_floor(int x, int y);
 int math_div(int x, int y);
@@ -147,6 +146,7 @@ int math_cos_3(int input);
 int math_tan_3(int input);
 int math_atan2(int x, int y);
 void math_rotate_2d(int x1, int y1, int angle, int *x2, int *y2);
+void math_rotate_vector_xz(tnfs_vec3 *v0, tnfs_vec3 *v1, int angle);
 int math_angle_wrap(int a);
 int math_angle14_32(short input);
 void math_matrix_set_rot_Z(tnfs_vec9 *param_1, int angle);
@@ -159,6 +159,7 @@ int math_sqrt(int param_1);
 int math_vec3_length_squared(tnfs_vec3 *car_size);
 int math_vec3_length(tnfs_vec3 *car_size);
 int math_vec3_length_XZ(tnfs_vec3 *param_1);
+int math_vec3_distance_XZ(tnfs_vec3 *v1, tnfs_vec3 *v2);
 int math_vec3_distance_squared_XZ(tnfs_vec3 *v1, tnfs_vec3 *v2);
 void math_vec3_cross_product(tnfs_vec3 *result, tnfs_vec3 *v1, tnfs_vec3 *v2);
 void math_vec3_normalize_2(tnfs_vec3 *input);

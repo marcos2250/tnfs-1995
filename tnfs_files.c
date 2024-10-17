@@ -21,7 +21,7 @@ int readSigned16(unsigned char *buffer, int pos) {
  * Import a TNFSSE TRI track file
  */
 int read_tri_file(char * file) {
-	unsigned char buffer[36];
+	unsigned char buffer[44];
 	FILE *ptr;
 	int i;
 	int c;
@@ -32,8 +32,23 @@ int read_tri_file(char * file) {
 		return 0;
 	}
 
-	// 0x98C block: Virtual road
-	road_segment_count = 0;
+	// header flags
+	fread(buffer, 44, 1, ptr);
+	if (buffer[0] != 0x11) {
+		printf("Error:\tInitRoad - Incorrect version number.  Continuing anyway!\n");
+		return 0;
+	}
+
+	g_is_closed_track = buffer[4] != 0;
+	g_road_node_count = readFixed32(buffer, 6) * 4;
+
+	if (g_is_closed_track) {
+		g_slice_mask = g_road_node_count - 1;
+	} else {
+		g_slice_mask = -1;
+	}
+
+	// 0x98C block: Virtual road / RoadSplinePoint
 	for (i = 0; i < 2400; i++) {
 		fseek(ptr, i * 36 + 0x98C, SEEK_SET);
 		fread(buffer, 36, 1, ptr);
@@ -61,14 +76,9 @@ int read_tri_file(char * file) {
 		track_data[i].side_normal_x = readSigned16(buffer, 28);
 		track_data[i].side_normal_y = readSigned16(buffer, 30);
 		track_data[i].side_normal_z = readSigned16(buffer, 32);
-
-		if (i > 0 && track_data[i].pos.x == 0 && track_data[i].pos.y == 0 && track_data[i].pos.z == 0) {
-			break;
-		}
-		road_segment_count++;
 	}
 
-	// 0x15B0C block: Track slice AI speed reference
+	// 0x15B0C block: Track node AI speed reference
 	for (i = 0; i < 600; i++) {
 		fseek(ptr, i * 3 + 0x15B0C, SEEK_SET);
 		fread(buffer, 3, 1, ptr);
@@ -78,15 +88,17 @@ int read_tri_file(char * file) {
 	}
 
 	// fill remaining nodes for circuit track
-	c = 0;
-	for (i = road_segment_count; i < 2400; i++) {
-		track_data[i] = track_data[c];
-		g_track_speed[i >> 2] = g_track_speed[c >> 2];
-		c++;
+	if (g_is_closed_track) {
+		c = 0;
+		for (i = g_road_node_count; i < 2400; i++) {
+			track_data[i] = track_data[c];
+			g_track_speed[i >> 2] = g_track_speed[c >> 2];
+			c++;
+		}
 	}
 
 	fclose(ptr);
-	printf("Loaded track %s with %d segments.\n", file, road_segment_count);
+	printf("Loaded track %s with %d nodes.\n", file, g_road_node_count);
 	return 1;
 }
 

@@ -117,7 +117,7 @@ void tnfs_engine_auto_shift_control(tnfs_car_data *car) {
 			car->throttle_previous_pos = car->throttle;
 			car->is_engine_cutoff = 1;
 			car->is_gear_engaged = 0;
-			if (car->car_model_id == 4 && (g_game_time & 0x31) == 16) { // F512TR
+			if (car->car_model_id == 4 && (iSimTimeClock & 0x31) == 16) { // F512TR
 				car->is_shifting_gears = car->car_specs_ptr->shift_timer + 3;
 			} else {
 				car->is_shifting_gears = car->car_specs_ptr->shift_timer;

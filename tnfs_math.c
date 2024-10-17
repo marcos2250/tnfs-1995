@@ -87,6 +87,14 @@ void math_rotate_2d(int x1, int y1, int angle, int *x2, int *y2) {
 	*y2 = (int) (x1 * s + y1 * c);
 }
 
+void math_rotate_vector_xz(tnfs_vec3 *v0, tnfs_vec3 *v1, int angle) {
+	double a = (double) angle / 2670178; //angle= 0 to 16777215 (360)
+	double s = sin(a);
+	double c = cos(a);
+	v1->x = (int) (v0->x * c - v0->z * s);
+	v1->z = (int) (v0->x * s + v0->z * c);
+}
+
 int math_angle_wrap(int a) {
 	int x = a;
 	if (x < 0) {
@@ -240,6 +248,13 @@ int math_vec3_length_XZ(tnfs_vec3 *vector) {
 	x = math_mul(vector->x, vector->x);
 	z = math_mul(vector->z, vector->z);
 	return sqrt(x + z) * 0xFF;
+}
+
+int math_vec3_distance_XZ(tnfs_vec3 *v1, tnfs_vec3 *v2) {
+	int x, z;
+	x = (v2->x - v1->x) >> 8;
+	z = (v2->z - v1->z) >> 8;
+	return sqrt(x * x + z * z);
 }
 
 int math_vec3_distance_squared_XZ(tnfs_vec3 *v1, tnfs_vec3 *v2) {

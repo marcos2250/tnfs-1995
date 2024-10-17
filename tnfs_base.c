@@ -29,8 +29,8 @@ int g_number_of_traffic_cars = 4; //001670BB
 
 // settings/flags
 char is_drifting;
-int g_game_time = 0;
-int road_segment_count = 0;
+int iSimTimeClock = 0;
+int g_road_node_count = 0;
 int sound_flag = 0;
 int g_selected_cheat = 0;
 int cheat_crashing_cars = 0;
@@ -43,8 +43,8 @@ int g_police_speeding_ticket = 0; //0016513C
 int g_police_chase_time = 0; //0016533c
 
 tnfs_camera camera;
-int selected_camera = 0;
-tnfs_vec3 camera_position;
+tnfs_camera_specs g_camera_specs;
+int selected_camera = 1;
 
 /* tire grip slide table  */
 static const unsigned char g_slide_table[64] = {
@@ -69,24 +69,26 @@ int DAT_000f99e4 = 0x10000;
 int DAT_000f99e8 = 0x34000;
 int DAT_000f99ec = 10; //800eae14
 int DAT_000f99f0 = 0x8000;
+int DAT_000fae60 = 0;
 int DAT_000FDB94 = 0;
 int DAT_000FDCEC = 0;
 int DAT_000FDCF0 = 0;
 int DAT_000f9A70 = 0;
 int DAT_001039d4 = 0xFFFF; //800db6bc
-int DAT_001039d8 = 0x12345678; //800db6c0
+int DAT_001039d8 = 0x12345678; //800db6c0 g_car_random_index
 int DAT_001039dc = 0x12345679; // random value
-int DAT_00144914 = 0;
+int g_camera_node = 0; //144914
 int DAT_00143844 = 0;
-int DAT_0014DCC4 = 0;
-int DAT_0014dccc = 0xFFFF; // segment id mask
-int DAT_00153B20 = 0;
-int DAT_00153B24 = 0;
-tnfs_car_data * DAT_00153BC4 = 0;
-int DAT_00165148 = 0;
+int g_is_closed_track = 0; // 14DCC4
+int g_slice_mask = 0xFFFF; // 14dccc
+int g_track_lap = 0; //00153b08
+int g_track_slice = 0x76b; //00153b0c
+int DAT_00153B20 = 0; // game over flag
+int DAT_00153B24 = 0; // game over flag 2?
+tnfs_car_data * DAT_00153BC4 = 0; //player car ptr 2
+int DAT_00165148 = 0; // center lane distance/margin
 int DAT_00165340 = 0;
-int DAT_0016707C = 0; //player car id?
-
+int g_player_id = 0; //16707C
 
 /* create a random track and a generic car */
 
@@ -96,14 +98,17 @@ void auto_generate_track() {
 	int pos_z = 0;
 	int slope = 0;
 	int slant = 0;
+	int heading = 0;
 	int rnd = 0;
 	int i;
 
-	road_segment_count = 2400;
+	g_road_node_count = 2400;
+
+	srand(time());
 
 	for (i = 0; i < 2400; i++) {
 
-		if (i % 30 == 0)
+		if (i > 30 && i % 30 == 0)
 			rnd = rand();
 
 		if (rnd & 128) {
@@ -117,9 +122,9 @@ void auto_generate_track() {
 		}
 		if (rnd & 32) {
 			if (rnd & 16) {
-				slant -= 20;
+				slant -= 10;
 			} else {
-				slant += 20;
+				slant += 10;
 			}
 		} else {
 			slant *= 0.9;
@@ -129,6 +134,8 @@ void auto_generate_track() {
 		if (slope < -0x3FF) slope = -0x3FF;
 		if (slant > 0x3FF) slant = 0x3FF;
 		if (slant < -0x3FF) slant = -0x3FF;
+		if (heading > 0xFFF) slant *= 0.9;
+		if (heading < -0xFFF) slant *= 0.9;
 
 		track_data[i].roadLeftFence = 0x50;
 		track_data[i].roadRightFence = 0x50;
@@ -140,7 +147,7 @@ void auto_generate_track() {
 		track_data[i].item_mode = 0x3;
 
 		track_data[i].slope = slope;
-		track_data[i].heading = slant << 2;
+		track_data[i].heading = heading;
 		track_data[i].slant = slant;
 		track_data[i].pos.x = pos_x;
 		track_data[i].pos.y = pos_y;
@@ -150,10 +157,11 @@ void auto_generate_track() {
 		track_data[i].side_normal_y = (short)(math_tan_3(track_data[i].slant * -0x400) / 2);
 		track_data[i].side_normal_z = (short)(math_sin_3(track_data[i].heading * -0x400) / 2);
 
-		// next segment
+		// next node
 		pos_x += fixmul(math_sin_3(track_data[i].heading * 0x400), 0x80000);
 		pos_y += fixmul(math_tan_3(track_data[i].slope * 0x400), 0x80000);
 		pos_z += fixmul(math_cos_3(track_data[i].heading * 0x400), 0x80000);
+		heading += slant >> 2;
 	}
 
 	// track section speed
@@ -174,7 +182,7 @@ void tnfs_init_track(char *tri_file) {
 	}
 
 	// model track for rendering
-	for (i = 0; i < road_segment_count; i++) {
+	for (i = 0; i < g_road_node_count; i++) {
 		heading = track_data[i].heading * -0x400;
 		s = math_sin_3(heading);
 		c = math_cos_3(heading);
@@ -347,31 +355,29 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->wheels_on_ground = 1;
 	car->surface_type = 0;
 	car->surface_type_b = 0;
-	//car->road_segment_a = 0;
-	//car->road_segment_b = 0;
 	car->slope_force_lat = 0;
 	car->unknown_flag_3DD = 0;
 	car->slope_force_lon = 0;
 
-	car->position.x = track_data[car->road_segment_a].pos.x;
-	car->position.y = track_data[car->road_segment_a].pos.y + 150;
-	car->position.z = track_data[car->road_segment_a].pos.z;
+	car->position.x = track_data[car->track_slice].pos.x;
+	car->position.y = track_data[car->track_slice].pos.y + 150;
+	car->position.z = track_data[car->track_slice].pos.z;
 
-	car->angle_x = track_data[car->road_segment_a].slope * 0x400;
-	car->angle_y = track_data[car->road_segment_a].heading * 0x400;
-	car->angle_z = track_data[car->road_segment_a].slant * 0x400;
+	car->angle.x = track_data[car->track_slice].slope * 0x400;
+	car->angle.y = track_data[car->track_slice].heading * 0x400;
+	car->angle.z = track_data[car->track_slice].slant * 0x400;
 
 	// convert slope/slant angles to signed values
-	if (car->angle_x > 0x800000)
-		car->angle_x -= 0x1000000;
-	if (car->angle_z > 0x800000)
-		car->angle_z -= 0x1000000;
+	if (car->angle.x > 0x800000)
+		car->angle.x -= 0x1000000;
+	if (car->angle.z > 0x800000)
+		car->angle.z -= 0x1000000;
 
-	car->angle_x *= -1;
-	car->angle_z *= -1;
+	car->angle.x *= -1;
+	car->angle.z *= -1;
 
 	if (car->ai_state & 0x1000) {
-		car->angle_y *= -1;
+		car->angle.y *= -1;
 	}
 
 	car->body_pitch = 0;
@@ -428,6 +434,8 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->side_edge.y = 0x10000;
 	car->side_edge.z = 0;
 
+	car->track_center_distance = 0;
+
 	math_matrix_identity(&car->matrix);
 	math_matrix_identity(&car->collision_data.matrix);
 
@@ -447,11 +455,11 @@ void tnfs_reset_car(tnfs_car_data *car) {
 
 	// ai car flags
 	car->speed_target = 0;
+	car->target_angle = 0;
 	car->collision_data.field_084 = 0;
 	car->collision_data.field_088 = 0;
 	car->collision_data.field_08c = 0;
-	car->collision_data.traffic_speed_factor = 0x10000; //0xb333; //0xcccc
-	car->field_158 = 0;
+	car->collision_data.traffic_speed_factor = 0x10000;
 	car->lane_slack = 0;
 	car->crash_state = 3;
 	car->field_461 = 0;
@@ -468,7 +476,6 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	} else {
 		// ai cars
 		car->crash_state = 3;
-		car->steer_angle = car->angle_y;
 		if (car->car_id == 2) {
 			// police car
 			car->ai_state = 0x1e8;
@@ -490,8 +497,8 @@ void tnfs_init_car(tnfs_car_data *car) {
 	car->car_id = 0;
 	car->field_4e9 = 7;
 	car->position.z = 0; //0x600000;
-	car->road_segment_a = 0; //0x10;
-	car->road_segment_b = 0; //0x10;
+	car->track_slice = 0; //0x10;
+	car->track_slice_lap = 0; //0x10;
 	car->lap_number = 1;
 
 	// rally mode tweaks
@@ -608,8 +615,9 @@ void tnfs_controls_update() {
 
 void tnfs_change_camera() {
 	selected_camera++;
-	if (selected_camera > 3)
+	if (selected_camera > 4)
 		selected_camera = 0;
+	camera.id = selected_camera;
 }
 
 void tnfs_change_gear_automatic(int shift) {
@@ -756,7 +764,7 @@ void tnfs_sfx_play(int a, int b, int c, int d, int e, int f) {
 }
 
 void tnfs_replay_highlight_record(char a) {
-	if (g_game_time % 30 == 0)
+	if (iSimTimeClock % 30 == 0)
 		printf("replay highlight %i\n", a);
 }
 
@@ -772,11 +780,11 @@ void tnfs_car_local_position_vector(tnfs_car_data *car, int *angle, int *length)
 	int z;
 	int heading;
 
-	x = car->position.x - track_data[car->road_segment_a].pos.x;
-	y = car->position.y - track_data[car->road_segment_a].pos.y;
-	z = car->position.z - track_data[car->road_segment_a].pos.z;
+	x = car->position.x - track_data[car->track_slice & g_slice_mask].pos.x;
+	y = car->position.y - track_data[car->track_slice & g_slice_mask].pos.y;
+	z = car->position.z - track_data[car->track_slice & g_slice_mask].pos.z;
 
-	heading = track_data[car->road_segment_a].heading * 0x400;
+	heading = track_data[car->track_slice & g_slice_mask].heading * 0x400;
 
 	if (heading < 0) {
 		heading = heading + 0x1000000;
@@ -810,7 +818,7 @@ void tnfs_car_local_position_vector(tnfs_car_data *car, int *angle, int *length)
 	}
 }
 
-int tnfs_road_segment_find(tnfs_car_data *car, int *current) {
+int tnfs_track_node_find(tnfs_vec3 *p_position, int *current) {
 	int node;
 	int dist1;
 	int dist2;
@@ -825,27 +833,27 @@ int tnfs_road_segment_find(tnfs_car_data *car, int *current) {
 		do {
 			node = *current;
 
-			tracknode1 = &track_data[node];
-			tracknode2 = &track_data[node + 1];
+			tracknode1 = &track_data[node & g_slice_mask];
+			tracknode2 = &track_data[(node + 1) & g_slice_mask];
 			position.x = (tracknode1->pos.x + tracknode2->pos.x) >> 1;
 			position.z = (tracknode1->pos.z + tracknode2->pos.z) >> 1;
-			dist1 = math_vec3_distance_squared_XZ(&position, &car->position);
+			dist1 = math_vec3_distance_squared_XZ(&position, p_position);
 
-			tracknode1 = &track_data[node + 1];
-			tracknode2 = &track_data[node + 2];
+			tracknode1 = &track_data[(node + 1) & g_slice_mask];
+			tracknode2 = &track_data[(node + 2) & g_slice_mask];
 			position.x = (tracknode1->pos.x + tracknode2->pos.x) >> 1;
 			position.z = (tracknode1->pos.z + tracknode2->pos.z) >> 1;
-			dist2 = math_vec3_distance_squared_XZ(&position, &car->position);
+			dist2 = math_vec3_distance_squared_XZ(&position, p_position);
 
 			if (dist2 < dist1) {
 				changed = 1;
 				*current = *current + 1;
-			} else if (0 < *current) {
-				tracknode1 = &track_data[node - 1];
-				tracknode2 = &track_data[node];
+			} else if (0 < *current || !g_is_closed_track) {
+				tracknode1 = &track_data[(node - 1) & g_slice_mask];
+				tracknode2 = &track_data[node & g_slice_mask];
 				position.x = (tracknode1->pos.x + tracknode2->pos.x) >> 1;
 				position.z = (tracknode1->pos.z + tracknode2->pos.z) >> 1;
-				dist2 = math_vec3_distance_squared_XZ(&position, &car->position);
+				dist2 = math_vec3_distance_squared_XZ(&position, p_position);
 
 				if (dist2 < dist1) {
 					node = *current;
@@ -859,16 +867,20 @@ int tnfs_road_segment_find(tnfs_car_data *car, int *current) {
 			}
 		} while (node != *current);
 	}
+	if ((*current & ~g_slice_mask) != 0) {
+		*current = *current & g_slice_mask;
+		changed = 1;
+	}
 	return changed;
 }
 
-int tnfs_road_segment_update(tnfs_car_data *car) {
+int tnfs_track_node_update(tnfs_car_data *car) {
 	int changed;
-	int segment;
-	segment = car->road_segment_a;
-	changed = tnfs_road_segment_find(car, &segment);
-	car->road_segment_a = segment;
-	car->road_segment_b = segment;
+	int node;
+	node = car->track_slice;
+	changed = tnfs_track_node_find(&car->position, &node);
+	car->track_slice = node;
+	car->track_slice_lap = node;
 	return changed;
 }
 
@@ -907,7 +919,7 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	int iVar9, uVar5;
 
 	// current node
-	node = car->road_segment_a;
+	node = car->track_slice & g_slice_mask;
 	car->road_position.x = track_data[node].pos.x;
 	car->road_position.y = track_data[node].pos.y;
 	car->road_position.z = track_data[node].pos.z;
@@ -917,7 +929,7 @@ void tnfs_track_update_vectors(tnfs_car_data *car) {
 	wall_normal.z = track_data[node].side_normal_z << 1;
 
 	// next node vector
-	node++;
+	node = (car->track_slice + 1) & g_slice_mask;
 	heading.x = track_data[node].pos.x - car->road_position.x;
 	heading.y = track_data[node].pos.y - car->road_position.y;
 	heading.z = track_data[node].pos.z - car->road_position.z;
@@ -975,13 +987,23 @@ int tnfs_car_road_speed_2(tnfs_car_data *car) {
 			+ ((car->road_heading).z >> 8) * (-(car->collision_data.speed).z >> 8);
 }
 
+void tnfs_car_update_center_line(tnfs_car_data *car) {
+	int iVar1;
+	int iVar2;
+	int iVar3;
+	iVar3 = track_data[car->track_slice & g_slice_mask].heading;
+	iVar1 = math_mul(math_sin_2(iVar3 << 2), track_data[car->track_slice & g_slice_mask].pos.x - (car->position).x);
+	iVar2 = math_mul(math_cos_2(iVar3 << 2), track_data[car->track_slice & g_slice_mask].pos.z - (car->position).z);
+	car->track_center_distance = -iVar2 - iVar1;
+}
+
 /*
  * setup everything
  */
 void tnfs_init_sim(char *trifile) {
 	int i, j;
 
-	g_game_time = 200;
+	iSimTimeClock = 200;
 	cheat_crashing_cars = 0;
 	g_game_settings = 0;
 	sound_flag = 0;
@@ -992,6 +1014,7 @@ void tnfs_init_sim(char *trifile) {
 	g_ai_skill_cfg.opp_desired_ahead = 0x140000;
 	g_ai_skill_cfg.cop_warning_time = 400;
 	g_ai_skill_cfg.max_player_runways = 2;
+	g_ai_skill_cfg.field_028 = 0x3c;
 	g_ai_skill_cfg.traffic_density = 0x1f4;
 	g_ai_skill_cfg.number_of_traffic_cars = 4;
 	g_ai_skill_cfg.traffic_speed_factors[0] = 0x10000;
@@ -1121,7 +1144,7 @@ void tnfs_init_sim(char *trifile) {
 		g_stats_data[i].warning_count = 0;
 		g_stats_data[i].field_0x1b8 = 0;
 		g_stats_data[i].prev_lap_time = 0;
-		g_stats_data[i].field412_0x1c0 = 0;
+		g_stats_data[i].lap_time_0x1c0 = 0;
 		g_stats_data[i].top_speed = 0;
 		g_stats_data[i].field_0x1c8 = 0;
 		for (j = 0; j < 17; j++) {
@@ -1133,13 +1156,91 @@ void tnfs_init_sim(char *trifile) {
 	tnfs_init_car(&g_car_array[0]);
 	g_car_array[0].car_data_ptr = &g_car_array[0];
 	g_car_array[0].car_specs_ptr = &car_specs;
-	g_car_array[0].road_segment_a = 18;
+	g_car_array[0].track_slice = 18;
 	tnfs_reset_car(&g_car_array[0]);
 	g_car_ptr_array[0] = &g_car_array[0];
 	player_car_ptr = &g_car_array[0];
 
 	// create AI car(s)
+	if (g_is_closed_track) {
+		g_number_of_traffic_cars = 0;
+		g_number_of_cops = 0;
+		g_racer_cars_in_scene = 7;
+		g_total_cars_in_scene = 7;
+	} else {
+		g_number_of_cops = 1;
+		g_number_of_traffic_cars = 4;
+		g_racer_cars_in_scene = 2;
+		g_total_cars_in_scene = 7;
+	}
 	tnfs_ai_init();
+
+	// init camera
+	camera.position.x = 0;
+	camera.position.y = 0x80000;
+	camera.position.z = 0;
+	camera.orientation.x = 0;
+	camera.orientation.y = 0;
+	camera.orientation.z = 0;
+}
+
+void math_lerp(int *result, int target) {
+	if (iSimTimeClock < 300) {
+		*result += (target - *result) >> 4;
+	} else {
+		*result += (target - *result) >> 1;
+	}
+}
+
+void math_lerp_angle(int *result, int target) {
+	if (*result - target > 0x800000) {
+		target += 0x1000000;
+	} else if (*result - target < -0x800000) {
+		target -= 0x1000000;
+	}
+	*result += (target - *result) >> 4;
+	*result &= 0xffffff;
+}
+
+/* simplified version */
+void tnfs_camera_update() {
+	switch (selected_camera) {
+	case 0: //in car
+		camera.car_id = 0;
+		camera.position.x = g_car_array[0].position.x;
+		camera.position.y = g_car_array[0].position.y + 0x12000;
+		camera.position.z = g_car_array[0].position.z;
+		camera.orientation.y = g_car_array[0].angle.y;
+		break;
+	case 1: //chase cam
+		camera.car_id = 0;
+		math_lerp(&camera.position.x, g_car_array[0].position.x + fixmul(0x80000, track_data[g_car_array[0].track_slice].side_normal_z * 2));
+		math_lerp(&camera.position.y, g_car_array[0].position.y + 0x30000);
+		math_lerp(&camera.position.z, g_car_array[0].position.z - fixmul(0x80000, track_data[g_car_array[0].track_slice].side_normal_x * 2));
+		math_lerp_angle(&camera.orientation.y, track_data[g_car_array[0].track_slice].heading * 0x400);
+		break;
+	case 2: //heli cam
+		camera.car_id = 0;
+		math_lerp(&camera.position.x, g_car_array[0].position.x + fixmul(0x100000, track_data[g_car_array[0].track_slice].side_normal_z * 2));
+		math_lerp(&camera.position.y, g_car_array[0].position.y + 0x60000);
+		math_lerp(&camera.position.z, g_car_array[0].position.z - fixmul(0x100000, track_data[g_car_array[0].track_slice].side_normal_x * 2));
+		math_lerp_angle(&camera.orientation.y, track_data[g_car_array[0].track_slice].heading * 0x400);
+		break;
+	case 3: //opponent cam
+		camera.car_id = 1;
+		camera.position.x = g_car_array[camera.car_id].position.x;
+		camera.position.y = g_car_array[camera.car_id].position.y + 0x60000;
+		camera.position.z = g_car_array[camera.car_id].position.z - 0x100000;
+		camera.orientation.y = 0;
+		break;
+	case 4: //cop cam
+		camera.car_id = g_racer_cars_in_scene;
+		camera.position.x = g_car_array[camera.car_id].position.x;
+		camera.position.y = g_car_array[camera.car_id].position.y + 0x60000;
+		camera.position.z = g_car_array[camera.car_id].position.z - 0x100000;
+		camera.orientation.y = 0;
+		break;
+	}
 }
 
 /*
@@ -1150,35 +1251,7 @@ void tnfs_update() {
 	tnfs_car_data *car;
 	int reset;
 
-	g_game_time++;
-
-	// update camera
-	switch (selected_camera) {
-	case 0: //chase cam
-		camera.car_id = 0;
-		camera.position.x = g_car_array[0].position.x;
-		camera.position.y = g_car_array[0].position.y + 0x50000;
-		camera.position.z = g_car_array[0].position.z - 0x96000;
-		break;
-	case 1: //heli cam
-		camera.car_id = 0;
-		camera.position.x = g_car_array[0].position.x;
-		camera.position.y = g_car_array[0].position.y + 0x60000;
-		camera.position.z = g_car_array[0].position.z - 0x100000;
-		break;
-	case 2: //opponent cam
-		camera.car_id = 1;
-		camera.position.x = g_car_array[1].position.x;
-		camera.position.y = g_car_array[1].position.y + 0x60000;
-		camera.position.z = g_car_array[1].position.z - 0x100000;
-		break;
-	case 3: //cop cam
-		camera.car_id = g_racer_cars_in_scene;
-		camera.position.x = g_car_array[camera.car_id].position.x;
-		camera.position.y = g_car_array[camera.car_id].position.y + 0x60000;
-		camera.position.z = g_car_array[camera.car_id].position.z - 0x100000;
-		break;
-	}
+	iSimTimeClock++;
 
 	player_car_ptr->car_road_speed = tnfs_car_road_speed(player_car_ptr);
 
@@ -1192,7 +1265,7 @@ void tnfs_update() {
 		if (car->crash_state != 4) {
 			if (i < g_number_of_players) {
 				tnfs_driving_main(car);
-				math_matrix_from_pitch_yaw_roll(&car->matrix, car->angle_x + car->body_pitch, car->angle_y, car->angle_z + car->body_roll);
+				math_matrix_from_pitch_yaw_roll(&car->matrix, car->angle.x + car->body_pitch, car->angle.y, car->angle.z + car->body_roll);
 			} else {
 				tnfs_ai_driving_main(car);
 			}
@@ -1202,21 +1275,25 @@ void tnfs_update() {
 
 		// tweak to allow circuit track lap
 		reset = 0;
-		if ((car->road_segment_a > road_segment_count - 2) && (car->car_road_speed > 0x1000)) {
-			car->road_segment_a = 0;
-			car->road_segment_b = 0;
+		if ((car->track_slice > g_road_node_count - 2) && (car->car_road_speed > 0x1000)) {
+			car->track_slice = 0;
+			car->track_slice_lap = 0;
 			reset = 1;
-		} else if ((car->road_segment_a == 0) && (car->car_road_speed < -0x1000)) {
-			car->road_segment_a = car->road_segment_b = road_segment_count - 2;
+		} else if ((car->track_slice == 0) && (car->car_road_speed < -0x1000)) {
+			car->track_slice = car->track_slice_lap = g_road_node_count - 2;
 			reset = 1;
 		}
 		if (reset //
-			&& ((abs(car->position.x - track_data[car->road_segment_a].pos.x) > 0x1000000)
-			|| (abs(car->position.z - track_data[car->road_segment_a].pos.z) > 0x1000000))) {
+			&& ((abs(car->position.x - track_data[car->track_slice].pos.x) > 0x1000000)
+			|| (abs(car->position.z - track_data[car->track_slice].pos.z) > 0x1000000))) {
 			tnfs_reset_car(car);
 		}
 
+		tnfs_car_update_center_line(car);
+
 		// set ground point for the collision engine
-		car->road_ground_position = track_data[car->road_segment_a].pos;
+		car->road_ground_position = track_data[car->track_slice].pos;
 	}
+
+	tnfs_camera_update();
 }

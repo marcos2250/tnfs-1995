@@ -16,6 +16,7 @@ const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
 
 GLfloat matrix[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+float cam_angle = 0;
 
 void handleKeys() {
 	if (event.type == SDL_KEYDOWN) {
@@ -116,11 +117,15 @@ void drawVehicle(tnfs_car_data * car) {
 	matrix[9] = (float) car->matrix.cy / 0x10000;
 	matrix[10] = (float) -car->matrix.cz / 0x10000;
 	matrix[11] = 0;
-	matrix[12] = ((float) (car->position.x - camera.position.x)) / 0x10000;
-	matrix[13] = ((float) (car->position.y - camera.position.y)) / 0x10000;
-	matrix[14] = ((float) (-car->position.z + camera.position.z)) / 0x10000;
+	matrix[12] = ((float) car->position.x) / 0x10000;
+	matrix[13] = ((float) car->position.y) / 0x10000;
+	matrix[14] = ((float) -car->position.z) / 0x10000;
 	matrix[15] = 1;
-	glLoadMatrixf(matrix);
+
+	glLoadIdentity();
+	glRotatef(cam_angle, 0, 1, 0);
+	glTranslatef(((float) -camera.position.x) / 0x10000, ((float) -camera.position.y) / 0x10000, ((float) camera.position.z) / 0x10000);
+	glMultMatrixf(matrix);
 
 	if (car == player_car_ptr) {
 		glColor3f(0.0f, 0.0f, 1.0f); //player
@@ -177,21 +182,17 @@ void drawRoad() {
 	int max, i, j;
 
 	glMatrixMode(GL_MODELVIEW);
-	matrix[0] = 1; matrix[1] = 0; matrix[2] = 0; matrix[3] = 0;
-	matrix[4] = 0; matrix[5] = 1; matrix[6] = 0; matrix[7] = 0;
-	matrix[8] = 0; matrix[9] = 0; matrix[10] = 1; matrix[11] = 0;
-	matrix[12] = ((float) -camera.position.x) / 0x10000;
-	matrix[13] = ((float) -camera.position.y) / 0x10000;
-	matrix[14] = ((float) camera.position.z) / 0x10000;
-	matrix[15] = 1;
-	glLoadMatrixf(matrix);
+	glLoadIdentity();
+	glRotatef(cam_angle, 0, 1, 0);
+	glTranslatef(((float) -camera.position.x) / 0x10000, ((float) -camera.position.y) / 0x10000, ((float) camera.position.z) / 0x10000);
+
 	glColor3f(0.0f, 0.0f, 0.0);
 	glBegin(GL_QUADS);
 
-	max = road_segment_count - 1;
+	max = g_road_node_count - 1;
 	for (int n = 0; n < 100; n++) {
 
-		i = g_car_array[camera.car_id].road_segment_a;
+		i = g_car_array[camera.car_id].track_slice;
 		i = i - 50 + n;
 		if (i < 0) {
 			i = i + max;
@@ -245,6 +246,8 @@ void drawTach() {
 }
 
 void renderGl() {
+	cam_angle = ((float) camera.orientation.y) * 0.0000214576733981; //(360/0xFFFFFF)
+
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	gluPerspective(90.0, 1, 0.1, 1000);

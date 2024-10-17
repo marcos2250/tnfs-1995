@@ -185,16 +185,16 @@ void drawRect(float x, float y, double a, float l, float w) {
 	LineTo(hdc, (x + cax) * scale, (y + cay) * scale);
 }
 
-void drawRoad(float ox, float oy, int segment) {
+void drawRoad(float ox, float oy, int node) {
 	int i, j, n;
 
 	for (n = 0; n < 12; n++) {
 
-		i = segment - 4 + n;
+		i = node - 4 + n;
 		if (i < 0) {
-			i = i + road_segment_count;
-		} else if (i >= road_segment_count) {
-			i = i - road_segment_count;
+			i = i + g_road_node_count;
+		} else if (i >= g_road_node_count) {
+			i = i - g_road_node_count;
 		}
 		j = i + 1;
 
@@ -209,7 +209,7 @@ void drawRoad(float ox, float oy, int segment) {
 void drawCar(tnfs_car_data * car, float x, float y) {
 	float a, as, s, c, cay, cax, cby, cbx;
 
-	a = (float) car->angle_y / 2670179; //to radians
+	a = (float) car->angle.y / 2670179; //to radians
 	as = a + ((float) car->steer_angle / 2670179);
 
 	//body
@@ -246,7 +246,7 @@ void render() {
 	//inverted axis from 3d world
 	x0 = (float) player_car_ptr->position.z / 0x10000; //to meter scale
 	y0 = (float) player_car_ptr->position.x / 0x10000;
-	drawRoad(x0 - 30, y0 - 30, player_car_ptr->road_segment_a);
+	drawRoad(x0 - 30, y0 - 30, player_car_ptr->track_slice);
 	drawCar(player_car_ptr, 30, 30);
 
 	for (i = 1; i < g_total_cars_in_scene; i++) {

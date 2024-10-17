@@ -16,6 +16,19 @@ int g_const_7333 = 0x7333; //DAT_800eae74
 int g_const_CCCC = 0xCCCC; //DAT_800eae78
 
 
+void tnfs_collision_off() {
+	printf("Collision OFF \n");
+	// ????
+	DAT_000fae60 = 1;
+}
+
+void tnfs_collision_on() {
+	printf("Collision ON \n");
+	// ????
+	DAT_000fae60 = 0;
+	selected_camera = 2;
+}
+
 void tnfs_collision_rebound(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_vec3 *speed, tnfs_vec3 *normal) {
 	tnfs_vec3 cross_prod;
 	tnfs_vec3 normal_accel;
@@ -316,7 +329,7 @@ void FUN_0005b29f(tnfs_car_data * car) {
 void tnfs_collision_data_get(tnfs_car_data *car, int crash_state) {
 	tnfs_collision_data *body;
 
-	if (car == g_car_ptr_array[DAT_0016707C]) {
+	if (car == g_car_ptr_array[g_player_id]) {
 		DAT_000FDCEC = -1;
 		DAT_000FDCF0 = -1;
 		if (car->crash_state == 4) {
@@ -377,7 +390,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		car->rpm_engine += (aux >> 3);
 	}
 
-	if (tnfs_road_segment_update(car)) {
+	if (tnfs_track_node_update(car)) {
 		tnfs_track_update_vectors(car);
 	}
 
@@ -404,20 +417,20 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	// check if left or right fence
 	if (fixmul(fenceDistance.x, fenceNormal.x) + fixmul(fenceDistance.y, fenceNormal.y) + fixmul(fenceDistance.z, fenceNormal.z) < 1) {
 		aux = DAT_000f99e4;
-		if ((track_data[car->road_segment_a].fence_flag >> 4 != 0) && (track_data[car->road_segment_a].item_mode != '\x05')) {
+		if ((track_data[car->track_slice & g_slice_mask].fence_flag >> 4 != 0) && (track_data[car->track_slice & g_slice_mask].item_mode != '\x05')) {
 			aux = DAT_000f99e8;
 		}
-		roadWidth = (track_data[car->road_segment_a].roadLeftFence * -0x2000 - aux) >> 16;
+		roadWidth = (track_data[car->track_slice & g_slice_mask].roadLeftFence * -0x2000 - aux) >> 16;
 
 		fencePosition.y = roadWidth * fenceNormal.y + roadPosition.y;
 		fencePosition.x = roadWidth * fenceNormal.x + roadPosition.x;
 		fencePosition.z = roadWidth * fenceNormal.z + roadPosition.z;
 	} else {
 		aux = DAT_000f99e4;
-		if (((track_data[car->road_segment_a].fence_flag  & 0xf) != 0) && (track_data[car->road_segment_a].item_mode != '\x05')) {
+		if (((track_data[car->track_slice & g_slice_mask].fence_flag  & 0xf) != 0) && (track_data[car->track_slice & g_slice_mask].item_mode != '\x05')) {
 			aux = DAT_000f99e8;
 		}
-		roadWidth = (track_data[car->road_segment_a].roadRightFence * -0x2000 - aux) >> 16;
+		roadWidth = (track_data[car->track_slice & g_slice_mask].roadRightFence * -0x2000 - aux) >> 16;
 
 		fenceNormal.x = -fenceNormal.x;
 		fenceNormal.z = -fenceNormal.z;
@@ -512,7 +525,7 @@ void tnfs_collision_data_set(tnfs_car_data *car) {
 	car->collision_data.speed.x = -car->collision_data.speed.x;
 
 	if (car->is_crashed == 0) {
-		math_matrix_from_pitch_yaw_roll(&car->collision_data.matrix, -car->angle_x, -car->angle_y, car->angle_z);
+		math_matrix_from_pitch_yaw_roll(&car->collision_data.matrix, -car->angle.x, -car->angle.y, car->angle.z);
 	} else {
 		memcpy(&car->collision_data.matrix, &car->matrix, 0x24);
 
@@ -532,7 +545,7 @@ void tnfs_collision_rollover_start_2(tnfs_car_data *car) {
 	tnfs_collision_data_set(car);
 	car->is_wrecked = 1;
 	car->crash_state = 4;
-	//FUN_8004ce14((tnfs_car_data *)&PTR_80103660);
+	//FUN_8004ce14(&PTR_80103660);
 	car->ai_state = car->ai_state & 0xfffffdff;
 	car->collision_data.state_timer = 300;
 	tnfs_replay_highlight_record(0x5c);
@@ -543,7 +556,7 @@ void tnfs_collision_rollover_start_2(tnfs_car_data *car) {
 	} else if (1 < car->car_id) {
 		return;
 	}
-	//FUN_8003c09c(param_1);
+	tnfs_collision_on();
 }
 
 
@@ -1604,11 +1617,6 @@ void tnfs_collision_carcar_exageration(tnfs_car_data *car) {
 
 int DAT_000f99f4 = 0;
 
-void FUN_000667e4() {
-	printf("Collision ON \n");
-	// ????
-}
-
 int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 
 	tnfs_vec3 col_direction;
@@ -1671,11 +1679,11 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 
 	tnfs_replay_highlight_record((DAT_000f99f4 + (local_34 * 2 + local_38 * 4 + 8 + local_30) * 4));
 
-	if ((g_car_ptr_array[DAT_0016707C] == car1) && (car1->crash_state != 4)) {
-		FUN_000667e4();
+	if ((g_car_ptr_array[g_player_id] == car1) && (car1->crash_state != 4)) {
+		tnfs_collision_on();
 	}
-	if ((g_car_ptr_array[DAT_0016707C] == car2) && (car2->crash_state != 4)) {
-		FUN_000667e4();
+	if ((g_car_ptr_array[g_player_id] == car2) && (car2->crash_state != 4)) {
+		tnfs_collision_on();
 	}
 
 	car1->crash_state = 4;
@@ -1726,8 +1734,8 @@ int tnfs_collision_carcar(tnfs_car_data *car1, tnfs_car_data *car2) {
 	}
 
 	if (DAT_000f99f0 < DAT_000f9A70) {
-		local_2c = car1->road_segment_a - DAT_00144914;
-		if (car1 == g_car_ptr_array[DAT_0016707C]) {
+		local_2c = car1->track_slice - g_camera_node;
+		if (car1 == g_car_ptr_array[g_player_id]) {
 			tnfs_car_local_position_vector(car2, &local_34, &local_30);
 		} else {
 			tnfs_car_local_position_vector(car1, &local_34, &local_30);
@@ -1737,7 +1745,7 @@ int tnfs_collision_carcar(tnfs_car_data *car1, tnfs_car_data *car2) {
 		DAT_000f99ec = 10;
 	}
 
-	if (g_car_ptr_array[DAT_0016707C]->is_wrecked != 0) {
+	if (g_car_ptr_array[g_player_id]->is_wrecked != 0) {
 		if (selected_camera == 0) {
 			tnfs_camera_set(&camera, 2); //change to chase cam
 		}

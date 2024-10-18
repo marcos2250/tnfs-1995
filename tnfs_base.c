@@ -1,6 +1,7 @@
 /*
  * globals, structs, and common TNFS functions
  */
+#include <time.h>
 #include "tnfs_math.h"
 #include "tnfs_base.h"
 #include "tnfs_files.h"
@@ -104,7 +105,7 @@ void auto_generate_track() {
 
 	g_road_node_count = 2400;
 
-	srand(time());
+	srand(time(NULL));
 
 	for (i = 0; i < 2400; i++) {
 

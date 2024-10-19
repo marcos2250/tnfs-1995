@@ -477,7 +477,7 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	} else {
 		// ai cars
 		car->crash_state = 3;
-		if (car->car_id == 2) {
+		if (car->car_id == g_racer_cars_in_scene) {
 			// police car
 			car->ai_state = 0x1e8;
 			g_police_on_chase = 0;

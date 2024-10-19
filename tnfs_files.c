@@ -2,7 +2,7 @@
  * tnfs_file.c
  * Readers for TNFS files
  */
-#include <stdio.h> 
+#include <stdio.h>
 #include "tnfs_math.h"
 #include "tnfs_base.h"
 
@@ -207,6 +207,11 @@ int read_pdn_file(char *file, tnfs_car_data *car) {
 	car->collision_data.size.x = readFixed32(buffer, 0);
 	car->collision_data.size.y = readFixed32(buffer, 4);
 	car->collision_data.size.z = readFixed32(buffer, 8);
+  // non-playable cars have zeros as collision dimensions in their PDN files
+  car->collision_data.size.x = car->collision_data.size.x ? car->collision_data.size.x : 0x1020c;
+  car->collision_data.size.y = car->collision_data.size.y ? car->collision_data.size.y : 0x94fd;
+  car->collision_data.size.z = car->collision_data.size.z ? car->collision_data.size.z : 0x246e9;
+
 	car->collision_data.moment_of_inertia = readFixed32(buffer, 0xC);
 	car->collision_data.mass = readFixed32(buffer, 0x10);
 

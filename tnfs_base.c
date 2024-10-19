@@ -1,6 +1,7 @@
 /*
  * globals, structs, and common TNFS functions
  */
+#include <time.h>
 #include "tnfs_math.h"
 #include "tnfs_base.h"
 #include "tnfs_files.h"
@@ -104,7 +105,7 @@ void auto_generate_track() {
 
 	g_road_node_count = 2400;
 
-	srand(time());
+	srand(time(NULL));
 
 	for (i = 0; i < 2400; i++) {
 
@@ -476,7 +477,7 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	} else {
 		// ai cars
 		car->crash_state = 3;
-		if (car->car_id == 2) {
+		if (car->car_id == g_racer_cars_in_scene) {
 			// police car
 			car->ai_state = 0x1e8;
 			g_police_on_chase = 0;

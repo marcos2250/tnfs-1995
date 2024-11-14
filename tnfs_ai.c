@@ -1920,14 +1920,7 @@ void tnfs_car_stop_0007d5c1(tnfs_car_data *car) {
 	car->angular_speed = 0;
 	car->steer_angle = 0;
 	car->target_angle = 0;
-	/*
-	ptVar2 = &car->road_fence_normal;
-	ptVar3 = &car->matrix;
-	for (iVar1 = 9; iVar1 != 0; iVar1 = iVar1 + -1) {
-		ptVar3->ax = ptVar2->x;
-		ptVar2 = (tnfs_vec3*) &ptVar2->y;
-		ptVar3 = (tnfs_vec9*) &ptVar3->ay;
-	}*/
+	memcpy(&car->matrix, &car->road_fence_normal, sizeof(car->matrix));
 	car->speed_local_lat = 0;
 	car->speed_local_vert = 0;
 	car->speed_local_lon = 0;
@@ -2013,14 +2006,19 @@ void FUN_0007b78f(tnfs_car_data *car, int lane) {
 	car->angular_speed = 0;
 
 	local_1c = ((int)track_data[car->track_slice & g_slice_mask].slope) * 0x400;
-	if (local_1c < -0x800000) {
-		local_1c = local_1c + 0x1000000;
-	} else if (local_1c > 0x800000) {
-		local_1c = local_1c + -0x1000000;
+	if (local_1c > 0x800000) {
+		local_1c -= 0x1000000;
 	}
 	car->angle.x = -local_1c;
+
 	car->angle.y = ((int) track_data[car->track_slice & g_slice_mask].heading) * 0x400;
-	car->angle.z = ((int) track_data[car->track_slice & g_slice_mask].slant) * 0x400;
+
+	local_1c = ((int) track_data[car->track_slice & g_slice_mask].slant) * 0x400;
+	if (local_1c > 0x800000) {
+		local_1c -= 0x1000000;
+	}
+	car->angle.z = -local_1c;
+
 	car->speed_local_lon = 0;
 	car->speed_local_lat = 0;
 	car->speed_z = car->speed_local_lat;
@@ -2083,7 +2081,7 @@ void tnfs_ai_police_chase(tnfs_car_data *car, int lane, tnfs_vec3 *direction) {
 			g_police_on_chase = 0;
 			g_police_chase_time = 0;
 
-			FUN_0007d647();
+			//FUN_0007d647();
 			FUN_0007b78f(g_car_ptr_array[0], (lane >= 0));
 
 			if (g_stats_data[g_car_ptr_array[0]->car_id].penalty_count > 1 && (g_is_playing == 1)) {

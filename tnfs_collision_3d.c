@@ -26,7 +26,6 @@ void tnfs_collision_on() {
 	printf("Collision ON \n");
 	// ????
 	DAT_000fae60 = 0;
-	selected_camera = 2;
 }
 
 void tnfs_collision_rebound(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_vec3 *speed, tnfs_vec3 *normal) {
@@ -450,7 +449,9 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	// simplified version
 	if (car->collision_data.state_timer > 0) {
 		car->collision_data.state_timer--;
+		g_cam_change_delay = 0x3c;
 	} else {
+		g_cam_change_delay = 0;
 		tnfs_reset_car(car);
 		return;
 	}
@@ -1747,9 +1748,9 @@ int tnfs_collision_carcar(tnfs_car_data *car1, tnfs_car_data *car2) {
 
 	if (g_car_ptr_array[g_player_id]->is_wrecked != 0) {
 		if (selected_camera == 0) {
-			tnfs_camera_set(&camera, 2); //change to chase cam
+			tnfs_camera_set(&camera, 2); //change to heli cam
 		}
-		DAT_00143844 = 0x3c;
+		g_cam_change_delay = 0x3c;
 	}
 	return 1;
 }

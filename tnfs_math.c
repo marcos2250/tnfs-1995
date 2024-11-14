@@ -92,7 +92,8 @@ void math_rotate_vector_xz(tnfs_vec3 *v0, tnfs_vec3 *v1, int angle) {
 	double s = sin(a);
 	double c = cos(a);
 	v1->x = (int) (v0->x * c - v0->z * s);
-	v1->z = (int) (v0->x * s + v0->z * c);
+	v1->y = v0->y;
+	v1->z = (int) (-v0->x * s + v0->z * c);
 }
 
 int math_angle_wrap(int a) {

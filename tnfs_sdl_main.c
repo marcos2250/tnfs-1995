@@ -16,7 +16,7 @@ const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
 
 GLfloat matrix[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
-float cam_angle = 0;
+vector3f cam_orientation = { 0, 0, 0 };
 
 void handleKeys() {
 	if (event.type == SDL_KEYDOWN) {
@@ -123,7 +123,13 @@ void drawVehicle(tnfs_car_data * car) {
 	matrix[15] = 1;
 
 	glLoadIdentity();
-	glRotatef(cam_angle, 0, 1, 0);
+	if (cam_orientation.x != 0) {
+		glRotatef(cam_orientation.x, 1, 0, 0);
+	}
+	if (cam_orientation.z != 0) {
+		glRotatef(cam_orientation.z, 0, 0, 1);
+	}
+	glRotatef(cam_orientation.y, 0, 1, 0);
 	glTranslatef(((float) -camera.position.x) / 0x10000, ((float) -camera.position.y) / 0x10000, ((float) camera.position.z) / 0x10000);
 	glMultMatrixf(matrix);
 
@@ -182,8 +188,15 @@ void drawRoad() {
 	int max, i, j;
 
 	glMatrixMode(GL_MODELVIEW);
+
 	glLoadIdentity();
-	glRotatef(cam_angle, 0, 1, 0);
+	if (cam_orientation.x != 0) {
+		glRotatef(cam_orientation.x, 1, 0, 0);
+	}
+	if (cam_orientation.z != 0) {
+		glRotatef(cam_orientation.z, 0, 0, 1);
+	}
+	glRotatef(cam_orientation.y, 0, 1, 0);
 	glTranslatef(((float) -camera.position.x) / 0x10000, ((float) -camera.position.y) / 0x10000, ((float) camera.position.z) / 0x10000);
 
 	glColor3f(0.0f, 0.0f, 0.0);
@@ -192,7 +205,7 @@ void drawRoad() {
 	max = g_road_node_count - 1;
 	for (int n = 0; n < 100; n++) {
 
-		i = g_car_array[camera.car_id].track_slice;
+		i = camera.track_slice;
 		i = i - 50 + n;
 		if (i < 0) {
 			i = i + max;
@@ -246,7 +259,9 @@ void drawTach() {
 }
 
 void renderGl() {
-	cam_angle = ((float) camera.orientation.y) * 0.0000214576733981; //(360/0xFFFFFF)
+	cam_orientation.x = ((float) camera.orientation.x) * 0.0000214576733981; //(360/0xFFFFFF)
+	cam_orientation.y = ((float) camera.orientation.y) * 0.0000214576733981; //(360/0xFFFFFF)
+	cam_orientation.z = -((float) camera.orientation.z) * 0.0000214576733981; //(360/0xFFFFFF)
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();

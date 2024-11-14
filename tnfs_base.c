@@ -9,6 +9,7 @@
 #include "tnfs_collision_2d.h"
 #include "tnfs_collision_3d.h"
 #include "tnfs_ai.h"
+#include "tnfs_camera.h"
 
 tnfs_track_data track_data[2400];
 tnfs_surface_type road_surface_type_array[3];
@@ -44,8 +45,7 @@ int g_police_speeding_ticket = 0; //0016513C
 int g_police_chase_time = 0; //0016533c
 
 tnfs_camera camera;
-tnfs_camera_specs g_camera_specs;
-int selected_camera = 1;
+int selected_camera = 0;
 
 /* tire grip slide table  */
 static const unsigned char g_slide_table[64] = {
@@ -79,7 +79,6 @@ int DAT_001039d4 = 0xFFFF; //800db6bc
 int DAT_001039d8 = 0x12345678; //800db6c0 g_car_random_index
 int DAT_001039dc = 0x12345679; // random value
 int g_camera_node = 0; //144914
-int DAT_00143844 = 0;
 int g_is_closed_track = 0; // 14DCC4
 int g_slice_mask = 0xFFFF; // 14dccc
 int g_track_lap = 0; //00153b08
@@ -90,6 +89,7 @@ tnfs_car_data * DAT_00153BC4 = 0; //player car ptr 2
 int DAT_00165148 = 0; // center lane distance/margin
 int DAT_00165340 = 0;
 int g_player_id = 0; //16707C
+int g_cam_change_delay = 0; // 00143844
 
 /* create a random track and a generic car */
 
@@ -616,9 +616,16 @@ void tnfs_controls_update() {
 
 void tnfs_change_camera() {
 	selected_camera++;
-	if (selected_camera > 4)
+	if (selected_camera > 2)
 		selected_camera = 0;
-	camera.id = selected_camera;
+
+	camera.id_user = selected_camera;
+
+	if (selected_camera == 0) {
+		tnfs_camera_set(&camera, 9);
+	} else {
+		tnfs_camera_set(&camera, selected_camera);
+	}
 }
 
 void tnfs_change_gear_automatic(int shift) {
@@ -767,10 +774,6 @@ void tnfs_sfx_play(int a, int b, int c, int d, int e, int f) {
 void tnfs_replay_highlight_record(char a) {
 	if (iSimTimeClock % 30 == 0)
 		printf("replay highlight %i\n", a);
-}
-
-void tnfs_camera_set(tnfs_camera * camera, int id) {
-	// stub
 }
 
 /* common original TNFS functions */
@@ -1176,73 +1179,9 @@ void tnfs_init_sim(char *trifile) {
 	}
 	tnfs_ai_init();
 
-	// init camera
-	camera.position.x = 0;
-	camera.position.y = 0x80000;
-	camera.position.z = 0;
-	camera.orientation.x = 0;
-	camera.orientation.y = 0;
-	camera.orientation.z = 0;
+	tnfs_camera_init();
 }
 
-void math_lerp(int *result, int target) {
-	if (iSimTimeClock < 300) {
-		*result += (target - *result) >> 4;
-	} else {
-		*result += (target - *result) >> 1;
-	}
-}
-
-void math_lerp_angle(int *result, int target) {
-	if (*result - target > 0x800000) {
-		target += 0x1000000;
-	} else if (*result - target < -0x800000) {
-		target -= 0x1000000;
-	}
-	*result += (target - *result) >> 4;
-	*result &= 0xffffff;
-}
-
-/* simplified version */
-void tnfs_camera_update() {
-	switch (selected_camera) {
-	case 0: //in car
-		camera.car_id = 0;
-		camera.position.x = g_car_array[0].position.x;
-		camera.position.y = g_car_array[0].position.y + 0x12000;
-		camera.position.z = g_car_array[0].position.z;
-		camera.orientation.y = g_car_array[0].angle.y;
-		break;
-	case 1: //chase cam
-		camera.car_id = 0;
-		math_lerp(&camera.position.x, g_car_array[0].position.x + fixmul(0x80000, track_data[g_car_array[0].track_slice].side_normal_z * 2));
-		math_lerp(&camera.position.y, g_car_array[0].position.y + 0x30000);
-		math_lerp(&camera.position.z, g_car_array[0].position.z - fixmul(0x80000, track_data[g_car_array[0].track_slice].side_normal_x * 2));
-		math_lerp_angle(&camera.orientation.y, track_data[g_car_array[0].track_slice].heading * 0x400);
-		break;
-	case 2: //heli cam
-		camera.car_id = 0;
-		math_lerp(&camera.position.x, g_car_array[0].position.x + fixmul(0x100000, track_data[g_car_array[0].track_slice].side_normal_z * 2));
-		math_lerp(&camera.position.y, g_car_array[0].position.y + 0x60000);
-		math_lerp(&camera.position.z, g_car_array[0].position.z - fixmul(0x100000, track_data[g_car_array[0].track_slice].side_normal_x * 2));
-		math_lerp_angle(&camera.orientation.y, track_data[g_car_array[0].track_slice].heading * 0x400);
-		break;
-	case 3: //opponent cam
-		camera.car_id = 1;
-		camera.position.x = g_car_array[camera.car_id].position.x;
-		camera.position.y = g_car_array[camera.car_id].position.y + 0x60000;
-		camera.position.z = g_car_array[camera.car_id].position.z - 0x100000;
-		camera.orientation.y = 0;
-		break;
-	case 4: //cop cam
-		camera.car_id = g_racer_cars_in_scene;
-		camera.position.x = g_car_array[camera.car_id].position.x;
-		camera.position.y = g_car_array[camera.car_id].position.y + 0x60000;
-		camera.position.z = g_car_array[camera.car_id].position.z - 0x100000;
-		camera.orientation.y = 0;
-		break;
-	}
-}
 
 /*
  * minimal basic main loop
@@ -1296,5 +1235,6 @@ void tnfs_update() {
 		car->road_ground_position = track_data[car->track_slice].pos;
 	}
 
-	tnfs_camera_update();
+	tnfs_camera_auto_change(player_car_ptr);
+	tnfs_camera_update(&camera);
 }

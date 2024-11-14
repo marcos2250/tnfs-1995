@@ -499,26 +499,31 @@ typedef struct tnfs_random_struct {
 } tnfs_random_struct;
 
 typedef struct tnfs_camera {
-	int id; //0 in_car; 1 tail cam; 2 chase cam
-	int car_id; //
-	int status; //0xc
+	int id; //0x0 in_car; 1 tail cam; 2 chase cam
+	int id_user; //0x4
+	int transition_timer; //0xc
 	tnfs_vec3 position; //0x10
 	tnfs_vec3 next_position; //0x1c
 	struct tnfs_car_data * car_ptr_1; //0x28
-	tnfs_vec3 speed; //0x2c
+	tnfs_vec3 relative_position; //0x2c
 	int track_slice; //0x38
-	int field_3C; //0x3c
+	int track_slice2; //0x3c
 	tnfs_vec3 orientation; //0x40
 	tnfs_vec3 next_orientation; //0x4c
 	tnfs_vec3 * car_angle_ptr; //0x58
-	tnfs_vec3 angle_5C; //0x5c
-	tnfs_vec3 position_delta; //0x6c
+	tnfs_vec3 target_orientation; //0x5c
+	tnfs_vec3 focal_distance; //0x6c
 	struct tnfs_car_data * car_ptr_2; //0x8c
 } tnfs_camera;
 
 typedef struct tnfs_camera_specs {
-	tnfs_vec3 field_4; //0x4
-	int field_10; //0x10
+	tnfs_vec3 focal_distance; //0x4
+	int back_distance; //0x10
+	int id3; //0x14
+	int smoothness; //0x24
+	int transition_delay; //0x2c
+	int next_id; //0x30
+	int min_distance; //0x34
 } tnfs_camera_specs;
 
 // global variables
@@ -553,7 +558,6 @@ extern int g_number_of_players;
 extern int g_selected_cheat;
 extern int selected_camera;
 extern tnfs_camera camera;
-extern tnfs_camera_specs g_camera_specs;
 
 extern int DAT_000F9BB0;
 extern int DAT_000f99e4;
@@ -581,6 +585,7 @@ extern int g_police_speeding_ticket;
 extern int DAT_00165148;
 extern int g_police_chase_time;
 extern int g_player_id;
+extern int g_cam_change_delay;
 
 // common functions
 void tnfs_init_sim(char * trifile);

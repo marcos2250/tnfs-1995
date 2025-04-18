@@ -133,7 +133,7 @@ int read_pbs_file(char * file) {
 	car_specs.top_speed = readFixed32(buffer, 0x38);
 	car_specs.efficiency = readFixed32(buffer, 0x3c);
 	car_specs.wheelbase = readFixed32(buffer, 0x40);
-	car_specs.burnOutDiv = readFixed32(buffer, 0x44);
+	car_specs.wheelbase_inv = readFixed32(buffer, 0x44);
 	car_specs.wheeltrack = readFixed32(buffer, 0x48);
 	car_specs.mps_to_rpm_factor = readFixed32(buffer, 0x54);
 	car_specs.number_of_gears = readFixed32(buffer, 0x58);
@@ -172,6 +172,8 @@ int read_pbs_file(char * file) {
 	car_specs.lateral_accel_cutoff = readFixed32(buffer, 0x31c);
 	car_specs.final_drive_torque_ratio = readFixed32(buffer, 0x328);
 	car_specs.thrust_to_acc_factor = readFixed32(buffer, 0x32c);
+	car_specs.abs_equipped = readFixed32(buffer, 0x334);
+	car_specs.tcs_equipped = readFixed32(buffer, 0x338);
 	car_specs.shift_timer = readFixed32(buffer, 0x354);
 	car_specs.noGasRpmDec = readFixed32(buffer, 0x358);
 	car_specs.gasRpmInc = readFixed32(buffer, 0x35c);
@@ -207,10 +209,11 @@ int read_pdn_file(char *file, tnfs_car_data *car) {
 	car->collision_data.size.x = readFixed32(buffer, 0);
 	car->collision_data.size.y = readFixed32(buffer, 4);
 	car->collision_data.size.z = readFixed32(buffer, 8);
-  // non-playable cars have zeros as collision dimensions in their PDN files
-  car->collision_data.size.x = car->collision_data.size.x ? car->collision_data.size.x : 0x1020c;
-  car->collision_data.size.y = car->collision_data.size.y ? car->collision_data.size.y : 0x94fd;
-  car->collision_data.size.z = car->collision_data.size.z ? car->collision_data.size.z : 0x246e9;
+
+	// non-playable cars have zeros as collision dimensions in their PDN files
+	car->collision_data.size.x = car->collision_data.size.x ? car->collision_data.size.x : 0x1020c;
+	car->collision_data.size.y = car->collision_data.size.y ? car->collision_data.size.y : 0x94fd;
+	car->collision_data.size.z = car->collision_data.size.z ? car->collision_data.size.z : 0x246e9;
 
 	car->collision_data.moment_of_inertia = readFixed32(buffer, 0xC);
 	car->collision_data.mass = readFixed32(buffer, 0x10);

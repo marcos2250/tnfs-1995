@@ -25,12 +25,19 @@ typedef struct tnfs_car_specs {
 	 * #front brake percentage (amount of brake force going to front tires) - normally 70% (0.7).
 	 */
 	int front_brake_percentage; //0x01C
+	int rear_brake_percentage; //0x020
 
-	//  ...
+	/*
+	 * #centre of Gravity Height (in metres) (guess) - 22 inches = .5588 m
+	 */
 	int centre_of_gravity_height; //0x024
+
+	/*
+	 * #maxbrakeDecc (based on 60-0 of 7.54 * X %) //WST checked Viper 7th aug 94
+	 */	
 	int max_brake_force_1; //0x028
 	int max_brake_force_2; //0x02C
-	//  ...
+	int max_tire_coeff; //0x030 unused
 
 	/*
 	 * #drag - 1/2 * density of air( 1.2kg/m3) * drag coefficent (.33) * frontal area (20sq feet=1.85806)
@@ -40,14 +47,10 @@ typedef struct tnfs_car_specs {
 	int top_speed; //0x038
 	int efficiency; //0x03c
 	int wheelbase; //0x040
-
-	/*
-	 * # WST new  burnOutDiv..  reduce lateral acc if accel burnouts
-	 */
-	int burnOutDiv; //0x044
-
+	int wheelbase_inv; //0x044
 	int wheeltrack; //0x048
-	//  ...
+	int wheeltrack_inv; //0x04c
+	int rear_weight_percentage; //0x50 unused
 
 	/*
 	 * #mps to rpm conversion factor: //WST checked Viper 7th aug 94
@@ -64,12 +67,10 @@ typedef struct tnfs_car_specs {
 	 * #this decreases our torque,  and increases our reversed engineered rpm.
 	 */
 	int wheel_roll_radius; //0x6c;
-
 	int inverse_wheel_radius; //0x64;
+
 	int gear_ratio_table[8]; //0x68
-	//  ...
 	int torque_table_entries; //0x088
-	//  ...
 
 	/*
 	 * #Front roll stiffness - how many degrees does the car tilt for a given torque
@@ -86,7 +87,9 @@ typedef struct tnfs_car_specs {
 	 */
 	int roll_axis_height; //0x94
 
-	int weight_transfer_factor; //unused
+	int front_roll_stiffness_2; //0x98 unused
+	int rear_roll_stiffness_2; //0x9c unused
+	int weight_transfer_factor; //0xa0 unused
 
 	/*
 	 * #cutoff-slip angles greater than this are assumed to
@@ -96,7 +99,7 @@ typedef struct tnfs_car_specs {
 	 */
 	int cutoff_slip_angle; //0xa4
 
-	int normal_coeff_loss; //unused
+	int normal_coeff_loss; //0xa8 unused
 	int rpm_redline; //0xac
 	int rpm_idle; //0xb0
 	unsigned int torque_table[120]; //0xb4
@@ -126,16 +129,39 @@ typedef struct tnfs_car_specs {
 
 	int body_length; //0x2E4
 	int body_width; //0x2E8
-	//  ...
+
+	/*
+	 * #WST new auto steer controls
+	 */
+	int	maxAutoSteerAngle; //0x2ec
+	int	autoRampMultShift; //0x2f0
+	int	autoRampDivShift; //0x2f4
+	int	steerModel; //0x2f8
+	/*
+	 * #WST New Auto Steer 2 Controls
+	 */
+	int	vel1_AS2; //0x2fc
+	int	vel2_AS2; //0x300
+	int	vel3_AS2; //0x304
+	int	vel4_AS2; //0x308
+	int	velRamp_AS2; //0x30c
+	int	velAttenuate_AS2; //0x310
+	int	autoRampMultShift_AS2; //0x314
+	int	autoRampDivShift_AS2; //0x318
+
+	int field_0x320;
+	int field_0x324;
 
 	/*
 	 * # WST new lateral acc cutoff multiplier (in m/s/s)
 	 */
 	int lateral_accel_cutoff; //0x31C
 
-	/// ...
 	int final_drive_torque_ratio; //0x328
 	int thrust_to_acc_factor; //0x32c
+	int field_0x330;
+	int abs_equipped; //0x334
+	int tcs_equipped; //0x338
 	int throttle_on_ramp; //unused
 	int throttle_off_ramp; //unused
 	int brake_on_ramp_1; //unused
@@ -221,7 +247,29 @@ typedef struct tnfs_car_data {
 	int field_168;
 	int field_16c;
 	int field_170;
+
+	/*
+	 * 0x0 traffic
+	 * 0x4 opponent
+	 * 0x8 cop
+	 *
+	 * 0x100
+	 * 0x400 opp/cop running, player being chased
+	 * 0x800 player seen by cop?
+	 *
+	 * 0x1000 oncoming traffic
+	 * 0x2000 chasing cop
+	 * 0x8000
+	 *
+	 * 0x10000 player pull over (acc lock)
+	 * 0x20000 parked cop
+	 * 0x80000 chasing cop
+	 *
+	 * 0x100000
+	 * 0x200000 disabled
+	 */
 	int ai_state; //0x174
+
 	int power_curve[100]; //0x178
 	// ...
 
@@ -323,7 +371,16 @@ typedef struct tnfs_car_data {
 
 	int crash_state; //0x4e1 0x520 // 2-normal/player 3-normal/opponent 4-wrecked 6-inactive
 	int car_id; //0x4e5 0x524 //car id number 0..7
-	int field_4e9; //0x4e9 0x528 //0-parked police //4-enable swerve, 5/6/7-enable collision
+
+	/*
+	 * octal collision state flag:
+	 * 0-disable collision, also enable cop to spawn in parked state (why?)
+	 * 4-enable collision and traffic swerve
+	 * 5-can be hit
+	 * 6-can hit others
+	 * 7-full collision
+	 */
+	int field_4e9; //0x4e9 0x528
 } tnfs_car_data;
 
 typedef struct tnfs_track_data {
@@ -411,6 +468,11 @@ typedef struct tnfs_ai_skill_cfg {
 	 * #opp_desired_speed_c:
 	 */
 	int opp_desired_speed_c; //0x48
+
+	/*
+	 * #Traffic Base Speed (km/h) (Originally 150 kmh)
+	 */
+	int traffic_base_speed;
 
 	/*
 	 * #Lane Slack.  Determines how close the cars drive along the centre line.  Measured in units from the
@@ -569,9 +631,9 @@ extern int DAT_000FDB94;
 extern int DAT_000FDCEC;
 extern int DAT_000FDCF0;
 extern int DAT_000f9A70;
-extern int DAT_001039d4; //800db6bc
-extern int DAT_001039d8; //800db6c0
-extern int DAT_001039dc;
+extern int g_lcg_random_mod;
+extern int g_lcg_random_nbr;
+extern int g_lcg_random_seed;
 extern int g_camera_node;
 extern int DAT_00143844;
 extern int g_is_closed_track;

@@ -1,3 +1,6 @@
+/*
+ * Camera control
+ */
 #include "tnfs_math.h"
 #include "tnfs_base.h"
 
@@ -131,11 +134,11 @@ int tnfs_camera_000436ac(int node, tnfs_vec3 *position) {
 
 	iVar1 = math_mul(local_70.x, (position->x - curr_node_pos.x));
 	iVar2 = math_mul(local_70.z, (position->z - curr_node_pos.z));
-	iVar1 = math_div(-iVar2 - iVar1, local_70.y);
-	return iVar1 + curr_node_pos.y;
+	iVar1 = math_div(iVar1 + iVar2, local_70.y);
+	return curr_node_pos.y - iVar1;
 }
 
-void sub_41F9F() {
+void sub_41F9F(int track_slice) {
 	//stub
 }
 
@@ -179,7 +182,7 @@ void tnfs_camera_update(tnfs_camera *camera) {
 	specs = &g_camera_specs[camera->id];
 
 	if (((camera->id == 5) && !sub_6356B(-10, 12)) //
-		|| ((camera->id == 6) && !sub_634E2(-1, 12))) {
+	|| ((camera->id == 6) && !sub_634E2(-1, 12))) {
 		tnfs_camera_43327(camera);
 		return;
 	}
@@ -212,7 +215,7 @@ void tnfs_camera_update(tnfs_camera *camera) {
 		camera->transition_timer--;
 
 		if ((camera->focal_distance.z >= specs->min_distance) //
-			|| (camera->transition_timer == 0)) {
+		|| (camera->transition_timer == 0)) {
 
 			camera->focal_distance.x = specs->focal_distance.x;
 			camera->focal_distance.y = specs->focal_distance.y;
@@ -226,13 +229,12 @@ void tnfs_camera_update(tnfs_camera *camera) {
 		}
 	}
 
-
 	if (camera->id == 0) {
 		/* in car */
 
 		/* //FIXME ???
-		camera->target_orientation.x = (camera->car_ptr_2->body_pitch >> 8) * (0xF9AA8 >> 8) + DAT_000144F0C;
-		camera->target_orientation.z = (camera->car_ptr_2->body_roll >> 8)  * (0xF9AA8 >> 10);
+		 camera->target_orientation.x = (camera->car_ptr_2->body_pitch >> 8) * (0xF9AA8 >> 8) + DAT_000144F0C;
+		 camera->target_orientation.z = (camera->car_ptr_2->body_roll >> 8)  * (0xF9AA8 >> 10);
 		 */
 		camera->target_orientation.x = camera->car_angle_ptr->x + camera->car_ptr_2->body_pitch;
 		camera->target_orientation.y = camera->car_angle_ptr->y;
@@ -276,10 +278,10 @@ void tnfs_camera_update(tnfs_camera *camera) {
 		math_rotate_vector_xz(&camera->focal_distance, &camera->relative_position, -local_45);
 
 		// raise camera to get a better view on down hills
-		local_27 = ((int)track_data[g_slice_mask & camera->car_ptr_2->track_slice].slope) * 0x400;
+		local_27 = ((int) track_data[g_slice_mask & camera->car_ptr_2->track_slice].slope) * 0x400;
 		if (local_27 > 0x800000)
 			local_27 -= 0x1000000;
-		local_28 = ((int)track_data[g_slice_mask & (camera->car_ptr_2->track_slice + 1)].slope) * 0x400;
+		local_28 = ((int) track_data[g_slice_mask & (camera->car_ptr_2->track_slice + 1)].slope) * 0x400;
 		if (local_28 > 0x800000)
 			local_28 -= 0x1000000;
 		local_26 = ((local_27 >> 8) * local_43 + local_42 * (local_28 >> 8)) >> 2;
@@ -297,7 +299,7 @@ void tnfs_camera_update(tnfs_camera *camera) {
 		// change camera when crashed
 		if (g_car_ptr_array[g_player_id]->crash_state == 4) {
 			local_25 = tnfs_camera_000436ac(camera->track_slice, &camera->next_position);
-			if (0x60000 + local_25 < camera->next_position.y)
+			if (camera->next_position.y > 0x60000 + local_25)
 				camera->next_position.y = 0x60000 + local_25;
 		}
 
@@ -306,7 +308,7 @@ void tnfs_camera_update(tnfs_camera *camera) {
 		// limit to track boundaries
 		vecA.x = camera->next_position.x - track_data[g_slice_mask & camera->track_slice].pos.x;
 		vecA.z = camera->next_position.z - track_data[g_slice_mask & camera->track_slice].pos.z;
-		local_24 = (int)(track_data[g_slice_mask & camera->track_slice].heading) * -0x400;
+		local_24 = (int) (track_data[g_slice_mask & camera->track_slice].heading) * -0x400;
 		vecB.x = ((math_sin_2(local_24 >> 8) * (vecA.z >> 8)) + (vecA.x >> 8) * math_cos_2(local_24 >> 8)) >> 8;
 		local_23 = 0;
 		if (vecB.x > track_data[g_slice_mask & camera->track_slice].roadRightFence * 0x2000) {
@@ -318,7 +320,7 @@ void tnfs_camera_update(tnfs_camera *camera) {
 		}
 		if (local_23) {
 			vecB.z = ((math_cos_2(local_24 >> 8) * (vecA.z >> 8)) - (vecA.x >> 8) * math_sin_2(local_24 >> 8)) >> 8;
-			math_rotate_vector_xz(&vecB, &vecA, (int)track_data[g_slice_mask & camera->track_slice].heading * 0x400);
+			math_rotate_vector_xz(&vecB, &vecA, (int) track_data[g_slice_mask & camera->track_slice].heading * 0x400);
 			camera->next_position.x = track_data[g_slice_mask & camera->track_slice].pos.x + vecA.x;
 			camera->next_position.z = track_data[g_slice_mask & camera->track_slice].pos.z + vecA.z;
 		}
@@ -340,23 +342,23 @@ void tnfs_camera_update(tnfs_camera *camera) {
 		camera->target_orientation.y = local_45; // - camera->car_angle_ptr->y;
 
 		/*
-		// camera tilt ???
-		v46 = math_vec3_distance_XZ(&vecB, &camera->next_position);
-		v45 = -math_atan2(local_46, local_38);
-		camera->target_orientation.x = local_45 - camera->car_angle_ptr->x;
-		camera->target_orientation.z = -camera->car_angle_ptr->z;
+		 // camera tilt ???
+		 v46 = math_vec3_distance_XZ(&vecB, &camera->next_position);
+		 v45 = -math_atan2(local_46, local_38);
+		 camera->target_orientation.x = local_45 - camera->car_angle_ptr->x;
+		 camera->target_orientation.z = -camera->car_angle_ptr->z;
 		 */
 		camera->target_orientation.x = 0;
 		camera->target_orientation.z = 0;
 	}
 
 	/*
-	if (&camera->car_angle_ptr) {
-		camera->next_orientation.x = (camera->target_orientation.x + camera->car_angle_ptr->x) & 0xFFFC00;
-		camera->next_orientation.y = (camera->target_orientation.y + camera->car_angle_ptr->y) & 0xFFFC00;
-		camera->next_orientation.z = (camera->target_orientation.z + camera->car_angle_ptr->z) & 0xFFFC00;
-	}
-	*/
+	 if (&camera->car_angle_ptr) {
+	 camera->next_orientation.x = (camera->target_orientation.x + camera->car_angle_ptr->x) & 0xFFFC00;
+	 camera->next_orientation.y = (camera->target_orientation.y + camera->car_angle_ptr->y) & 0xFFFC00;
+	 camera->next_orientation.z = (camera->target_orientation.z + camera->car_angle_ptr->z) & 0xFFFC00;
+	 }
+	 */
 	camera->next_orientation.x = camera->target_orientation.x & 0xFFFC00;
 	camera->next_orientation.y = camera->target_orientation.y & 0xFFFC00;
 	camera->next_orientation.z = camera->target_orientation.z & 0xFFFC00;
@@ -371,7 +373,6 @@ void tnfs_camera_update(tnfs_camera *camera) {
 	//if (camera->id != 0)
 	//	camera->orientation.z += 0xFD8F8;
 }
-
 
 void tnfs_camera_auto_change(tnfs_car_data *car) {
 	if (g_cam_change_delay != 0) {

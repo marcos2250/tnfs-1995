@@ -133,7 +133,7 @@ int tnfs_engine_torque(tnfs_car_specs *specs, int rpm) {
 	if (rpm < specs->torque_table[0]) {
 		offset = 0;
 	} else {
-		offset = (rpm - specs->torque_table[0]) / 400;
+		offset = (rpm - specs->torque_table[0]) / 200;
 	}
 
 	if (offset < 0) {

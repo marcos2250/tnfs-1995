@@ -4,6 +4,7 @@
  */
 #include "tnfs_math.h"
 #include "tnfs_base.h"
+#include "tnfs_ai.h"
 
 // globals
 int g_carcar_bump_speed = 0; //DAT_000f9a70 800eae58
@@ -455,7 +456,9 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		tnfs_reset_car(car);
 		return;
 	}
-
+	if (car->ai_state & 8) {
+		tnfs_ai_police_reset_state(0);
+	}
 
  	// play crashing sounds
 	iVar4 = 2;
@@ -577,7 +580,7 @@ void tnfs_collision_rollover_start(tnfs_car_data *car, int force_z, int force_y,
 	car->collision_data.angular_speed.y -= math_mul(force_z, car->collision_data.matrix.by);
 	car->collision_data.angular_speed.z -= math_mul(force_z, car->collision_data.matrix.bz);
 	if ((car->ai_state & 4U) != 0) {
-		//  FUN_800534e0(0);
+		tnfs_ai_police_reset_state(0);
 	}
 }
 
@@ -1638,7 +1641,7 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 		return 0;
 	}
 
-	// ai opponents are "uncrashable"
+	// players are less prone to crash
 	if ((car1->car_id >= 0) && (car1->car_id < g_number_of_players)) {
 		local_38 = 1;
 		doWreckCarA = 1;

@@ -192,7 +192,7 @@ typedef struct {
 	tnfs_vec3 position; //0x24
 	tnfs_vec3 speed; //0x30
 	tnfs_vec3 angular_speed; //0x3c
-	tnfs_vec3 field4_0x48;
+	tnfs_vec3 gravity_vector; //not used
 	// ...
 	int mass; //0x60
 	int moment_of_inertia; //0x64

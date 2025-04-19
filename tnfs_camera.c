@@ -23,8 +23,8 @@ void tnfs_camera_init() {
 	g_camera_specs[0].focal_distance.x = -26214;
 	g_camera_specs[0].focal_distance.y = 0x12000; //0x1c0cc;
 	g_camera_specs[0].focal_distance.z = 0;
-	g_camera_specs[0].back_distance = 0x140000;
-	g_camera_specs[0].id3 = 3;
+	g_camera_specs[0].back_distance = 0;
+	g_camera_specs[0].id3 = 0;
 	g_camera_specs[0].next_id = 1;
 	g_camera_specs[0].smoothness = 4;
 	g_camera_specs[0].transition_delay = 28;
@@ -32,8 +32,8 @@ void tnfs_camera_init() {
 
 	//1 - Tail cam
 	g_camera_specs[1].focal_distance.x = 0;
-	g_camera_specs[1].focal_distance.y = 0x2cccc; //0x1b333;
-	g_camera_specs[1].focal_distance.z = -0x63333; //-0x40000;
+	g_camera_specs[1].focal_distance.y = 0x20000;
+	g_camera_specs[1].focal_distance.z = -0x4FFFF;
 	g_camera_specs[1].back_distance = 0x140000;
 	g_camera_specs[1].id3 = 0;
 	g_camera_specs[1].next_id = 2;
@@ -43,8 +43,8 @@ void tnfs_camera_init() {
 
 	//2 - Heli cam
 	g_camera_specs[2].focal_distance.x = 0;
-	g_camera_specs[2].focal_distance.y = 0x2cccc << 1;
-	g_camera_specs[2].focal_distance.z = -0x63333 << 1;
+	g_camera_specs[2].focal_distance.y = 0x30000;
+	g_camera_specs[2].focal_distance.z = -0x7FFFF;
 	g_camera_specs[2].back_distance = 0x140000;
 	g_camera_specs[2].id3 = 3;
 	g_camera_specs[2].next_id = 9;
@@ -120,9 +120,9 @@ int tnfs_camera_000436ac(int node, tnfs_vec3 *position) {
 	curr_node_pos.y = track_data[curr].pos.y;
 	curr_node_pos.z = track_data[curr].pos.z;
 
-	local_58.x = curr_node_pos.x + ((int) track_data[curr].side_normal_x >> 0x10) * 2;
-	local_58.y = curr_node_pos.y + ((int) track_data[curr].side_normal_y >> 0x10) * 2;
-	local_58.z = curr_node_pos.z + ((int) track_data[curr].side_normal_z >> 0x10) * 2;
+	local_58.x = curr_node_pos.x + ((int) track_data[curr].side_normal_x) * 2;
+	local_58.y = curr_node_pos.y + ((int) track_data[curr].side_normal_y) * 2;
+	local_58.z = curr_node_pos.z + ((int) track_data[curr].side_normal_z) * 2;
 	local_64.x = track_data[next].pos.x - curr_node_pos.x;
 	local_64.y = track_data[next].pos.y - curr_node_pos.y;
 	local_64.z = track_data[next].pos.z - curr_node_pos.z;
@@ -130,7 +130,7 @@ int tnfs_camera_000436ac(int node, tnfs_vec3 *position) {
 	local_88.y = local_58.y - curr_node_pos.y;
 	local_88.z = local_58.z - curr_node_pos.z;
 
-	math_vec3_cross_product(&local_70, &local_64, &local_88);
+	math_vec3_cross_product(&local_70, &local_88, &local_64);
 
 	iVar1 = math_mul(local_70.x, (position->x - curr_node_pos.x));
 	iVar2 = math_mul(local_70.z, (position->z - curr_node_pos.z));
@@ -296,7 +296,7 @@ void tnfs_camera_update(tnfs_camera *camera) {
 		camera->next_position.y = camera->relative_position.y + camera->car_ptr_1->position.y;
 		camera->next_position.z = camera->relative_position.z + camera->car_ptr_1->position.z;
 
-		// change camera when crashed
+		// raise camera when crashed
 		if (g_car_ptr_array[g_player_id]->crash_state == 4) {
 			local_25 = tnfs_camera_000436ac(camera->track_slice, &camera->next_position);
 			if (camera->next_position.y > 0x60000 + local_25)

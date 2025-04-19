@@ -185,11 +185,11 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 			} else {
 				// decceleration
 				torque = abs((car->rpm_engine - max_rpm) * specs->negTorque);
-				thrust = -fixmul(specs->gear_ratio_table[gear], torque);
+				thrust = -abs(fixmul(specs->gear_ratio_table[gear], torque));
 
 				if (car->speed_local_lon == 0) {
 					thrust = 0;
-				} else if (abs(thrust) > abs(car->speed_local_lon) * 16) {
+				} else if (thrust > abs(car->speed_local_lon) * 16) {
 					thrust = car->speed_local_lon * -16;
 				} else if (car->speed_local_lon < 0) {
 					thrust = -thrust;

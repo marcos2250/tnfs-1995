@@ -269,7 +269,9 @@ void renderGl() {
 
 	drawRoad();
 	for (int i = 0; i < g_total_cars_in_scene; i++) {
-	  drawVehicle(g_car_ptr_array[i]);
+		if (g_car_ptr_array[i]->field_4e9 & 4) {
+			drawVehicle(g_car_ptr_array[i]);
+		}
 	}
 	drawTach();
 }

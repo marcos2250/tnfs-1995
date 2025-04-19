@@ -450,9 +450,14 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	// simplified version
 	if (car->collision_data.state_timer > 0) {
 		car->collision_data.state_timer--;
-		g_cam_change_delay = 0x3c;
+		if (player_car_ptr == car) {
+			g_cam_change_delay = 0x3c;
+			car->angle.y = math_atan2(car->collision_data.matrix.ax, car->collision_data.matrix.az);
+		}
 	} else {
-		g_cam_change_delay = 0;
+		if (player_car_ptr == car) {
+			g_cam_change_delay = 0;
+		}
 		tnfs_reset_car(car);
 		return;
 	}
@@ -515,10 +520,10 @@ void tnfs_collision_data_set(tnfs_car_data *car) {
 	car->collision_data.speed.x = car->speed_x;
 	car->collision_data.speed.y = car->speed_y;
 	car->collision_data.speed.z = car->speed_z;
-	car->collision_data.field4_0x48.x = 0;
-	car->collision_data.field4_0x48.y = 0;
-	car->collision_data.field4_0x48.z = 0;
-	car->collision_data.field4_0x48.y = -0x9cf5c;
+	car->collision_data.gravity_vector.x = 0;
+	car->collision_data.gravity_vector.y = 0;
+	car->collision_data.gravity_vector.z = 0;
+	car->collision_data.gravity_vector.y = -0x9cf5c;
 	car->collision_data.angular_speed.x = 0;
 	car->collision_data.angular_speed.y = 0;
 	car->collision_data.angular_speed.z = 0;

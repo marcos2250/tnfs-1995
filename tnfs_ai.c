@@ -904,7 +904,7 @@ void tnfs_ai_update_speed_targets(tnfs_car_data *car) {
 				car->speed_target = iVar1;
 			} else {
 				// opponent car
-				car->speed_target = g_ai_skill_cfg.opp_desired_ahead + g_lead_player->car_road_speed;
+				car->speed_target = (g_ai_skill_cfg.opp_desired_ahead >> 1) + (g_lead_player->car_road_speed >> 1);
 			}
 
 			safe_speed = (int) g_track_speed[car->track_slice >> 2].safe_speed << 0x10;

@@ -448,9 +448,9 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->collision_data.speed.x = 0;
 	car->collision_data.speed.y = 0;
 	car->collision_data.speed.z = 0;
-	car->collision_data.field4_0x48.x = 0;
-	car->collision_data.field4_0x48.y = 0;
-	car->collision_data.field4_0x48.z = -0x9cf5c;
+	car->collision_data.gravity_vector.x = 0;
+	car->collision_data.gravity_vector.y = 0;
+	car->collision_data.gravity_vector.z = -0x9cf5c;
 	car->collision_data.state_timer = 0;
 	car->collision_data.angular_speed.x = 0;
 	car->collision_data.angular_speed.y = 0;
@@ -546,8 +546,8 @@ void tnfs_init_car(tnfs_car_data *car) {
 	car->car_id = 0;
 	car->field_4e9 = 7;
 	car->position.z = 0; //0x600000;
-	car->track_slice = 0; //0x10;
-	car->track_slice_lap = 0; //0x10;
+	//car->track_slice = 0; //0x10;
+	//car->track_slice_lap = 0; //0x10;
 	car->lap_number = 1;
 
 	// rally mode tweaks

@@ -1183,3 +1183,93 @@ void tnfs_driving_main(tnfs_car_data *car) {
 	tnfs_track_node_update(car);
 	tnfs_height_position(car, 1);
 }
+
+/*
+ * do the "180 spin" crossing the finish/checkpoint line
+ */
+void tnfs_driving_checkpoint_flick(tnfs_car_data *car) {
+	int iVar1;
+	int iVar3;
+	int iVar4;
+	int iVar5;
+	int iVar6;
+	int iVar7;
+	int local_34;
+	int local_30;
+
+	iVar4 = track_data[car->track_slice & g_slice_mask].heading * 0x400;
+	iVar3 = abs(iVar4 - (car->angle).y);
+
+	if (iVar3 > 0x800000) {
+		iVar3 = 0x1000000 - iVar3;
+	}
+	iVar1 = iVar3 - 0x400000;
+	if (iVar1 < 1) {
+		iVar1 = 0x400000 - iVar3;
+	}
+
+	if ((iVar1 < 0x80000) || (car->field_4cd == 2)) {
+		car->handbrake = 0;
+		car->brake = 0xfa;
+		car->throttle = 0;
+		iVar7 = car->angular_speed >> 0x1f;
+		car->angular_speed = car->angular_speed - (((car->angular_speed + iVar7 * -8) - (iVar7 << 2 < 0)) >> 3);
+		car->speed_local_lon = 0;
+		if (car->speed_local_lat < 1) {
+			if (car->field_4d1 < 0x190000) {
+				car->field_4d3 += 3;
+			}
+		} else {
+			if (car->field_4d1 > -0x190000) {
+				car->field_4d1 -= 0x30000;
+			}
+		}
+		car->steer_angle = car->field_4d1;
+		car->field_4cd = 2;
+	} else {
+		if (car->field_4cd == 0) {
+			car->field_4c9 = 0;
+			car->field_4d1 = 0;
+
+			iVar5 = math_sin_2(iVar4);
+			iVar6 = math_cos_2(iVar4);
+			iVar4 = track_data[car->track_slice & g_slice_mask].pos.x;
+			iVar7 = track_data[car->track_slice & g_slice_mask].pos.z;
+
+			car->field_4c5 = fixmul(iVar5, (iVar7 - car->position.z)) - fixmul(iVar6, (iVar4 - car->position.x));
+			car->field_4c9 = 0;
+		}
+		car->throttle = 0;
+		car->handbrake = 1;
+		car->field_4cd = 1;
+		if ((track_data[car->track_slice & g_slice_mask].roadLeftFence * 0x2000 + car->field_4c5) < 1) {
+			local_34 = -(track_data[car->track_slice & g_slice_mask].roadLeftFence * 0x2000 + car->field_4c5);
+		} else {
+			local_34 = car->field_4c5 + track_data[car->track_slice & g_slice_mask].roadLeftFence * 0x2000;
+		}
+		if (car->field_4c5 == track_data[car->track_slice & g_slice_mask].roadRightFence * 0x2000
+				|| (car->field_4c5 + track_data[car->track_slice & g_slice_mask].roadRightFence * -0x2000) < 0) {
+			local_30 = -(car->field_4c5 + track_data[car->track_slice & g_slice_mask].roadRightFence * -0x2000);
+		} else {
+			local_30 = car->field_4c5 + track_data[car->track_slice & g_slice_mask].roadRightFence * -0x2000;
+		}
+		//flick the steering wheel
+		if (local_34 < local_30) {
+			if (car->field_4c9 < 6) {
+				car->steer_angle = -0x1e0000;
+			} else {
+				car->steer_angle = 0x1e0000;
+			}
+		} else if (car->field_4c9 < 6) {
+			car->steer_angle = 0x1e0000;
+		} else {
+			car->steer_angle = -0x1e0000;
+		}
+	}
+
+	car->field_4c9++;
+	//iVar7 = car->speed_local_lat >> 0x1f;
+	//car->speed_local_lat = car->speed_local_lat - (((car->speed_local_lat + iVar7 * -8) - (iVar7 << 2 < 0)) >> 3);
+	//iVar7 = car->speed_local_lon >> 0x1f;
+	//car->speed_local_lon -= -(((car->speed_local_lon + iVar7 * -8) - (iVar7 << 2 < 0)) >> 3);
+}

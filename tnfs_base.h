@@ -363,8 +363,12 @@ typedef struct tnfs_car_data {
 	int tcs_on; //0x4AD
 	int abs_on; //0x4B1
 	// ...
-	int is_wrecked;
-	// ...
+	int is_wrecked; //
+	int field_4c5; //0x4C5 checkpoint flick maneuvre
+	int field_4c9; //0x4C9
+	int field_4cd; //0x4CD crossed the finish line flag
+	int field_4d1; //0x4D1
+	int field_4d3; //0x4D3
 	int delta_time; //0x4D5
 	int fps; //0x4D9
 	// ...
@@ -545,8 +549,7 @@ typedef struct tnfs_stats_data {
 	int field_0x1b8; //0x1b8
 	// ...
 	int prev_lap_time; //0x1bc
-	// ...
-	int lap_time_0x1c0; //0x1c0
+	int lap_time; //0x1c0
 	int top_speed; //0x1c4
 	int field_0x1c8; //0x1c8
 } tnfs_stats_data;
@@ -610,6 +613,7 @@ extern int g_police_on_chase;
 extern char is_drifting;
 extern int iSimTimeClock;
 extern int g_road_node_count;
+extern int g_road_finish_node;
 extern int sound_flag;
 extern int cheat_crashing_cars;
 extern int g_game_settings;
@@ -638,7 +642,7 @@ extern int g_camera_node;
 extern int DAT_00143844;
 extern int g_is_closed_track;
 extern int g_slice_mask; // track node id mask
-extern int g_track_lap;
+extern int g_track_laps;
 extern int g_track_slice;
 extern int DAT_00153B20;
 extern int DAT_00153B24;
@@ -648,6 +652,7 @@ extern int DAT_00165148;
 extern int g_police_chase_time;
 extern int g_player_id;
 extern int g_cam_change_delay;
+extern int g_race_positions[8];
 
 // common functions
 void tnfs_init_sim(char * trifile);
@@ -657,6 +662,7 @@ void tnfs_reset_car(tnfs_car_data *car);
 void tnfs_update();
 void tnfs_crash_car();
 void tnfs_sfx_play(int a, int b, int c, int d, int e, int f);
+int tnfs_racer_crossed_finish_line(tnfs_car_data *car);
 void tnfs_car_local_position_vector(tnfs_car_data * car_data, int * angle, int * length);
 int tnfs_track_node_find(tnfs_vec3 *p_position, int *current);
 int tnfs_track_node_update(tnfs_car_data *car);
@@ -673,5 +679,6 @@ void tnfs_tcs();
 void tnfs_cheat_mode();
 void tnfs_ai_get_speed_factor(tnfs_car_data *car);
 void tnfs_ai_get_lane_slack(tnfs_car_data *car);
+void tnfs_initial_position(tnfs_car_data *car);
 
 #endif /* TNFS_BASE_H_ */

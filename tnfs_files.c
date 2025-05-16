@@ -44,8 +44,10 @@ int read_tri_file(char * file) {
 
 	if (g_is_closed_track) {
 		g_slice_mask = g_road_node_count - 1;
+		g_road_finish_node = g_road_node_count;
 	} else {
 		g_slice_mask = -1;
+		g_road_finish_node = g_road_node_count - 0xb5;
 	}
 
 	// 0x98C block: Virtual road / RoadSplinePoint

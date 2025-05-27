@@ -600,32 +600,6 @@ void tnfs_init_car(tnfs_car_data *car) {
 	tnfs_Fiziks_InitCar(car);
 }
 
-void tnfs_initial_position(tnfs_car_data *car) {
-	int iVar1;
-	int iVar2;
-
-	iVar1 = (track_data[10].num_lanes & 0xf) * 0x28 + (track_data[10].roadRightMargin << 5);
-
-	iVar2 = g_race_positions[car->car_id2];
-
-	(car->position).x = (iVar1 * -0x100) / 2 + (iVar2 % 2) * iVar1 * 0x100;
-
-	if (((track_data[g_slice_mask & 0x14].num_lanes >> 4 == 2) //
-		&& ((track_data[g_slice_mask & 0x14].num_lanes & 0xf) == 1)) //
-		&& (iVar1 % 2 == 0)) {
-		(car->position).x += iVar1 * -0x100;
-	}
-
-	if (g_racer_cars_in_scene < 3) {
-		car->track_slice = (iVar2 / 2) * -4 + 0x20;
-	} else {
-		car->track_slice = iVar2 * -2 + 0x20;
-	}
-
-	car->track_center_distance = 0;
-	(car->position).z = track_data[car->track_slice & g_slice_mask].pos.z;
-}
-
 /* basic game controls */
 
 void tnfs_controls_update() {
@@ -833,6 +807,32 @@ void tnfs_replay_highlight_record(char a) {
 }
 
 /* common original TNFS functions */
+
+void tnfs_initial_position(tnfs_car_data *car) {
+	int iVar1;
+	int iVar2;
+
+	iVar1 = (track_data[10].num_lanes & 0xf) * 0x28 + (track_data[10].roadRightMargin << 5);
+
+	iVar2 = g_race_positions[car->car_id2];
+
+	(car->position).x = (iVar1 * -0x100) / 2 + (iVar2 % 2) * iVar1 * 0x100;
+
+	if (((track_data[g_slice_mask & 0x14].num_lanes >> 4 == 2) //
+		&& ((track_data[g_slice_mask & 0x14].num_lanes & 0xf) == 1)) //
+		&& (iVar1 % 2 == 0)) {
+		(car->position).x += iVar1 * -0x100;
+	}
+
+	if (g_racer_cars_in_scene < 3) {
+		car->track_slice = (iVar2 / 2) * -4 + 0x20;
+	} else {
+		car->track_slice = iVar2 * -2 + 0x20;
+	}
+
+	car->track_center_distance = 0;
+	(car->position).z = track_data[car->track_slice & g_slice_mask].pos.z;
+}
 
 int tnfs_racer_crossed_finish_line(tnfs_car_data *car) {
 	if ((g_number_of_players > 1) //
@@ -1264,7 +1264,7 @@ void tnfs_init_sim(char *trifile) {
 		g_ai_opp_data[i].opp_oncoming_corner_swerve = 0;
 		g_ai_opp_data[i].opp_cut_corners = 0x1b;
 		for (j = 0; j < 4; j++) {
-			g_ai_opp_data[i].lane_slack[i] = 0;
+			g_ai_opp_data[i].lane_slack[j] = 0;
 		}
 		g_ai_opp_data[i].field_0x89 = 0x3333; //0.2
 
@@ -1280,9 +1280,9 @@ void tnfs_init_sim(char *trifile) {
 		g_stats_data[i].prev_lap_time = 0;
 		g_stats_data[i].lap_time = 0;
 		g_stats_data[i].top_speed = 0;
-		g_stats_data[i].field_0x1c8 = 0;
+		g_stats_data[i].top_speed_2 = 0;
 		for (j = 0; j < 17; j++) {
-			g_stats_data[j].lap_timer[j] = 0;
+			g_stats_data[i].lap_timer[j] = 0;
 		}
 	}
 

@@ -314,10 +314,6 @@ void tnfs_collision_update_vectors(tnfs_collision_data *body) {
 	math_matrix_multiply(&body->matrix, &body->matrix, &matrix);
 }
 
-void FUN_00066822() {
-	printf("Collision OFF \n");
-}
-
 void FUN_0005b29f(tnfs_car_data * car) {
 	//stub
 }
@@ -333,7 +329,7 @@ void tnfs_collision_data_get(tnfs_car_data *car, int crash_state) {
 		DAT_000FDCEC = -1;
 		DAT_000FDCF0 = -1;
 		if (car->crash_state == 4) {
-			FUN_00066822();
+			tnfs_collision_off();
 		}
 	}
 
@@ -459,6 +455,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 			g_cam_change_delay = 0;
 		}
 		tnfs_reset_car(car);
+		tnfs_ai_police_reset_state(0);
 		return;
 	}
 	if (car->ai_state & 8) {

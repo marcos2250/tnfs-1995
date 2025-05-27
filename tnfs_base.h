@@ -544,14 +544,14 @@ typedef struct tnfs_stats_data {
 	int best_brake_time_2; //0x1a4
 	int quarter_mile_speed; //0x1a8
 	int quarter_mile_time; //0x1ac
-	int penalty_count; //0x1b0
+	//0x1b0
 	int warning_count; //0x1b4
+	int penalty_count; //0x1b8
 	int field_0x1b8; //0x1b8
-	// ...
 	int prev_lap_time; //0x1bc
 	int lap_time; //0x1c0
 	int top_speed; //0x1c4
-	int field_0x1c8; //0x1c8
+	int top_speed_2; //0x1c8
 } tnfs_stats_data;
 
 typedef struct tnfs_random_struct {

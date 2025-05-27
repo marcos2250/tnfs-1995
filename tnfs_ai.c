@@ -22,9 +22,8 @@ int g_lead_player_id = 0; //00165144
 tnfs_car_data *g_lead_player = 0; //DAT_00165334
 tnfs_car_data *g_cop_car_ptr = 0; //DAT_001651a8
 
-int DAT_000fdbe8[4] = { 20, 40, 60, 80 };
+int DAT_000fdbe8[4] = { 0x20, 0x40, 0x60, 0x80 };
 int g_cop_park_position = 0; //000fdbf8
-int g_tri_lap_chunks = 0x208;
 int DAT_0016532c = 0;
 int DAT_00165324 = 0;
 int DAT_00165328 = 0;
@@ -766,7 +765,7 @@ int tnfs_ai_racer_speed(tnfs_car_data *car) {
 	}
 	result_speed = math_mul(top_speed, local_24);
 	if (tnfs_racer_crossed_finish_line(car) == 2) {
-		if (FUN_000779b7(car->car_id2, tnfs_racer_crossed_finish_line(car))) {
+		if (FUN_000779b7(car->car_id2, FUN_00064c27(car))) {
 			result_speed = 0;
 		}
 	}
@@ -1046,9 +1045,9 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 		}
 	}
 
-	if (car->car_road_speed > g_stats_data[car->car_id2].top_speed
+	if (car->car_road_speed > g_stats_data[car->car_id2].top_speed_2
 		&& (g_track_speed[car->track_slice >> 2].top_speed << 16) >= car->car_road_speed) {
-		g_stats_data[car->car_id2].top_speed = car->car_road_speed;
+		g_stats_data[car->car_id2].top_speed_2 = car->car_road_speed;
 	}
 
 	right_normal.x = car->road_fence_normal.x;
@@ -2107,7 +2106,7 @@ void tnfs_ai_police_parked_respawn() {
 
 			for (i = g_cop_park_position + 1; i <= iVar2; i++) {
 
-				if (((g_tri_lap_chunks << 2) <= (i + 0x32)) //
+				if (((g_tri_num_chunks << 2) <= (i + 0x32)) //
 					|| (((track_data[(i + 0x32) & g_slice_mask].side_normal_x) & 1) == 0)) {
 
 					node = i + 0x32;

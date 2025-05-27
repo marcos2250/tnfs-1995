@@ -613,6 +613,7 @@ extern int g_police_on_chase;
 extern char is_drifting;
 extern int iSimTimeClock;
 extern int g_road_node_count;
+extern int g_tri_num_chunks;
 extern int g_road_finish_node;
 extern int sound_flag;
 extern int cheat_crashing_cars;
@@ -639,7 +640,6 @@ extern int g_lcg_random_mod;
 extern int g_lcg_random_nbr;
 extern int g_lcg_random_seed;
 extern int g_camera_node;
-extern int DAT_00143844;
 extern int g_is_closed_track;
 extern int g_slice_mask; // track node id mask
 extern int g_track_laps;

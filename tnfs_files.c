@@ -40,7 +40,8 @@ int read_tri_file(char * file) {
 	}
 
 	g_is_closed_track = buffer[4] != 0;
-	g_road_node_count = readFixed32(buffer, 6) * 4;
+	g_tri_num_chunks = readFixed32(buffer, 6);
+	g_road_node_count = g_tri_num_chunks * 4;
 
 	if (g_is_closed_track) {
 		g_slice_mask = g_road_node_count - 1;

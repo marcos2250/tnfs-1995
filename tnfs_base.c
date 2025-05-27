@@ -33,6 +33,7 @@ int g_number_of_traffic_cars = 4; //001670BB
 char is_drifting;
 int iSimTimeClock = 0;
 int g_road_node_count = 0;
+int g_tri_num_chunks = 0;
 int g_road_finish_node = 0;
 int sound_flag = 0;
 int g_selected_cheat = 0;
@@ -44,6 +45,7 @@ signed char g_control_steer;
 int g_police_on_chase = 0; //000fdb90
 int g_police_speeding_ticket = 0; //0016513C
 int g_police_chase_time = 0; //0016533c
+int g_police_ticket_time = 0;
 
 tnfs_camera camera;
 int selected_camera = 0;
@@ -71,10 +73,10 @@ int DAT_000f99e4 = 0x10000;
 int DAT_000f99e8 = 0x34000;
 int DAT_000f99ec = 10; //800eae14
 int DAT_000f99f0 = 0x8000;
-int DAT_000fae60 = 0;
+int DAT_000fae60 = 1;
 int DAT_000FDB94 = 0;
-int DAT_000FDCEC = 0;
-int DAT_000FDCF0 = 0;
+int DAT_000FDCEC = -1;
+int DAT_000FDCF0 = -1;
 int DAT_000f9A70 = 0;
 int g_lcg_random_mod = 0xFFFF; //800db6bc
 int g_lcg_random_nbr = 0x12345678; //800db6c0 g_car_random_index
@@ -88,7 +90,6 @@ int DAT_00153B20 = 0; // game over flag
 int DAT_00153B24 = 0; // game over flag 2?
 tnfs_car_data * DAT_00153BC4 = 0; //player car ptr 2
 int DAT_00165148 = 0; // center lane distance/margin
-int DAT_00165340 = 0;
 int g_player_id = 0; //16707C
 int g_cam_change_delay = 0; // 00143844
 
@@ -107,6 +108,7 @@ void auto_generate_track() {
 	int i;
 
 	g_road_node_count = 2395;
+	g_tri_num_chunks = 598;
 	g_road_finish_node = g_road_node_count - 0xb5;
 
 	srand(time(NULL));
@@ -486,6 +488,9 @@ void tnfs_reset_car(tnfs_car_data *car) {
 		car->ai_state = 0x1e0;
 		car->field_158 = 1;
 		g_police_on_chase = 0;
+		g_police_speeding_ticket = 0;
+		g_police_ticket_time = 0;
+		g_police_chase_time = 0;
 	} else {
 		// ai cars
 		car->crash_state = 3;

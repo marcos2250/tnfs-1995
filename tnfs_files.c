@@ -6,6 +6,11 @@
 #include "tnfs_math.h"
 #include "tnfs_base.h"
 
+int readFixed16(unsigned char *buffer, int pos) {
+	return (int)(buffer[pos + 1]) << 8 //
+		| buffer[pos];
+}
+
 int readFixed32(unsigned char *buffer, int pos) {
 	return (int)(buffer[pos + 3]) << 24 //
 		| (int)(buffer[pos + 2]) << 16 //
@@ -39,7 +44,7 @@ int read_tri_file(char * file) {
 		return 0;
 	}
 
-	g_is_closed_track = buffer[4] != 0;
+	g_is_closed_track = readFixed16(buffer, 4) != 0;
 	g_tri_num_chunks = readFixed32(buffer, 6);
 	g_road_node_count = g_tri_num_chunks * 4;
 

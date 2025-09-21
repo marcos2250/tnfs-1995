@@ -73,6 +73,9 @@ static const unsigned int g_torque_table[120] = {
 int DAT_800eb6a4 = 0; //800eb6a4
 int DAT_8010d310 = 0; //8010d310
 
+int g_collision_bump_ref = 0x6666; //DAT_000f9a70 800eae58
+int g_collision_bump_val = 0; // INT_000f99f0
+int g_collision_force; // 000f9a74;
 int DAT_000F9BB0 = 0;
 int DAT_000f99e4 = 0x10000;
 int DAT_000f99e8 = 0x34000;

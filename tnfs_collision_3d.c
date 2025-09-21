@@ -7,16 +7,12 @@
 #include "tnfs_ai.h"
 
 // globals
-int g_carcar_bump_speed = 0; //DAT_000f9a70 800eae58
-int g_collision_force; // 000f9a74;
 int g_surf_distance; // 000f9a78
 int g_surf_clipping = 1;
 tnfs_vec3 g_collision_v_speed;
 int g_const_8CCC = 0x8ccc; //DAT_800eae70
 int g_const_7333 = 0x7333; //DAT_800eae74
 int g_const_CCCC = 0xCCCC; //DAT_800eae78
-
-int DAT_000f9a74;
 
 void tnfs_collision_off() {
 	printf("Collision OFF \n");
@@ -115,14 +111,12 @@ void tnfs_collision_rebound(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_v
 
 	// change linear and rotation speeds
 	if (force > 0) {
-		g_collision_force = force;
-
 		// force vector
 		normal_accel.x = math_mul(force, normal->x) + accel.x;
 		normal_accel.y = math_mul(force, normal->y) + accel.y;
 		normal_accel.z = math_mul(force, normal->z) + accel.z;
 
-		DAT_000f9a74 = force;
+		g_collision_force = force;
 
 		body->speed.x += math_mul(body->linear_acc_factor, normal_accel.x);
 		body->speed.y += math_mul(body->linear_acc_factor, normal_accel.y);
@@ -147,7 +141,7 @@ void tnfs_collision_detect(tnfs_collision_data *body, tnfs_vec3 *surf_normal, tn
 	tnfs_vec3 g_edge;
 	tnfs_vec3 backoff;
 
-	DAT_000f9a74 = 0;
+	g_collision_force = 0;
 
 	// zero normal check
 	if (((surf_normal->x == 0) && (surf_normal->y == 0)) && (surf_normal->z == 0)) {
@@ -446,11 +440,15 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	/* car colliding to track fence */
 	tnfs_collision_detect(collision_data, &fenceNormal, &fencePosition);
 
+    if (local_20 < g_collision_force) {
+      local_20 = g_collision_force;
+    }
+
 	/* car collision to ground */
 	tnfs_collision_detect(collision_data, &roadNormal, &roadPosition);
 
-    if (local_20 < DAT_000f9a74) {
-      local_20 = DAT_000f9a74;
+    if (local_20 < g_collision_force) {
+      local_20 = g_collision_force;
     }
 
 	/* ... lots of code goes here -- crash recovery ... */
@@ -474,7 +472,11 @@ void tnfs_collision_main(tnfs_car_data *car) {
 
  	// play crashing sounds
 	iVar4 = 2;
-	if (DAT_000f99f0 > 0) {
+	if ((car->matrix).by > 0xcccc) {
+		iVar4 = 4;
+	}
+		
+	if (g_collision_bump_ref < local_20) {
 		if (sound_flag == 0) {
 			tnfs_car_local_position_vector(car, &local_28, &local_24);
 		}
@@ -489,7 +491,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 			}
 			tnfs_sfx_play(-1, iVar4, 1, 0, local_24, local_28);
 		}
-		DAT_000f99f0 = 0x8000;
+		g_collision_bump_ref = local_20 + 0x8000;
 		DAT_000f99ec = 10;
 	}
 
@@ -1579,7 +1581,7 @@ char tnfs_collision_carcar_rebound(tnfs_collision_data *body1, tnfs_collision_da
 	iVar1 = math_div(((iVar2 - iVar1) - iVar3) + iVar4, (body1->linear_acc_factor >> 1) + (body2->linear_acc_factor >> 1) + (iVar5 >> 1) + (iVar6 >> 1));
 	if (-1 < iVar1) {
 		iVar2 = math_mul(g_const_8CCC, iVar1);
-		g_carcar_bump_speed = iVar2;
+		g_collision_bump_ref = iVar2;
 		local_90.x = math_mul(iVar2, col_direction->x);
 		local_90.y = math_mul(iVar2, col_direction->y);
 		local_90.z = math_mul(iVar2, col_direction->z);
@@ -1673,7 +1675,7 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 	}
 
 	// hit and run
-	if (g_carcar_bump_speed < max_crash_speed) {
+	if (g_collision_force < max_crash_speed) {
 		if (car1->crash_state != 4) {
 			tnfs_collision_data_get(car1, car1->crash_state);
 		}
@@ -1749,7 +1751,7 @@ int tnfs_collision_carcar(tnfs_car_data *car1, tnfs_car_data *car2) {
 		return 0;
 	}
 
-	if (DAT_000f99f0 == 0) { //FIXME ???
+	if (g_collision_force > g_collision_bump_ref) {
 		local_2c = car1->track_slice - g_camera_node;
 		if (car1 == g_car_ptr_array[g_player_id]) {
 			tnfs_car_local_position_vector(car2, &local_34, &local_30);
@@ -1757,11 +1759,11 @@ int tnfs_collision_carcar(tnfs_car_data *car1, tnfs_car_data *car2) {
 			tnfs_car_local_position_vector(car1, &local_34, &local_30);
 		}
 		tnfs_sfx_play(-1, 2, 0, local_2c, local_30, local_34);
-		DAT_000f99f0 = 0x8000;
+		g_collision_bump_ref = g_collision_force + 0x8000;
 		DAT_000f99ec = 10;
 	}
 
-	if (g_car_ptr_array[g_player_id]->is_wrecked != 0) {
+	if (g_car_ptr_array[g_player_id]->is_crashed != 0) {
 		if (selected_camera == 0) {
 			tnfs_camera_set(&camera, 2); //change to heli cam
 		}

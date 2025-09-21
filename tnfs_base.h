@@ -626,16 +626,17 @@ extern int g_selected_cheat;
 extern int selected_camera;
 extern tnfs_camera camera;
 
+extern int g_collision_bump_ref;
+extern int g_collision_bump_val;
+extern int g_collision_force;
 extern int DAT_000F9BB0;
 extern int DAT_000f99e4;
 extern int DAT_000f99e8;
 extern int DAT_000f99ec; //800eae14
-extern int DAT_000f99f0;
 extern int DAT_000fae60;
 extern int DAT_000FDB94;
 extern int DAT_000FDCEC;
 extern int DAT_000FDCF0;
-extern int DAT_000f9A70;
 extern int g_lcg_random_mod;
 extern int g_lcg_random_nbr;
 extern int g_lcg_random_seed;

@@ -2813,7 +2813,7 @@ void tnfs_ai_collision_handler() {
 	int i;
 
 	if (DAT_000f99ec == 0) {
-		DAT_000f99f0 = 0x6666;
+		g_collision_bump_ref = 0x6666;
 	} else {
 		DAT_000f99ec = DAT_000f99ec - 1;
 	}

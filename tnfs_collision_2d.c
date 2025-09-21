@@ -179,21 +179,21 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 
 	// play collision sound
 	abs_speed = abs(rebound_speed_x);
-	if ((fence_flag == 0) && (abs_speed >= 0x60001)) {
+	if (fence_flag && (abs_speed > 0x60000)) {
 		if (sound_flag == 0) {
 			if (car_data->car_id2 == 0) {
-				if (DAT_80111a40 != 0) {
+				if (selected_camera == 0) {
 					if (distance <= 0)
-						sfxA = 0x280000;
+						sfxA = 0x280000; //left channel
 					else
-						sfxA = 0xd70000;
+						sfxA = 0xd70000; //right channel
 					sfxB = 1;
 				} else {
 					tnfs_car_local_position_vector(car_data, &sfxA, &sfxB);
 				}
 			}
 		} else {
-			if (car_data->car_id2 <= 0) {
+			if (car_data->car_id2 == 0) {
 				sfxA = 0x400000;
 			} else {
 				sfxA = 0xc00000;

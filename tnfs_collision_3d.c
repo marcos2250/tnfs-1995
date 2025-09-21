@@ -16,6 +16,7 @@ int g_const_8CCC = 0x8ccc; //DAT_800eae70
 int g_const_7333 = 0x7333; //DAT_800eae74
 int g_const_CCCC = 0xCCCC; //DAT_800eae78
 
+int DAT_000f9a74;
 
 void tnfs_collision_off() {
 	printf("Collision OFF \n");
@@ -121,6 +122,8 @@ void tnfs_collision_rebound(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_v
 		normal_accel.y = math_mul(force, normal->y) + accel.y;
 		normal_accel.z = math_mul(force, normal->z) + accel.z;
 
+		DAT_000f9a74 = force;
+
 		body->speed.x += math_mul(body->linear_acc_factor, normal_accel.x);
 		body->speed.y += math_mul(body->linear_acc_factor, normal_accel.y);
 		body->speed.z += math_mul(body->linear_acc_factor, normal_accel.z);
@@ -133,7 +136,7 @@ void tnfs_collision_rebound(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_v
 }
 
 void tnfs_collision_detect(tnfs_collision_data *body, tnfs_vec3 *surf_normal, tnfs_vec3 *surf_pos) {
-	int trespass;
+	int overlap;
 	int sideX;
 	int sideY;
 	int sideZ;
@@ -143,6 +146,8 @@ void tnfs_collision_detect(tnfs_collision_data *body, tnfs_vec3 *surf_normal, tn
 	tnfs_vec3 l_edge;
 	tnfs_vec3 g_edge;
 	tnfs_vec3 backoff;
+
+	DAT_000f9a74 = 0;
 
 	// zero normal check
 	if (((surf_normal->x == 0) && (surf_normal->y == 0)) && (surf_normal->z == 0)) {
@@ -209,13 +214,13 @@ void tnfs_collision_detect(tnfs_collision_data *body, tnfs_vec3 *surf_normal, tn
 
 
 		// do not allow the body go through surface
-		trespass = 0;
+		overlap = 0;
 		if (g_surf_distance < 0) {
-			trespass = -g_surf_distance;
+			overlap = -g_surf_distance;
 		}
-		if (g_surf_clipping && (trespass != 0)) {
+		if (g_surf_clipping && (overlap != 0)) {
 			// gently put the body above the surface
-			aux = trespass >> 1;
+			aux = overlap >> 1;
 			backoff.x = math_mul(aux, surf_normal->x);
 			backoff.y = math_mul(aux, surf_normal->y);
 			backoff.z = math_mul(aux, surf_normal->z);
@@ -250,18 +255,18 @@ void tnfs_collision_detect(tnfs_collision_data *body, tnfs_vec3 *surf_normal, tn
 		}
 
 		// adjust height position
-		if (g_surf_clipping && (trespass != 0) && (backoff.y > 0)) {
-			trespass = math_mul(0x9cf5c, backoff.y) * 2;
+		if (g_surf_clipping && (overlap != 0) && (backoff.y > 0)) {
+			overlap = math_mul(0x9cf5c, backoff.y) * 2;
 			aux = math_mul(body->speed.y, body->speed.y);
-			if (trespass > aux) {
+			if (overlap > aux) {
 				body->speed.y = 0;
 			} else {
-				aux -= trespass;
-				trespass = math_sqrt(aux);
+				aux -= overlap;
+				overlap = math_sqrt(aux);
 				if (body->speed.y > 0) {
-					body->speed.y = trespass;
+					body->speed.y = overlap;
 				} else {
-					body->speed.y = -trespass;
+					body->speed.y = -overlap;
 				}
 			}
 		}
@@ -362,9 +367,10 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	tnfs_vec3 fencePosition;
 	tnfs_vec3 roadPosition;
 	tnfs_vec3 fenceDistance;
-	tnfs_vec3 roadHeading;
+	//tnfs_vec3 roadHeading;
 	int roadWidth;
 	int iVar4 = 0;
+	int local_20 = 0;
 	int local_24 = 0;
 	int local_28 = 0;
 	int aux;
@@ -399,11 +405,12 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	roadPosition.x = car->road_ground_position.x;
 	roadPosition.y = car->road_ground_position.y;
 	roadPosition.z = -car->road_ground_position.z;
-	roadHeading.x = car->road_heading.x;
-	roadHeading.y = car->road_heading.y;
-	roadHeading.z = -car->road_heading.z;
+	//roadHeading.x = car->road_heading.x;
+	//roadHeading.y = car->road_heading.y;
+	//roadHeading.z = -car->road_heading.z;
 
 	tnfs_collision_update_vectors(collision_data);
+	local_20 = 0;
 
 	/* get track fences */
 	fenceDistance.x = collision_data->position.x - roadPosition.x;
@@ -442,6 +449,10 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	/* car collision to ground */
 	tnfs_collision_detect(collision_data, &roadNormal, &roadPosition);
 
+    if (local_20 < DAT_000f9a74) {
+      local_20 = DAT_000f9a74;
+    }
+
 	/* ... lots of code goes here -- crash recovery ... */
 	// simplified version
 	if (car->collision_data.state_timer > 0) {
@@ -455,7 +466,6 @@ void tnfs_collision_main(tnfs_car_data *car) {
 			g_cam_change_delay = 0;
 		}
 		tnfs_reset_car(car);
-		tnfs_ai_police_reset_state(0);
 		return;
 	}
 	if (car->ai_state & 8) {
@@ -1739,15 +1749,15 @@ int tnfs_collision_carcar(tnfs_car_data *car1, tnfs_car_data *car2) {
 		return 0;
 	}
 
-	if (DAT_000f99f0 < DAT_000f9A70) {
+	if (DAT_000f99f0 == 0) { //FIXME ???
 		local_2c = car1->track_slice - g_camera_node;
 		if (car1 == g_car_ptr_array[g_player_id]) {
 			tnfs_car_local_position_vector(car2, &local_34, &local_30);
 		} else {
 			tnfs_car_local_position_vector(car1, &local_34, &local_30);
 		}
-		tnfs_sfx_play(-1, 2, 0, local_30, local_34, 0);
-		DAT_000f99f0 = DAT_000f9A70 + 0x8000;
+		tnfs_sfx_play(-1, 2, 0, local_2c, local_30, local_34);
+		DAT_000f99f0 = 0x8000;
 		DAT_000f99ec = 10;
 	}
 

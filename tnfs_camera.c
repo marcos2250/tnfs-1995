@@ -151,7 +151,7 @@ int sub_634E2(int a, int b) {
 }
 
 void tnfs_camera_update(tnfs_camera *camera) {
-	int v1, v2, v3;
+	int v1, v3;
 	signed long local_10;
 	int local_11;
 	int local_23;
@@ -162,7 +162,7 @@ void tnfs_camera_update(tnfs_camera *camera) {
 	int local_28;
 	int local_32;
 	int local_33;
-	int local_38;
+	//int local_38;
 	int local_39;
 	int local_41;
 	int local_42;
@@ -187,22 +187,29 @@ void tnfs_camera_update(tnfs_camera *camera) {
 		return;
 	}
 
+	// drone cam
 	if (specs->id3 != 0) {
-		local_33 = track_data[g_slice_mask & camera->car_ptr_2->track_slice].slant * 0x400;
-		v1 = (track_data[g_slice_mask & camera->car_ptr_2->track_slice].pos.z - camera->car_ptr_2->position.z) >> 8;
-		v2 = v1 * (math_sin_2(local_33 >> 8) >> 8);
-		v3 = (track_data[g_slice_mask & camera->car_ptr_2->track_slice].pos.x - camera->car_ptr_2->position.x) >> 8;
-		local_32 = v2 - v3 * (math_cos_2(local_33 >> 8) >> 8)
-				- ((track_data[g_slice_mask & camera->car_ptr_2->track_slice].roadRightMargin << 13)
-						- (track_data[g_slice_mask & camera->car_ptr_2->track_slice].roadLeftMargin << 13)) / 2;
-		if (track_data[g_slice_mask & camera->car_ptr_2->track_slice].slope)
-			local_32 = 0;
+		local_33 = track_data[camera->car_ptr_2->track_slice].heading * 0x400;
+
+		v1 = (track_data[camera->car_ptr_2->track_slice].pos.z - camera->car_ptr_2->position.z);
+		v1 = fixmul(v1, math_sin_2(local_33 >> 8));
+
+		v3 = (track_data[camera->car_ptr_2->track_slice].pos.x - camera->car_ptr_2->position.x);
+		v3 = fixmul(v3, math_cos_2(local_33 >> 8));
+
+		local_32 = (v1 - v3
+				- (track_data[camera->car_ptr_2->track_slice].roadRightMargin * 0x2000)
+				- (track_data[camera->car_ptr_2->track_slice].roadLeftMargin * -0x2000)) / 2;
+
+		//if ((track_data[camera->car_ptr_2->track_slice].slope * 0x400) >> 0x10)
+		//	local_32 = 0;
+
 		if (specs->id3 == 1) {
-			//specs->focal_distance.x = (local_32 >> 1) + local_32;
-			//specs->focal_distance.x = -specs->focal_distance.x;
+			specs->focal_distance.x = (local_32 >> 1) + local_32;
+			specs->focal_distance.x = -specs->focal_distance.x;
 			camera->transition_timer = 2;
 		} else if (specs->id3 == 2) {
-			//specs->focal_distance.x = -local_32 >> 1;
+			specs->focal_distance.x = -local_32 >> 1;
 			camera->transition_timer = 2;
 		}
 	}
@@ -275,7 +282,7 @@ void tnfs_camera_update(tnfs_camera *camera) {
 		local_10 = (0x600 - local_42) * local_46 + local_42 * local_41;
 		local_46 = ((0x600 - local_42) * local_46 + local_42 * local_41) / 0x600;
 		local_45 = math_atan2(local_10 / 0x600, local_39);
-		math_rotate_vector_xz(&camera->focal_distance, &camera->relative_position, -local_45);
+		math_rotate_vector_xz(&camera->focal_distance, &camera->relative_position, local_45);
 
 		// raise camera to get a better view on down hills
 		local_27 = ((int) track_data[g_slice_mask & camera->car_ptr_2->track_slice].slope) * 0x400;
@@ -306,23 +313,24 @@ void tnfs_camera_update(tnfs_camera *camera) {
 		camera->track_slice2 |= tnfs_track_node_find(&camera->next_position, &camera->track_slice);
 
 		// limit to track boundaries
-		vecA.x = camera->next_position.x - track_data[g_slice_mask & camera->track_slice].pos.x;
-		vecA.z = camera->next_position.z - track_data[g_slice_mask & camera->track_slice].pos.z;
-		local_24 = (int) (track_data[g_slice_mask & camera->track_slice].heading) * -0x400;
-		vecB.x = ((math_sin_2(local_24 >> 8) * (vecA.z >> 8)) + (vecA.x >> 8) * math_cos_2(local_24 >> 8)) >> 8;
+		vecA.x = camera->next_position.x - track_data[camera->track_slice].pos.x;
+		vecA.z = camera->next_position.z - track_data[camera->track_slice].pos.z;
+		local_24 = ((int) track_data[camera->track_slice].heading) * -0x400;
+		vecB.x =  fixmul(vecA.x, math_cos_2(local_24 >> 8)) + fixmul(math_sin_2(local_24 >> 8), vecA.z);
 		local_23 = 0;
-		if (vecB.x > track_data[g_slice_mask & camera->track_slice].roadRightFence * 0x2000) {
-			vecB.x = track_data[g_slice_mask & camera->track_slice].roadRightFence * 0x2000;
+		if (vecB.x > track_data[camera->track_slice].roadRightFence * 0x2000) {
+			vecB.x = track_data[camera->track_slice].roadRightFence * 0x2000;
 			local_23 = 1;
-		} else if (vecB.x < track_data[g_slice_mask & camera->track_slice].roadLeftFence * -0x2000) {
-			vecB.x = track_data[g_slice_mask & camera->track_slice].roadLeftFence * -0x2000;
+		} else if (vecB.x < track_data[camera->track_slice].roadLeftFence * -0x2000) {
+			vecB.x = track_data[camera->track_slice].roadLeftFence * -0x2000;
 			local_23 = 1;
 		}
 		if (local_23) {
-			vecB.z = ((math_cos_2(local_24 >> 8) * (vecA.z >> 8)) - (vecA.x >> 8) * math_sin_2(local_24 >> 8)) >> 8;
-			math_rotate_vector_xz(&vecB, &vecA, (int) track_data[g_slice_mask & camera->track_slice].heading * 0x400);
-			camera->next_position.x = track_data[g_slice_mask & camera->track_slice].pos.x + vecA.x;
-			camera->next_position.z = track_data[g_slice_mask & camera->track_slice].pos.z + vecA.z;
+			vecB.z = fixmul(math_cos_2(local_24 >> 8), vecA.z) - fixmul(vecA.x,  math_sin_2(local_24 >> 8));
+			local_24 = ((int) track_data[camera->track_slice].heading) * 0x400;
+			math_rotate_vector_xz(&vecB, &vecA, local_24);
+			camera->next_position.x = track_data[camera->track_slice].pos.x + vecA.x;
+			camera->next_position.z = track_data[camera->track_slice].pos.z + vecA.z;
 		}
 
 		// camera rotate
@@ -335,7 +343,7 @@ void tnfs_camera_update(tnfs_camera *camera) {
 		vecB.y = (local_48 * (vecA.y >> 8) >> 8) + camera->car_ptr_2->position.y;
 		vecB.z = (local_48 * (vecA.z >> 8) >> 8) + camera->car_ptr_2->position.z;
 		local_39 = vecB.x - camera->next_position.x;
-		local_38 = vecB.y - camera->next_position.y;
+		//local_38 = vecB.y - camera->next_position.y;
 		local_46 = vecB.z - camera->next_position.z;
 
 		local_45 = math_atan2(local_46, local_39);

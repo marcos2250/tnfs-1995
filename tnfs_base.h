@@ -544,9 +544,8 @@ typedef struct tnfs_stats_data {
 	int best_brake_time_2; //0x1a4
 	int quarter_mile_speed; //0x1a8
 	int quarter_mile_time; //0x1ac
-	//0x1b0
+	int penalty_count; //0x1b0
 	int warning_count; //0x1b4
-	int penalty_count; //0x1b8
 	int field_0x1b8; //0x1b8
 	int prev_lap_time; //0x1bc
 	int lap_time; //0x1c0
@@ -600,6 +599,7 @@ extern struct tnfs_car_specs car_specs;
 extern struct tnfs_car_data g_car_array[8];
 extern tnfs_car_data *g_car_ptr_array[8];
 extern tnfs_car_data *player_car_ptr;
+extern tnfs_car_data *g_cop_car_ptr;
 extern tnfs_ai_skill_cfg g_ai_skill_cfg;
 extern tnfs_ai_opp_data g_ai_opp_data[8];
 extern tnfs_stats_data g_stats_data[8];
@@ -655,7 +655,7 @@ extern int g_cam_change_delay;
 extern int g_race_positions[8];
 
 // common functions
-void tnfs_init_sim(char * trifile);
+void tnfs_init_sim(char * trifile, char * pbsfile);
 void tnfs_replay_highlight_record(char a);
 void tnfs_camera_set(tnfs_camera * camera, int id);
 void tnfs_reset_car(tnfs_car_data *car);
@@ -680,5 +680,6 @@ void tnfs_cheat_mode();
 void tnfs_ai_get_speed_factor(tnfs_car_data *car);
 void tnfs_ai_get_lane_slack(tnfs_car_data *car);
 void tnfs_initial_position(tnfs_car_data *car);
+int tnfs_racer_crossed_finish_line(tnfs_car_data *car);
 
 #endif /* TNFS_BASE_H_ */

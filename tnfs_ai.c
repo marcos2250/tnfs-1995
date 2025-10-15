@@ -84,7 +84,7 @@ void tnfs_ai_init() {
 		g_car_array[i].track_slice_lap = g_car_array[i].track_slice;
 
 		// load car basic specs
-		tnfs_ai_load_car(car, 0);
+		tnfs_ai_load_car(car, car->car_model_id);
 	}
 
 	// init random generator
@@ -143,7 +143,7 @@ void tnfs_ai_load_car(tnfs_car_data *car, int newCarModelId) {
 	// gear ratios
 	for (i = 0; i < 6; i++) {
 		if (car->top_speed_per_gear[i] != 0) {
-			car->ai_gear_ratios[0] = 0x100000000 / car->top_speed_per_gear[i];
+			car->ai_gear_ratios[i] = 0x100000000 / car->top_speed_per_gear[i];
 		}
 	}
 
@@ -2184,7 +2184,7 @@ void FUN_00077a05(tnfs_car_data *car, tnfs_car_data *others[3], int lane, int la
 	int local_28;
 	int local_18;
 
-	if (((lane == laneR) || (others[1] == &g_car_array[0])) || (others[1]->crash_state == 4)) {
+	if ((lane == laneR) || (others[1] == 0) || (others[1]->crash_state == 4)) {
 		local_18 = speed->y;
 	} else {
 		local_28 = car->track_slice_lap - others[1]->track_slice_lap;

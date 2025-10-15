@@ -97,7 +97,7 @@ int g_track_slice = 0x76b; //00153b0c
 int DAT_00153B20 = 0; // game over flag
 int DAT_00153B24 = 0; // game over flag 2?
 tnfs_car_data * DAT_00153BC4 = 0; //player car ptr 2
-int DAT_00165148 = 0; // center lane distance/margin
+int DAT_00165148 = 1; // center lane distance/margin
 int g_player_id = 0; //16707C
 int g_cam_change_delay = 0; // 00143844
 

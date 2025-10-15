@@ -362,7 +362,6 @@ void math_height_coordinates(tnfs_vec3 *p3, tnfs_vec3 *p2, tnfs_vec3 *p1, tnfs_v
 	vecCB.y = tC->y - tB->y;
 	vecCB.z = tC->z - tB->z;
 
-	// use the barycentric coordinates formula
 	math_vec3_cross_product(&cross, &vecAB, &vecCB);
 	denominator = math_inverse_value(cross.y);
 

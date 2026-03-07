@@ -244,9 +244,9 @@ typedef struct tnfs_car_data {
 	int car_road_speed; //0x15c
 	int speed_target; //0x160
 	int target_center_line; //0x164
-	int field_168;
-	int field_16c;
-	int field_170;
+	int handling_factor; //0x168 - PDN 0x14
+	int handling_factor_inv; //0x16c
+	int speed_factor; //0x170 - PDN 0x18
 
 	/*
 	 * 0x0 traffic
@@ -627,8 +627,8 @@ extern int selected_camera;
 extern tnfs_camera camera;
 
 extern int g_collision_bump_ref;
-extern int g_collision_bump_val;
-extern int g_collision_force;
+extern int g_collision_force_carcar;
+extern int g_collision_force_wall;
 extern int DAT_000F9BB0;
 extern int DAT_000f99e4;
 extern int DAT_000f99e8;

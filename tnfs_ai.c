@@ -115,8 +115,8 @@ void tnfs_ai_load_car(tnfs_car_data *car, int newCarModelId) {
 		car->collision_data.size.z = 0x246e9;
 		car->collision_data.moment_of_inertia = 0x1b333; //PDN 0xC
 		car->collision_data.mass = 0x10000; //PDN 0x10
-		car->field_168 = 0x120000; //PDN 0x14
-		car->field_170 = 0x10000; //PDN 0x18
+		car->handling_factor = 0x120000; //PDN 0x14
+		car->speed_factor = 0x10000; //PDN 0x18
 
 		for (i = 0; i < 100; i++) { //PDN 0x1c
 			car->power_curve[i] = g_power_curve[i >> 2];
@@ -134,7 +134,7 @@ void tnfs_ai_load_car(tnfs_car_data *car, int newCarModelId) {
 	}
 
 	// derived specs values
-	car->field_16c = math_div(0x10000, car->field_168);
+	car->handling_factor_inv = math_div(0x10000, car->handling_factor);
 	car->collision_data.angular_acc_factor = math_inverse_value(car->collision_data.moment_of_inertia);
 	car->collision_data.linear_acc_factor = math_inverse_value(car->collision_data.mass);
 	car->collision_height_offset = car->collision_data.size.y;
@@ -708,9 +708,9 @@ int tnfs_ai_racer_speed(tnfs_car_data *car) {
 
 	top_speed = g_track_speed[car->track_slice >> 2].top_speed * 0x10000;
 
-	local_30 = car->field_170;
+	local_30 = car->speed_factor;
 	if (uVar8 == 0) {
-		local_30 = math_mul(g_ai_opp_data[car->car_id2].field_0x55, car->field_170);
+		local_30 = math_mul(g_ai_opp_data[car->car_id2].field_0x55, car->speed_factor);
 	}
 
 	DAT_00165328 = track_data[car->track_slice & g_slice_mask].heading * 0x400 - track_data[(car->track_slice + 1) & g_slice_mask].heading * -0x400;
@@ -719,7 +719,7 @@ int tnfs_ai_racer_speed(tnfs_car_data *car) {
 		DAT_00165328 = 0x1000000 - DAT_00165328;
 	}
 
-	uVar9 = math_mul(car->field_168 - DAT_00165328, car->field_16c);
+	uVar9 = math_mul(car->handling_factor - DAT_00165328, car->handling_factor_inv);
 	DAT_00165324 = (uVar9 >> 3) + (uVar9 >> 4) + (uVar9 >> 6);
 	if (uVar8 == 0) {
 		DAT_00165324 = math_mul(DAT_00165324, g_ai_opp_data[car->car_id2].field_0x59);

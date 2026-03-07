@@ -116,7 +116,7 @@ void tnfs_collision_rebound(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_v
 		normal_accel.y = math_mul(force, normal->y) + accel.y;
 		normal_accel.z = math_mul(force, normal->z) + accel.z;
 
-		g_collision_force = force;
+		g_collision_force_wall = force;
 
 		body->speed.x += math_mul(body->linear_acc_factor, normal_accel.x);
 		body->speed.y += math_mul(body->linear_acc_factor, normal_accel.y);
@@ -141,7 +141,7 @@ void tnfs_collision_detect(tnfs_collision_data *body, tnfs_vec3 *surf_normal, tn
 	tnfs_vec3 g_edge;
 	tnfs_vec3 backoff;
 
-	g_collision_force = 0;
+	g_collision_force_wall = 0;
 
 	// zero normal check
 	if (((surf_normal->x == 0) && (surf_normal->y == 0)) && (surf_normal->z == 0)) {
@@ -166,8 +166,6 @@ void tnfs_collision_detect(tnfs_collision_data *body, tnfs_vec3 *surf_normal, tn
 			+ fixmul(surf_normal->y, body->matrix.cy)//
 			+ fixmul(surf_normal->z, body->matrix.cz),//
 			body->size.z);
-
-	g_collision_force = 0;
 
 	// negate to find lowest point
 	sideX = -1;
@@ -414,7 +412,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	// check if left or right fence
 	if (fixmul(fenceDistance.x, fenceNormal.x) + fixmul(fenceDistance.y, fenceNormal.y) + fixmul(fenceDistance.z, fenceNormal.z) < 1) {
 		aux = DAT_000f99e4;
-		if ((track_data[car->track_slice & g_slice_mask].fence_flag >> 4 != 0) && (track_data[car->track_slice & g_slice_mask].item_mode != '\x05')) {
+		if ((track_data[car->track_slice & g_slice_mask].fence_flag >> 4 != 0) && (track_data[car->track_slice & g_slice_mask].item_mode != 5)) {
 			aux = DAT_000f99e8;
 		}
 		roadWidth = (track_data[car->track_slice & g_slice_mask].roadLeftFence * -0x2000 - aux) >> 16;
@@ -424,7 +422,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		fencePosition.z = roadWidth * fenceNormal.z + roadPosition.z;
 	} else {
 		aux = DAT_000f99e4;
-		if (((track_data[car->track_slice & g_slice_mask].fence_flag  & 0xf) != 0) && (track_data[car->track_slice & g_slice_mask].item_mode != '\x05')) {
+		if (((track_data[car->track_slice & g_slice_mask].fence_flag  & 0xf) != 0) && (track_data[car->track_slice & g_slice_mask].item_mode != 5)) {
 			aux = DAT_000f99e8;
 		}
 		roadWidth = (track_data[car->track_slice & g_slice_mask].roadRightFence * -0x2000 - aux) >> 16;
@@ -440,15 +438,15 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	/* car colliding to track fence */
 	tnfs_collision_detect(collision_data, &fenceNormal, &fencePosition);
 
-    if (local_20 < g_collision_force) {
-      local_20 = g_collision_force;
+    if (local_20 < g_collision_force_wall) {
+      local_20 = g_collision_force_wall;
     }
 
 	/* car collision to ground */
 	tnfs_collision_detect(collision_data, &roadNormal, &roadPosition);
 
-    if (local_20 < g_collision_force) {
-      local_20 = g_collision_force;
+    if (local_20 < g_collision_force_wall) {
+      local_20 = g_collision_force_wall;
     }
 
 	/* ... lots of code goes here -- crash recovery ... */
@@ -1581,7 +1579,7 @@ char tnfs_collision_carcar_rebound(tnfs_collision_data *body1, tnfs_collision_da
 	iVar1 = math_div(((iVar2 - iVar1) - iVar3) + iVar4, (body1->linear_acc_factor >> 1) + (body2->linear_acc_factor >> 1) + (iVar5 >> 1) + (iVar6 >> 1));
 	if (-1 < iVar1) {
 		iVar2 = math_mul(g_const_8CCC, iVar1);
-		g_collision_bump_ref = iVar2;
+		g_collision_force_carcar = iVar2;
 		local_90.x = math_mul(iVar2, col_direction->x);
 		local_90.y = math_mul(iVar2, col_direction->y);
 		local_90.z = math_mul(iVar2, col_direction->z);
@@ -1675,7 +1673,7 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 	}
 
 	// hit and run
-	if (g_collision_force < max_crash_speed) {
+	if (g_collision_force_carcar < max_crash_speed) {
 		if (car1->crash_state != 4) {
 			tnfs_collision_data_get(car1, car1->crash_state);
 		}
@@ -1751,7 +1749,7 @@ int tnfs_collision_carcar(tnfs_car_data *car1, tnfs_car_data *car2) {
 		return 0;
 	}
 
-	if (g_collision_force > g_collision_bump_ref) {
+	if (g_collision_force_carcar > g_collision_bump_ref) {
 		local_2c = car1->track_slice - g_camera_node;
 		if (car1 == g_car_ptr_array[g_player_id]) {
 			tnfs_car_local_position_vector(car2, &local_34, &local_30);
@@ -1759,7 +1757,7 @@ int tnfs_collision_carcar(tnfs_car_data *car1, tnfs_car_data *car2) {
 			tnfs_car_local_position_vector(car1, &local_34, &local_30);
 		}
 		tnfs_sfx_play(-1, 2, 0, local_2c, local_30, local_34);
-		g_collision_bump_ref = g_collision_force + 0x8000;
+		g_collision_bump_ref = g_collision_force_carcar + 0x8000;
 		DAT_000f99ec = 10;
 	}
 

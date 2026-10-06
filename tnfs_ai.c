@@ -5,6 +5,7 @@
 #include "tnfs_base.h"
 #include "tnfs_collision_3d.h"
 #include "tnfs_files.h"
+#include "tnfs_ai.h"
 
 int g_ai_frame_counter = 4; // 001449C8 800EC504
 int g_is_playing = 1; //FD8E0
@@ -634,7 +635,7 @@ int tnfs_ai_respawn_0077121(tnfs_car_data *car) {
 	return uVar1;
 }
 
-int FUN_007E87B(tnfs_car_data *car, int centerline, int speed) {
+int tnfs_ai_lane_change_lateral_speed(tnfs_car_data *car, int centerline, int speed) {
 	int iVar1;
 	int iVar2;
 
@@ -659,37 +660,7 @@ int FUN_007E87B(tnfs_car_data *car, int centerline, int speed) {
 	return iVar1;
 }
 
-char FUN_0007d4b1(tnfs_car_data *car1, tnfs_car_data *car2) {
-	int uVar1;
-	int local_34;
-	int local_1c;
-
-	uVar1 = (car1->track_slice - 0x14) & g_slice_mask;
-	local_1c = ((car1->track_slice + 0x36) & g_slice_mask) - uVar1;
-	if (local_1c < 0) {
-		local_1c = local_1c + g_tri_num_chunks * 4;
-	}
-	if ((int) uVar1 < car2->track_slice) {
-		local_34 = car2->track_slice - uVar1;
-	} else {
-		local_34 = (car2->track_slice - uVar1) + g_tri_num_chunks * 4;
-	}
-	return local_34 < local_1c;
-}
-
-int FUN_007D55E(tnfs_car_data *car) {
-	for (int i = 0; i < g_number_of_players; i++) {
-		if (g_number_of_players <= i) {
-			return 0;
-		}
-		if (FUN_0007d4b1(g_car_ptr_array[i], car)) {
-			break;
-		}
-	}
-	return 1;
-}
-
-int FUN_000779b7(int car_id, int param_2) {
+int tnfs_racer_finish_slot_reached(int car_id, int param_2) {
 	return g_race_positions[car_id] / 2 << 1 <= param_2;
 }
 
@@ -763,7 +734,7 @@ int tnfs_ai_racer_speed(tnfs_car_data *car) {
 	}
 
 	local_24 = math_mul(math_mul((DAT_00165324 + 0xcccc), local_28), local_30);
-	if (FUN_007D55E(car)) {
+	if (tnfs_ai_car_near_player(car)) {
 		if (local_24 > 0x13333) {
 			local_24 = 0x13333;
 		}
@@ -776,7 +747,7 @@ int tnfs_ai_racer_speed(tnfs_car_data *car) {
 	}
 	result_speed = math_mul(top_speed, local_24);
 	if (tnfs_racer_crossed_finish_line(car) == 2) {
-		if (FUN_000779b7(car->car_id2, tnfs_racer_crossed_finish_line(car))) {
+		if (tnfs_racer_finish_slot_reached(car->car_id2, tnfs_racer_crossed_finish_line(car))) {
 			result_speed = 0;
 		}
 	}
@@ -1123,7 +1094,7 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 	|| ((track_data[car->track_slice].num_lanes & 0xF) + 4 == lane //
 	|| (centerline && abs(car->steer_angle - car->target_angle) < 0x80000))) {
 
-		iVar10 = FUN_007E87B(car, centerline, abs(speed));
+		iVar10 = tnfs_ai_lane_change_lateral_speed(car, centerline, abs(speed));
 
 		if (abs(next_state * iVar10) >> 5 > abs(centerline))
 			iVar10 = fixmul(centerline, lane_change_speed) * 0x20;
@@ -1204,7 +1175,7 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 	// position car above road (again?)
 	ground_height = math_vec3_dot(&local_position, &car->road_surface_normal);
 	if (ground_height > 0x667
-			&& FUN_007D55E(car)
+			&& tnfs_ai_car_near_player(car)
 			&& car->track_slice_lap > 100 // wut??
 			&& (car->ai_state & 4)
 			&& car->car_road_speed > 0x1b0001) {
@@ -1760,7 +1731,7 @@ void tnfs_ai_traffic_swerve(tnfs_car_data *car1, int *lane_grid, int lane, int *
 		seg_distance = abs(car1->track_slice - others[1]->track_slice);
 		speed_diff = car1->car_road_speed - others[1]->car_road_speed;
 		if (seg_distance > 2 && seg_distance < 15 && speed_diff > 0) {
-			local_a4 = FUN_007E87B(car1, 1, car1->car_road_speed);
+			local_a4 = tnfs_ai_lane_change_lateral_speed(car1, 1, car1->car_road_speed);
 			local_a4 = abs(local_a4);
 			local_a4 = math_mul(seg_distance * 0x60000, local_a4);
 			lVar2 = math_mul(math_mul(0x50000, local_a4), 0x20000);
@@ -2288,7 +2259,7 @@ void FUN_00077a05(tnfs_car_data *car, tnfs_car_data *others[3], int lane, int la
 		} else {
 			local_44 = car->target_center_line - car->center_line_distance;
 		}
-		local_40 = abs(FUN_007E87B(car, 1, car->car_road_speed));
+		local_40 = abs(tnfs_ai_lane_change_lateral_speed(car, 1, car->car_road_speed));
 
 		lVar1 = math_mul(local_44, local_48);
 		lVar2 = math_mul(local_4c * 0x60000, local_40);
@@ -2425,7 +2396,7 @@ void tnfs_ai_opp_engine_and_cornering(tnfs_car_data *car, int lane, tnfs_vec3 *d
 		}
 		if (bVar9) {
 			iVar10 = tnfs_racer_crossed_finish_line(car);
-			iVar10 = FUN_000779b7(car->car_id2, iVar10 + 10);
+			iVar10 = tnfs_racer_finish_slot_reached(car->car_id2, iVar10 + 10);
 			if (iVar10 != 0) {
 				if ((g_race_positions[car->car_id2] & 1) == 0) {
 					direction->x = direction->x + 0x640000;

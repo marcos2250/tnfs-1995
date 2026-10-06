@@ -1992,15 +1992,15 @@ void FUN_0007b78f(tnfs_car_data *car, int lane) {
 	num_Lanes = track_data[car->track_slice & g_slice_mask].num_lanes;
 
 	if (lane == 0) {
-		local_18 = (g_random_direction[(num_Lanes & 0xf) * 0x28 + (right_margin >> 3)] * -0x100 * (num_Lanes >> 4)) //
-				- (g_random_direction[(num_Lanes & 0xf) * 0x28 + (right_margin >> 3)] * 0x100 >> 1);
+		local_18 = (tnfs_ai_lane_table(num_Lanes & 0xf, right_margin >> 3) * -0x100 * (num_Lanes >> 4)) //
+				- (tnfs_ai_lane_table(num_Lanes & 0xf, right_margin >> 3) * 0x100 >> 1);
 
 		if (local_18 < ((car->collision_data.size).x + track_data[car->track_slice & g_slice_mask].roadLeftFence * -0x2000)) {
 			local_18 = (car->collision_data.size).x + track_data[car->track_slice & g_slice_mask].roadLeftFence * -0x2000;
 		}
 	} else {
-			local_18 = g_random_direction[(num_Lanes & 0xf) * 0x28 + (right_margin >> 3)] * 0x100 * (num_Lanes & 0xf)
-					+ (g_random_direction[(num_Lanes & 0xf) * 0x28 + (right_margin >> 3)] * 0x100 >> 1);
+			local_18 = tnfs_ai_lane_table(num_Lanes & 0xf, right_margin >> 3) * 0x100 * (num_Lanes & 0xf)
+					+ (tnfs_ai_lane_table(num_Lanes & 0xf, right_margin >> 3) * 0x100 >> 1);
 
 		if (local_18 > (track_data[car->track_slice & g_slice_mask].roadRightFence * 0x2000 - (car->collision_data.size).x)) {
 			local_18 = track_data[car->track_slice & g_slice_mask].roadRightFence * 0x2000 - (car->collision_data.size).x;

@@ -698,7 +698,7 @@ int tnfs_ai_racer_speed(tnfs_car_data *car) {
 		local_30 = math_mul(g_ai_opp_data[car->car_id2].field_0x55, car->speed_factor);
 	}
 
-	DAT_00165328 = track_data[car->track_slice & g_slice_mask].heading * 0x400 - track_data[(car->track_slice + 1) & g_slice_mask].heading * -0x400;
+	DAT_00165328 = track_data[car->track_slice & g_slice_mask].heading * 0x400 + track_data[(car->track_slice - 1) & g_slice_mask].heading * -0x400;
 	DAT_00165328 = abs(DAT_00165328);
 	if (DAT_00165328 >= 0x800000) {
 		DAT_00165328 = 0x1000000 - DAT_00165328;

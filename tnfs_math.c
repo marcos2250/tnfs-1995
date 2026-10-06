@@ -333,6 +333,74 @@ void math_matrix_create_from_vec3(tnfs_vec9 *result, int amount, tnfs_vec3 *dire
 	math_matrix_multiply(result, result, &mInv);
 }
 
+/*
+ * result = row vector (m1->ax..az) multiplied by matrix m2
+ * DOS 0x50163, PSX 0x80026b54
+ */
+void math_matrix_to_vec3(tnfs_vec3 *result, tnfs_vec9 *m1, tnfs_vec9 *m2) {
+	result->x = math_mul(m1->ax, m2->ax) + math_mul(m1->ay, m2->bx) + math_mul(m1->az, m2->cx);
+	result->y = math_mul(m1->ax, m2->ay) + math_mul(m1->ay, m2->by) + math_mul(m1->az, m2->cy);
+	result->z = math_mul(m1->ax, m2->az) + math_mul(m1->ay, m2->bz) + math_mul(m1->az, m2->cz);
+}
+
+/*
+ * extract the angles (X, Y, Z) of a rotation matrix. Used to reposition the car after a crash
+ * DOS 0x4fcf9, PSX 0x800268bc
+ */
+void math_matrix_create_from_XYZ(tnfs_vec9 *matrix, int *angle_x, int *angle_y, int *angle_z) {
+	tnfs_vec9 rotY;
+	tnfs_vec9 rotZ;
+	tnfs_vec9 vec;
+	tnfs_vec3 result;
+	int ay;
+	int az;
+
+	ay = math_atan2(matrix->ax, -matrix->az);
+	az = math_atan2(math_sqrt(math_mul(matrix->ax, matrix->ax) + math_mul(matrix->az, matrix->az)), matrix->ay);
+
+	math_matrix_set_rot_Y(&rotY, -ay);
+	math_matrix_set_rot_Z(&rotZ, -az);
+	math_matrix_multiply(&rotY, &rotY, &rotZ);
+
+	vec.ax = matrix->cx;
+	vec.ay = matrix->cy;
+	vec.az = matrix->cz;
+	math_matrix_to_vec3(&result, &vec, &rotY);
+
+	*angle_z = az;
+	*angle_x = math_atan2(result.z, -result.y);
+	*angle_y = ay;
+}
+
+/*
+ * re-normalize the orthogonal axes of a rotation matrix (fixes accumulated drift)
+ * DOS 0x4f49d, PSX 0x80026118
+ */
+void math_matrix_orthonormalize(tnfs_vec9 *m) {
+	tnfs_vec9 mat = *m;
+	int n;
+
+	n = math_inverse_value(((mat.ax >> 2) * mat.ax >> 0xe) + ((mat.ay >> 2) * mat.ay >> 0xe) + ((mat.az >> 2) * mat.az >> 0xe) + 0x10000 >> 1);
+	mat.ax = (mat.ax >> 2) * n >> 0xe;
+	mat.ay = (mat.ay >> 2) * n >> 0xe;
+	mat.az = (mat.az >> 2) * n >> 0xe;
+
+	mat.cx = ((mat.bz >> 2) * mat.ay >> 0xe) - ((mat.by >> 2) * mat.az >> 0xe);
+	mat.cy = ((mat.bx >> 2) * mat.az >> 0xe) - ((mat.bz >> 2) * mat.ax >> 0xe);
+	mat.cz = ((mat.by >> 2) * mat.ax >> 0xe) - ((mat.bx >> 2) * mat.ay >> 0xe);
+
+	n = math_inverse_value(((mat.cx >> 2) * mat.cx >> 0xe) + ((mat.cy >> 2) * mat.cy >> 0xe) + ((mat.cz >> 2) * mat.cz >> 0xe) + 0x10000 >> 1);
+	mat.cx = (mat.cx >> 2) * n >> 0xe;
+	mat.cy = (mat.cy >> 2) * n >> 0xe;
+	mat.cz = (mat.cz >> 2) * n >> 0xe;
+
+	mat.bx = ((mat.az >> 2) * mat.cy >> 0xe) - ((mat.ay >> 2) * mat.cz >> 0xe);
+	mat.by = ((mat.ax >> 2) * mat.cz >> 0xe) - ((mat.az >> 2) * mat.cx >> 0xe);
+	mat.bz = ((mat.ay >> 2) * mat.cx >> 0xe) - ((mat.ax >> 2) * mat.cy >> 0xe);
+
+	*m = mat;
+}
+
 void math_matrix_from_pitch_yaw_roll(tnfs_vec9 *result, int pitch, int yaw, int roll) {
 	tnfs_vec9 tStack_38;
 

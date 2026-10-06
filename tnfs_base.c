@@ -1368,7 +1368,9 @@ void tnfs_update() {
 		}
 
 		if (car->crash_state == 1) {
-			tnfs_engine_gear_shift_main(car);
+			tnfs_car_wait_after_busted(car);
+		} else if (car->crash_state == 5) {
+			tnfs_ai_wrecked_wait(car);
 		} else if (car->crash_state != 4) {
 			if (i < g_number_of_players) {
 				tnfs_driving_main(car);

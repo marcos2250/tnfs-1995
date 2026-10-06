@@ -29,6 +29,17 @@ int DAT_00165324 = 0;
 int DAT_00165328 = 0;
 int DAT_00165330 = 0;
 int g_random_direction[2] = { 0, 0 }; //DAT_00164fd8-00164FDC
+
+/*
+ * In the original, a short table follows these 2 counters (DOS 0x164fe0, filled in 0x7fffb for 1-3 lanes):
+ * table[lanes * 0x28 + margin] = margin * 0x100 / lanes, with row 0 (no lanes) all zeros
+ */
+int tnfs_ai_lane_table(int lanes, int margin) {
+	if (lanes < 1 || lanes > 3) {
+		return 0;
+	}
+	return (margin * 0x100) / lanes;
+}
 tnfs_random_struct g_random_struct[2]; //DAT_0016511E-00165134;
 
 int g_ai_opp_speed_factors[8] = { 0xf5c2, 0x10000, 0xfae1, 0xfae1, 0x10000, 0xfae1, 0xf333, 0xf333 };
@@ -1841,7 +1852,7 @@ void FUN_000811c2(tnfs_car_data *car, int param_2) {
 }
 
 // crash_state 1 handler: wait after being busted, then give control back
-void tnfs_engine_gear_shift_main(tnfs_car_data *car) {
+void tnfs_car_wait_after_busted(tnfs_car_data *car) {
 	car->collision_data.field_084--;
 	if (car->collision_data.field_084 < 1) {
 		car->car_data_ptr->crash_state = 2;
@@ -1851,6 +1862,34 @@ void tnfs_engine_gear_shift_main(tnfs_car_data *car) {
 			car->gear_auto_selected = 2;
 		}
 	}
+}
+
+// true if car2 is in the track slice window around car1 (14 slices behind, 36 ahead)
+int tnfs_ai_car_in_slice_window(tnfs_car_data *car1, tnfs_car_data *car2) {
+	int start = (car1->track_slice - 0x14) & g_slice_mask;
+	int window = ((car1->track_slice + 0x36) & g_slice_mask) - start;
+	int distance;
+
+	if (window < 0) {
+		window += g_tri_num_chunks * 4;
+	}
+	if (start < car2->track_slice) {
+		distance = car2->track_slice - start;
+	} else {
+		distance = (car2->track_slice - start) + g_tri_num_chunks * 4;
+	}
+	return distance < window;
+}
+
+// true if the car is near any of the players
+int tnfs_ai_car_near_player(tnfs_car_data *car) {
+	int i;
+	for (i = 0; i < g_number_of_players; i++) {
+		if (tnfs_ai_car_in_slice_window(g_car_ptr_array[i], car)) {
+			return 1;
+		}
+	}
+	return 0;
 }
 
 void tnfs_car_stop_0007d5c1(tnfs_car_data *car) {
@@ -1909,6 +1948,36 @@ void tnfs_ai_respawn_0007d647() {
 				}
 			}
 		}
+	}
+}
+
+// crash_state 5 handler: wrecked AI car stops and waits until the players are far enough
+void tnfs_ai_wrecked_wait(tnfs_car_data *car) {
+	if ((car->ai_state & 8) != 0) {
+		tnfs_ai_police_reset_state(1);
+	}
+	if (car->angular_speed < 1) {
+		if (car->angular_speed < 0) {
+			car->angular_speed += ((car->ai_state & 4) == 0) ? 0x13333 : 0x23333;
+		}
+	} else {
+		car->angular_speed -= ((car->ai_state & 4) == 0) ? 0x13333 : 0x23333;
+		if (car->angular_speed < 0) {
+			car->angular_speed = 0;
+		}
+	}
+	if (car->angular_speed > 0) {
+		car->angular_speed = 0;
+	}
+	if (tnfs_ai_car_near_player(car) == 0) {
+		if (car->car_data_ptr->crash_state == 6) {
+			DAT_0016532c--;
+		}
+		tnfs_car_stop_0007d5c1(car);
+		car->car_data_ptr->crash_state = 3;
+	} else {
+		car->speed_target = 0;
+		tnfs_ai_driving_main(car);
 	}
 }
 

@@ -169,6 +169,9 @@ void math_vec3_normalize_fast(tnfs_vec3 *v);
 int math_vec3_dot(tnfs_vec3 *v1, tnfs_vec3 *v2);
 void math_matrix_create_from_vec3(tnfs_vec9 *result, int amount, tnfs_vec3 *direction);
 void math_matrix_from_pitch_yaw_roll(tnfs_vec9 *result, int pitch, int yaw, int roll);
+void math_matrix_to_vec3(tnfs_vec3 *result, tnfs_vec9 *m1, tnfs_vec9 *m2);
+void math_matrix_create_from_XYZ(tnfs_vec9 *matrix, int *angle_x, int *angle_y, int *angle_z);
+void math_matrix_orthonormalize(tnfs_vec9 *m);
 void math_height_coordinates(tnfs_vec3 *r3, tnfs_vec3 *r2, tnfs_vec3 *r1, tnfs_vec3 *tC, tnfs_vec3 *tB, tnfs_vec3 *tA);
 
 #endif /* TNFS_MATH_H_ */

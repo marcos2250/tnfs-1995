@@ -131,14 +131,19 @@ void tnfs_engine_auto_shift_change(tnfs_car_data *car_data, tnfs_car_specs *car_
 	gear = car_data->gear_selected;
 
 	// speed to RPM
-	rpm_vehicle = fixmul(fixmul(car_specs->gear_ratio_table[gear + 2], car_specs->mps_to_rpm_factor), car_data->speed_local_lon) >> 16;
+	rpm_vehicle = fixmul(fixmul(car_data->speed_local_lon, car_specs->mps_to_rpm_factor), car_specs->gear_ratio_table[gear + 2]) >> 16;
 
-	if (gear < (car_specs->number_of_gears - 3) && rpm_vehicle > car_specs->gear_upshift_rpm[gear]) {
+	if (gear + 3 != car_specs->number_of_gears && rpm_vehicle > car_specs->gear_upshift_rpm[gear]) {
 		// upshift
+		car_data->rpm_vehicle = fixmul(fixmul(car_data->speed_local_lon, car_specs->mps_to_rpm_factor), car_specs->gear_ratio_table[gear + 3]) >> 16;
 		car_data->gear_selected++;
-	} else if (gear > 0 && rpm_vehicle < car_specs->gear_upshift_rpm[gear - 1] / 2) {
-		// downshift
-		car_data->gear_selected--;
+	} else if (gear != 0) {
+		// downshift, when RPM in the lower gear drops below 15/16 of its upshift RPM
+		rpm_vehicle = fixmul(fixmul(car_data->speed_local_lon, car_specs->mps_to_rpm_factor), car_specs->gear_ratio_table[gear + 1]) >> 16;
+		if (rpm_vehicle < fix4(car_specs->gear_upshift_rpm[gear - 1] * 15)) {
+			car_data->rpm_vehicle = rpm_vehicle;
+			car_data->gear_selected--;
+		}
 	}
 }
 

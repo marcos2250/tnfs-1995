@@ -830,13 +830,16 @@ void tnfs_ai_update_speed_targets(tnfs_car_data *car) {
 			// driving forward
 			if ((car->ai_state & 4) == 0) {
 				// cruise speed
-				iVar1 = (g_ai_skill_cfg.traffic_base_speed >> 1) + (g_lead_player->car_road_speed >> 1);
+				iVar1 = (g_ai_skill_cfg.opp_desired_speed_c >> 1) + (g_lead_player->car_road_speed >> 1);
 				car->speed_target = iVar1;
 				iVar1 = tnfs_ai_traffic_speed(car, iVar1);
 				car->speed_target = iVar1;
 			} else {
 				// opponent car
-				car->speed_target = (g_ai_skill_cfg.opp_desired_ahead >> 1) + (g_lead_player->car_road_speed >> 1);
+				// PC/PSX version
+				car->speed_target = g_lead_player->car_road_speed;
+				// 3DO version
+				// car->speed_target = (traffic_desired_speed >> 1) + (g_lead_player->car_road_speed >> 1);
 			}
 
 			safe_speed = (int) g_track_speed[car->track_slice >> 2].safe_speed << 0x10;

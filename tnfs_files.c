@@ -226,8 +226,8 @@ int read_pdn_file(char *file, tnfs_car_data *car) {
 	car->collision_data.moment_of_inertia = readFixed32(buffer, 0xC);
 	car->collision_data.mass = readFixed32(buffer, 0x10);
 
-	car->field_168 = readFixed32(buffer, 0x14);
-	car->field_170 = readFixed32(buffer, 0x18);
+	car->handling_factor = readFixed32(buffer, 0x14);
+	car->speed_factor = readFixed32(buffer, 0x18);
 
 	for (i = 0; i < 100; i++) {
 		car->power_curve[i] = readFixed32(buffer, i * 4 + 0x1C);

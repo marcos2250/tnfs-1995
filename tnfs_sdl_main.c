@@ -309,7 +309,7 @@ int main(int argc, char **argv) {
 
 	window = SDL_CreateWindow("SDL Window", //
 			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, //
-			800, 600, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
+			SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
 	if (!window) {
 		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
 		return 0;

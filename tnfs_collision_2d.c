@@ -37,7 +37,7 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int lon_speed, in
 	if (rotAngle > 0x1000000)
 		rotAngle -= 0x1000000;
 
-	if (lon_speed >= 0x180000 && car_data->speed > 0x230000) {
+	if (lon_speed >= 0x100000 && car_data->speed > 0x300000) {
 		crash_speed_a = lon_speed - 0x60000;
 		if (rotAngle >= 0x800000)
 			rotSide = 0x1000000 - fix3(0x1000000 - rotAngle);

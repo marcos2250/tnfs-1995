@@ -1840,6 +1840,19 @@ void FUN_000811c2(tnfs_car_data *car, int param_2) {
 	}
 }
 
+// crash_state 1 handler: wait after being busted, then give control back
+void tnfs_engine_gear_shift_main(tnfs_car_data *car) {
+	car->collision_data.field_084--;
+	if (car->collision_data.field_084 < 1) {
+		car->car_data_ptr->crash_state = 2;
+		car->is_gear_engaged = 0;
+		car->gear_selected = -1;
+		if (car->gear_auto_selected != 0) {
+			car->gear_auto_selected = 2;
+		}
+	}
+}
+
 void tnfs_car_stop_0007d5c1(tnfs_car_data *car) {
 	car->angular_speed = 0;
 	car->steer_angle = 0;
@@ -2780,8 +2793,8 @@ void tnfs_player_pull_over(tnfs_car_data *car) {
 	int steer;
 
 	if ((car->ai_state & 0x10000) != 0) {
-		angle = math_atan2((player_car_ptr->position).z - (car->position).z,
-						   (player_car_ptr->position).x - (car->position).x);
+		angle = math_atan2((g_cop_car_ptr->position).z - (car->position).z,
+						   (g_cop_car_ptr->position).x - (car->position).x);
 		angle = (angle - car->angle.y) & 0xffffff;
 		if (0x800000 < angle) {
 			angle = angle - 0x1000000;

@@ -1367,7 +1367,9 @@ void tnfs_update() {
 			continue;
 		}
 
-		if (car->crash_state != 4) {
+		if (car->crash_state == 1) {
+			tnfs_engine_gear_shift_main(car);
+		} else if (car->crash_state != 4) {
 			if (i < g_number_of_players) {
 				tnfs_driving_main(car);
 				math_matrix_from_pitch_yaw_roll(&car->matrix, car->angle.x + car->body_pitch, car->angle.y, car->angle.z + car->body_roll);

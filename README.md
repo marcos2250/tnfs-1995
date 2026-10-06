@@ -4,6 +4,8 @@ Recreation and analysis of the physics engine from the classic racing game from 
 
 This project aims to recreate, by reverse engineering, accurately as possible the physics formulas used in the game, decompiled from DOS, PSX and 3DO binaries, and manually rewritten to C.
 
+Also check my *3DO* version **tnfs-1994** total remake project at: https://github.com/marcos2250/tnfs-1994
+
 ## Features
 * 2D car driving simulation, with a 2-wheel tire grip model;
 * 3D box rigid body collision physics;

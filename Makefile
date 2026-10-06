@@ -12,7 +12,6 @@ OBJS= \
 	$(O)/tnfs_collision_2d.o \
 	$(O)/tnfs_collision_3d.o \
 	$(O)/tnfs_camera.o \
-	$(O)/tnfs_engine.o \
 	$(O)/tnfs_fiziks.o \
 	$(O)/tnfs_ai.o \
 	$(O)/tnfs_files.o \

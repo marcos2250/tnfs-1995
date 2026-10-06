@@ -88,12 +88,12 @@ void math_rotate_2d(int x1, int y1, int angle, int *x2, int *y2) {
 }
 
 void math_rotate_vector_xz(tnfs_vec3 *v0, tnfs_vec3 *v1, int angle) {
-	double a = (double) angle / 2670178; //angle= 0 to 16777215 (360)
+	double a = (double) angle / 2670178;
 	double s = sin(a);
 	double c = cos(a);
-	v1->x = (int) (v0->x * c - v0->z * s);
+	v1->x = (int) (v0->x * c + v0->z * s);
 	v1->y = v0->y;
-	v1->z = (int) (-v0->x * s + v0->z * c);
+	v1->z = (int) (v0->z * c - v0->x * s);
 }
 
 int math_angle_wrap(int a) {
@@ -362,7 +362,6 @@ void math_height_coordinates(tnfs_vec3 *p3, tnfs_vec3 *p2, tnfs_vec3 *p1, tnfs_v
 	vecCB.y = tC->y - tB->y;
 	vecCB.z = tC->z - tB->z;
 
-	// use the barycentric coordinates formula
 	math_vec3_cross_product(&cross, &vecAB, &vecCB);
 	denominator = math_inverse_value(cross.y);
 

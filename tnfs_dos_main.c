@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
 		trifile = argv[1];
 	}
 
-	tnfs_init_sim(trifile);
+	tnfs_init_sim(trifile, "carspecs.pbs");
 
 	_clearscreen(_GCLEARSCREEN);
 	_setvideomode(_VRES16COLOR);

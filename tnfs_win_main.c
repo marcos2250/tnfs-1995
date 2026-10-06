@@ -308,7 +308,7 @@ int WINAPI WinMain( HINSTANCE this_inst, HINSTANCE prev_inst, LPSTR cmdline, int
 	}
 
 	trifile = 0;
-	tnfs_init_sim("track.tri");
+	tnfs_init_sim("track.tri", "carspecs.pbs");
 
 	playing = 1;
 	while(playing) {

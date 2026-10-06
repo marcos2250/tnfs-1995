@@ -11,12 +11,26 @@
 #include "tnfs_base.h"
 
 static SDL_Event event;
+static SDL_Window *window;
+static SDL_GLContext glContext;
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
 
 GLfloat matrix[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 vector3f cam_orientation = { 0, 0, 0 };
+
+void sys_sdl_exit() {
+	SDL_GL_DeleteContext(glContext);
+	SDL_DestroyWindow(window);
+	SDL_Quit();
+	exit(0);
+}
+
+void msg_abort(char * text, char * a, char * b, char * c) {
+	printf(text, a, b, c);
+	sys_sdl_exit();
+}
 
 void handleKeys() {
 	if (event.type == SDL_KEYDOWN) {
@@ -258,7 +272,7 @@ void drawTach() {
 	glEnd();
 }
 
-void renderGl() {
+void gfx_update() {
 	cam_orientation.x = ((float) camera.orientation.x) * 0.0000214576733981; //(360/0xFFFFFF)
 	cam_orientation.y = ((float) camera.orientation.y) * 0.0000214576733981; //(360/0xFFFFFF)
 	cam_orientation.z = -((float) camera.orientation.z) * 0.0000214576733981; //(360/0xFFFFFF)
@@ -279,6 +293,7 @@ void renderGl() {
 int main(int argc, char **argv) {
 	char quit = 0;
 	char * trifile = 0;
+	char * pbsfile = 0;
 
 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
 		printf("SDL could not be initialized! SDL_Error: %s\n", SDL_GetError());
@@ -292,7 +307,7 @@ int main(int argc, char **argv) {
 	}
 #endif
 
-	SDL_Window *window = SDL_CreateWindow("SDL Window", //
+	window = SDL_CreateWindow("SDL Window", //
 			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, //
 			800, 600, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
 	if (!window) {
@@ -300,7 +315,7 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 
-	SDL_GLContext glContext = SDL_GL_CreateContext(window);
+	glContext = SDL_GL_CreateContext(window);
 	if (!glContext) {
 		printf("GL Context could not be created! SDL_Error: %s\n", SDL_GetError());
 	}
@@ -312,12 +327,18 @@ int main(int argc, char **argv) {
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glColor3f(0.0f, 0.0f, 0.0f);
 
-	// command usage: tnfs [tr1.tri] (read a track file)
 	if (argc > 1) {
 		trifile = argv[1];
+		if (argc > 2) {
+			pbsfile = argv[2];
+		}
+	} else {
+		printf("command usage: tnfs <files/tr1.tri> <files/car.pbs>\n");
+		trifile = 0;
+		pbsfile = 0;
 	}
 
-	tnfs_init_sim(trifile);
+	tnfs_init_sim(trifile, pbsfile);
 
 	while (!quit) {
 		while (SDL_PollEvent(&event)) {
@@ -330,14 +351,12 @@ int main(int argc, char **argv) {
 		tnfs_update();
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		renderGl();
+		gfx_update();
 
 		SDL_GL_SwapWindow(window);
 		SDL_Delay(30);
 	}
 
-	SDL_GL_DeleteContext(glContext);
-	SDL_DestroyWindow(window);
-	SDL_Quit();
+	sys_sdl_exit();
 	return 0;
 }

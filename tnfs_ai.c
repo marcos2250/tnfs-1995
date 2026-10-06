@@ -689,6 +689,9 @@ int tnfs_ai_racer_speed(tnfs_car_data *car) {
 	}
 
 	top_speed = g_track_speed[car->track_slice >> 2].top_speed * 0x10000;
+	if ((g_game_settings & 0x20) != 0) { // PSX version, rally mode
+		top_speed = top_speed - (top_speed >> 3);
+	}
 
 	local_30 = car->speed_factor;
 	if (uVar8 == 0) {

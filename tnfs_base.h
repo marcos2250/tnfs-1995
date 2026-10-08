@@ -362,6 +362,8 @@ typedef struct tnfs_car_data {
 	// ...
 	int tcs_on; //0x4AD
 	int abs_on; //0x4B1
+	int road_object_slice; //0x4B9 slice of the road object at road_object_index (PSX 0x4f8)
+	int road_object_index; //0x4BD cursor into g_road_objects (PSX 0x4fc)
 	// ...
 	int is_wrecked; //
 	int field_4c5; //0x4C5 checkpoint flick maneuvre
@@ -411,6 +413,17 @@ typedef struct tnfs_track_data {
 	vector3f vf_fence_L;
 	vector3f vf_fence_R;
 } tnfs_track_data;
+
+/* TRI prop placed on the map ("RoadObjects" in DOS, 16 bytes per record, sorted by slice, -1 terminated) */
+typedef struct tnfs_road_object {
+	int slice; // road spline point the object belongs to, -1 for unused trailing records
+	int prop_descr; // index of the prop description
+	int rotation; // 8-bit angle relative to the spline point heading
+	int flags;
+	short pos_x; // 8.8 offset from the spline point position
+	short pos_y;
+	short pos_z;
+} tnfs_road_object;
 
 typedef struct tnfs_surface_type {
 	int roadFriction;
@@ -593,6 +606,9 @@ typedef struct tnfs_camera_specs {
 // global variables
 extern struct tnfs_track_data track_data[2400];
 extern struct tnfs_surface_type road_surface_type_array[3];
+extern tnfs_road_object g_road_objects[1000];
+extern int g_road_object_count;
+extern char g_sign_status[2000]; // "SignStatus": 2 bytes per road object, nonzero once knocked down
 extern struct tnfs_track_speed g_track_speed[600]; // 000FDB8C road speed limit array
 
 extern struct tnfs_car_specs car_specs;

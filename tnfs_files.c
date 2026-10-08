@@ -95,6 +95,30 @@ int read_tri_file(char * file) {
 		g_track_speed[i].safe_speed = buffer[2];
 	}
 
+	// 0x16214 block: props ("RoadObjects"), after num_prop_descr, num_props, 'SJBO', 2 ints and the prop descriptions
+	fseek(ptr, 0x16214, SEEK_SET);
+	fread(buffer, 8, 1, ptr);
+	c = readFixed32(buffer, 0); // number of prop descriptions, 16 bytes each
+	g_road_object_count = readFixed32(buffer, 4);
+	if (g_road_object_count > 1000) {
+		g_road_object_count = 1000;
+	}
+	for (i = 0; i < g_road_object_count; i++) {
+		fseek(ptr, 0x16228 + c * 16 + i * 16, SEEK_SET);
+		fread(buffer, 16, 1, ptr);
+		g_road_objects[i].slice = readFixed32(buffer, 0);
+		g_road_objects[i].prop_descr = buffer[4];
+		g_road_objects[i].rotation = buffer[5];
+		g_road_objects[i].flags = readFixed32(buffer, 6);
+		g_road_objects[i].pos_x = readSigned16(buffer, 10);
+		g_road_objects[i].pos_y = readSigned16(buffer, 12);
+		g_road_objects[i].pos_z = readSigned16(buffer, 14);
+	}
+	// DOS FUN_000447dc / PSX tnfs_signstatus: one zeroed 2-byte entry per road object
+	for (i = 0; i < g_road_object_count; i++) {
+		g_sign_status[i * 2] = 0;
+	}
+
 	// fill remaining nodes for circuit track
 	if (g_is_closed_track) {
 		c = 0;

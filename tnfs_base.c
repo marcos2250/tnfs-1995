@@ -39,6 +39,9 @@ char is_drifting;
 int iSimTimeClock = 0;
 int g_road_node_count = 0;
 int g_tri_num_chunks = 0;
+tnfs_road_object g_road_objects[1000];
+int g_road_object_count = 0;
+char g_sign_status[2000];
 int g_road_finish_node = 0;
 int sound_flag = 0;
 int g_selected_cheat = 0;
@@ -73,8 +76,8 @@ static const unsigned int g_torque_table[120] = {
 int DAT_800eb6a4 = 0; //800eb6a4
 int DAT_8010d310 = 0; //8010d310
 
-int g_collision_bump_ref = 0x6666; //DAT_000f9a70 800eae58
-int g_collision_force_carcar; // f9a70
+int g_collision_bump_ref = 0x6666; //DAT_000f99f0 800eae58
+int g_collision_force_carcar; // f9a70 800dae58
 int g_collision_force_wall; // f9a74;
 int DAT_000F9BB0 = 0;
 int DAT_000f99e4 = 0x10000;
@@ -365,6 +368,8 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->brake = 0;
 	car->abs_on = 0;
 	//car->abs_enabled = 0;
+	car->road_object_slice = 0;
+	car->road_object_index = 0;
 	car->is_crashed = 0;
 	car->is_wrecked = 0;
 	car->time_off_ground = 0;

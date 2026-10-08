@@ -2058,7 +2058,7 @@ int tnfs_collision_carcar(tnfs_car_data *car1, tnfs_car_data *car2) {
 		} else {
 			tnfs_car_local_position_vector(car1, &local_34, &local_30);
 		}
-		tnfs_sfx_play(-1, 2, 0, local_2c, local_30, local_34);
+		tnfs_sfx_play(-1, 2, 2, g_collision_force_carcar, local_30, local_34);
 		g_collision_bump_ref = g_collision_force_carcar + 0x8000;
 		DAT_000f99ec = 10;
 	}

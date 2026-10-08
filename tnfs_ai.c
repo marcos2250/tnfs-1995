@@ -2857,8 +2857,102 @@ void tnfs_player_pull_over(tnfs_car_data *car) {
 }
 
 
-void FUN_00047a7d(tnfs_car_data *car) {
-	// stub
+/*
+ * Is the road object at (x, y, z) inside the car's footprint; plays the hit sound when close to the camera.
+ * DOS tnfs_collision_sound_00047d9f (0x47d9f), PSX tnfs_physics_offroad_2 (0x8001f0f0). y is unused in both.
+ */
+int tnfs_collision_road_object(tnfs_car_data *car, int x, int y, int z) {
+	int dx;
+	int dz;
+	int cos;
+	int sin;
+	int lat;
+	int lon;
+	int distance;
+	int direction;
+
+	dx = x - car->position.x;
+	dz = z - car->position.z;
+	cos = math_cos_2(car->angle.y >> 8);
+	sin = math_sin_2(car->angle.y >> 8);
+
+	// The original compares with half the width / length of the car's 3D model (DOS size at 0x619, PSX
+	// spec_collision_car_width/length, both computed from the model's vertex extents in the renderer). The port does
+	// not load the model, so the PDN half extents in collision_data.size are used instead.
+	lat = math_mul(cos, dx) - math_mul(sin, dz);
+	if (abs(lat) > car->collision_data.size.x) {
+		return 0;
+	}
+	lon = math_mul(sin, dx) + math_mul(cos, dz);
+	if (abs(lon) > car->collision_data.size.z) {
+		return 0;
+	}
+
+	if ((car->track_slice - g_camera_node) < 10 && (car->track_slice - g_camera_node) > -9) {
+		tnfs_car_local_position_vector(car, &direction, &distance);
+		tnfs_sfx_play(-1, 2, 10, 0x10000, distance, direction);
+	}
+	return 1;
+}
+
+/*
+ * Walks the road objects of the car's slice (cursor road_object_index/slice kept per car) and knocks down the first
+ * sign the car runs over. DOS FUN_00047a7d (0x47a7d), PSX FUN_8001ed38.
+ */
+int tnfs_collision_road_objects(tnfs_car_data *car) {
+	int slice;
+	int index;
+	int x;
+	int y;
+	int z;
+
+	slice = car->track_slice;
+
+	// rewind to the first object of this slice
+	while (car->road_object_slice == slice && car->road_object_index != 0) {
+		car->road_object_index--;
+		car->road_object_slice = g_road_objects[car->road_object_index].slice;
+	}
+
+	if (slice < car->road_object_slice || g_road_objects[car->road_object_index + 1].slice == -1) {
+		if (slice < car->road_object_slice) {
+			// objects behind the cursor
+			index = car->road_object_index;
+			while (index != 0) {
+				if (car->road_object_slice == slice && g_sign_status[car->road_object_index * 2] == 0) {
+					x = track_data[slice].pos.x + (g_road_objects[car->road_object_index].pos_x << 8);
+					y = track_data[slice].pos.y + (g_road_objects[car->road_object_index].pos_y << 8);
+					z = track_data[slice].pos.z + (g_road_objects[car->road_object_index].pos_z << 8);
+					if (tnfs_collision_road_object(car, x, y, z)) {
+						g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x4b0) + 1; // PSX: / 0x708
+						return 1;
+					}
+				}
+				car->road_object_index--;
+				car->road_object_slice = g_road_objects[car->road_object_index].slice;
+				if (car->road_object_slice < slice) {
+					return 0;
+				}
+				index = car->road_object_index;
+			}
+		}
+	} else {
+		// objects ahead of the cursor
+		do {
+			if (car->road_object_slice == slice && g_sign_status[car->road_object_index * 2] == 0) {
+				x = track_data[slice].pos.x + (g_road_objects[car->road_object_index].pos_x << 8);
+				y = track_data[slice].pos.y + (g_road_objects[car->road_object_index].pos_y << 8);
+				z = track_data[slice].pos.z + (g_road_objects[car->road_object_index].pos_z << 8);
+				if (tnfs_collision_road_object(car, x, y, z)) {
+					g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x4b0) + 1; // PSX: / 0x708
+					return 1;
+				}
+			}
+			car->road_object_index++;
+			car->road_object_slice = g_road_objects[car->road_object_index].slice;
+		} while (car->road_object_slice <= slice && g_road_objects[car->road_object_index + 1].slice != -1);
+	}
+	return 0;
 }
 
 void tnfs_ai_collision_handler() {
@@ -2907,7 +3001,7 @@ void tnfs_ai_collision_handler() {
 								< ((track_data[car1->track_slice].num_lanes & 0xf) * 40
 										+ (track_data[car1->track_slice].roadLeftMargin >> 3) * -0x100
 										* (track_data[car1->track_slice].num_lanes >> 4)))) {
-					FUN_00047a7d(car1);
+					tnfs_collision_road_objects(car1);
 				}
 			}
 		}

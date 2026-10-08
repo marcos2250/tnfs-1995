@@ -13,5 +13,6 @@ void tnfs_ai_respawn_main(tnfs_car_data *car);
 void tnfs_ai_police_reset_state(int flag);
 void tnfs_ai_hidden_traffic_main(tnfs_car_data *car);
 void tnfs_ai_respawn_0007d647();
+void tnfs_engine_gear_shift_main(tnfs_car_data *car);
 
 #endif /* TNFS_AI_H_ */

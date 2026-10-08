@@ -987,7 +987,7 @@ int tnfs_track_node_find(tnfs_vec3 *p_position, int *current) {
 			if (dist2 < dist1) {
 				changed = 1;
 				*current = *current + 1;
-			} else if (0 < *current || !g_is_closed_track) {
+			} else if (0 < *current || g_is_closed_track) {
 				tracknode1 = &track_data[(node - 1) & g_slice_mask];
 				tracknode2 = &track_data[node & g_slice_mask];
 				position.x = (tracknode1->pos.x + tracknode2->pos.x) >> 1;
@@ -995,13 +995,8 @@ int tnfs_track_node_find(tnfs_vec3 *p_position, int *current) {
 				dist2 = math_vec3_distance_squared_XZ(&position, p_position);
 
 				if (dist2 < dist1) {
-					node = *current;
-					*current = node - 1;
-					if (node - 1 < 0) {
-						*current = 0;
-					} else {
-						changed = 1;
-					}
+					changed = 1;
+					*current = *current - 1;
 				}
 			}
 		} while (node != *current);
@@ -1372,7 +1367,9 @@ void tnfs_update() {
 			continue;
 		}
 
-		if (car->crash_state != 4) {
+		if (car->crash_state == 1) {
+			tnfs_engine_gear_shift_main(car);
+		} else if (car->crash_state != 4) {
 			if (i < g_number_of_players) {
 				tnfs_driving_main(car);
 				math_matrix_from_pitch_yaw_roll(&car->matrix, car->angle.x + car->body_pitch, car->angle.y, car->angle.z + car->body_roll);

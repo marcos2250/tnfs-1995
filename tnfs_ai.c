@@ -2206,6 +2206,8 @@ void tnfs_ai_police_parked_respawn() {
 	}
 }
 
+// horn of a non-player car: ticks left (decremented by DOS tnfs_sfx_horn_other 0x82cd4, not ported),
+// pitch index (DOS table 0x81aa9) and car slot (sample table 0x81a81: 0x41 slots 0/1, 0x3f others)
 int DAT_000fdcfc = 0;
 int DAT_000fdcf8 = 0;
 int DAT_000fdd00 = 0;
@@ -2224,7 +2226,7 @@ void FUN_00082DA5(int a, int b) {
 	if (DAT_000fdcfc == 0) {
 		DAT_000fdcf8 = b;
 		DAT_000fdd00 = a;
-		if ((-1 < a) && (b < g_racer_cars_in_scene)) {
+		if ((-1 < a) && (a < g_racer_cars_in_scene)) {
 			DAT_000fdd00 = 1;
 			DAT_000fdcf8 = 1;
 		}
@@ -2348,12 +2350,14 @@ void tnfs_ai_block_opponent_behind(tnfs_car_data *car, int lane, tnfs_vec3 *dire
 			}
 		}
 
-		if ((car->track_slice < car1->track_slice) && (uVar4 == lane)) {
-			uVar4 = g_lead_player->car_road_speed;
+		// horn: DOS FUN_000796fb (0x799a2), PSX tnfs_ai_block_opponent_behind (0x800559d8)
+		if ((car->track_slice < car1->track_slice) && (uVar4 == lane) && (g_is_closed_track == 0)) {
+			uVar4 = g_car_ptr_array[1]->car_road_speed; // DOS g_player_car_ptr_2 (0x153bc4), the car in slot 1
 			if (uVar4 < 0)
 				uVar4 = -uVar4;
 			uVar2 = math_mul_floor(0x35555, (car1->track_slice - car->track_slice) * 0x60000);
 			if (uVar2 < uVar4) {
+				car->collision_data.field_084++;
 				g_lcg_random_nbr = g_lcg_random_mod * g_lcg_random_seed;
 				g_lcg_random_mod = g_lcg_random_nbr & 0xffff;
 				if (((g_lcg_random_nbr & 0xffff00) >> 8) * 10 >> 0x10 < car->collision_data.field_084) {
@@ -2364,10 +2368,10 @@ void tnfs_ai_block_opponent_behind(tnfs_car_data *car, int lane, tnfs_vec3 *dire
 		} else {
 			car->collision_data.field_084 = 0;
 		}
-		if ((car->track_slice == car1->track_slice - 5) //
-				|| ((car->track_slice == player_car_ptr->track_slice - 2) //
-						&& (car->car_road_speed > 0xf0000) //
-				&& (car1->crash_state == 1))) {
+		if (((car->track_slice == car1->track_slice - 5) //
+				|| (car->track_slice == player_car_ptr->track_slice - 2)) //
+				&& (car->car_road_speed > 0xf0000) //
+				&& (car1->crash_state == 1)) {
 			FUN_00082DA5(car->car_id, 0);
 		}
 	}
@@ -2778,9 +2782,11 @@ void tnfs_ai_lane_change() {
 								if (local_bc) {
 									if (car_speed_a.y > -0x30000) {
 										g_lcg_random_nbr = g_lcg_random_seed * g_lcg_random_mod;
-										g_lcg_random_mod = g_lcg_random_seed * g_lcg_random_mod;
+										g_lcg_random_mod = g_lcg_random_nbr & 0xffff;
+										// horn of oncoming traffic, only while g_sfx_radar_level (DAT_000F9BB0) is 0 (DOS 0x7b491)
 										if ((((g_lcg_random_nbr & 0xFFFF00u) >> 8) & 0xFF) < 35 && car->car_road_speed && !DAT_000F9BB0) {
-											FUN_00082DA5(car->car_id, car->field_461);
+											// DOS car +0x461 is the PDN 0x1c8 value (tnfs_ai_pdn_file 0x47425): the horn pitch index for traffic
+											FUN_00082DA5(car->car_id, car->pdn_number_of_gears);
 										}
 									}
 								}

@@ -407,6 +407,8 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	tnfs_vec3 fencePosition;
 	tnfs_vec3 roadPosition;
 	tnfs_vec3 fenceDistance;
+	tnfs_vec3 roofNormal;
+	tnfs_vec3 roofPosition;
 	//tnfs_vec3 roadHeading;
 	int roadWidth;
 	int iVar4 = 0;
@@ -500,6 +502,20 @@ void tnfs_collision_main(tnfs_car_data *car) {
     if (local_20 < g_collision_force_wall) {
       local_20 = g_collision_force_wall;
     }
+
+	/* car colliding to the tunnel roof, 7m above the road (item_mode 4 only; DOS 0x453bc, PSX 0x8001cb1c) */
+	if (track_data[car->track_slice & g_slice_mask].item_mode == 4) {
+		roofPosition.x = roadNormal.x * 7 + roadPosition.x;
+		roofPosition.y = roadNormal.y * 7 + roadPosition.y;
+		roofPosition.z = roadNormal.z * 7 + roadPosition.z;
+		roofNormal.x = -roadNormal.x;
+		roofNormal.y = -roadNormal.y;
+		roofNormal.z = -roadNormal.z;
+		tnfs_collision_detect(collision_data, &roofNormal, &roofPosition);
+		if (local_20 < g_collision_force_wall) {
+			local_20 = g_collision_force_wall;
+		}
+	}
 
 	/* car collision to ground */
 	tnfs_collision_detect(collision_data, &roadNormal, &roadPosition);

@@ -378,6 +378,11 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->wheels_on_ground = 1;
 	car->surface_type = 0;
 	car->surface_type_b = 0;
+	car->in_tunnel = 0;
+	car->in_tunnel_or_8 = 0;
+	car->on_cobbles = 0;
+	car->waterfall_left = 0;
+	car->waterfall_right = 0;
 	car->slope_force_lat = 0;
 	car->unknown_flag_3DD = 0;
 	car->slope_force_lon = 0;

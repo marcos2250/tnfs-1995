@@ -359,6 +359,11 @@ typedef struct tnfs_car_data {
 	short drag_const_0x4ae; //0x4ae
 	int surface_type; //0x49D
 	int surface_type_b; //0x4A1
+	int in_tunnel; //0x4A5 slice item_mode 4, 7, 9, 12 or 13 (tunnels) (PSX 0x4b8)
+	int in_tunnel_or_8; //0x4A9 as in_tunnel, or item_mode 8; never read (PSX 0x4bc)
+	int on_cobbles; //item_mode 5 (PSX 0x4d4; DOS global DAT_001454a0, player only)
+	int waterfall_left; //item_mode 14 (PSX 0x4d8; DOS global DAT_001454a4, player only)
+	int waterfall_right; //item_mode 15 (PSX 0x4dc; DOS global DAT_001454a8, player only)
 	// ...
 	int tcs_on; //0x4AD
 	int abs_on; //0x4B1

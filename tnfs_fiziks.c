@@ -1076,6 +1076,9 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 
 	// track fence collision
 	tnfs_track_fence_collision(car_data);
+	if (sound_flag != 0 || car_data->car_id2 == g_player_id) {
+		tnfs_track_item_mode_flags(car_data);
+	}
 
 	// replay recording
 	if ((general_flags & 4) && is_recording_replay == 1) {

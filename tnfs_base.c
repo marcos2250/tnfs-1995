@@ -826,6 +826,9 @@ void tnfs_crash_car() {
 
 /* common stub functions */
 
+// The collision code (car-car, crash model, fence) calls the game's sound function through a wrapper that
+// multiplies the volume by 20 (DOS 0x66360, PSX 0x8003abf8), so there the volume passed here is 1/20 of what
+// the sample selection sees. Other callers (prop hits, gear shift, landing) pass it unchanged.
 void tnfs_sfx_play(int a, int id1, int id2, int volume, int distance, int direction) {
 	printf("sound %i %i\n", id1, id2);
 }

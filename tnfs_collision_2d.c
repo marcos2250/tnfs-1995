@@ -179,7 +179,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 
 	// play collision sound
 	abs_speed = abs(rebound_speed_x);
-	if (fence_flag && (abs_speed > 0x60000)) {
+	if (fence_flag == 0 && (abs_speed > 0x60000)) {
 		if (sound_flag == 0) {
 			if (car_data->car_id2 == 0) {
 				if (selected_camera == 0) {
@@ -191,6 +191,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 				} else {
 					tnfs_car_local_position_vector(car_data, &sfxA, &sfxB);
 				}
+				tnfs_sfx_play(-1, 2, 9, abs_speed, sfxB, sfxA);
 			}
 		} else {
 			if (car_data->car_id2 == 0) {
@@ -198,8 +199,9 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 			} else {
 				sfxA = 0xc00000;
 			}
+			// sfxB is not set here, PSX passes the unset stack value too
+			tnfs_sfx_play(-1, 2, 9, abs_speed, sfxB, sfxA);
 		}
-		tnfs_sfx_play(-1, 2, 9, abs_speed, sfxB, sfxA);
 		if (abs_speed > 0x140000) {
 			tnfs_replay_highlight_record(0x32);
 		}

@@ -31,6 +31,9 @@ int is_performance_test_off = 0; //DAT_00146483
 // PSX rally mode data
 int DAT_800eb204, DAT_800eb208, DAT_800eb210, DAT_800eb20c;
 
+// per gear (index gear_selected + 2): wheel spin speed decay in tnfs_engine_thrust (DOS 0xf9e74, PSX 0x800bd3b0)
+int g_gear_spin_decay[8] = { 0x43, 0x43, 0x43, 0x77, 0xa4, 0xd4, 0x107, 0x155 };
+
 void tnfs_record_best_acceleration(int a, int b, int c, int s) {
 	if (a > 0)
 		printf("Best 0-60 acceleration: %.2f\n", ((float) a) / 30);
@@ -59,7 +62,7 @@ void tnfs_engine_rev_limiter(tnfs_car_data *car) {
 	}
 
 	// speed to RPM
-	car->rpm_vehicle = fixmul(fixmul(specs->gear_ratio_table[car->gear_selected + 2], specs->mps_to_rpm_factor), car->speed_drivetrain) >> 16;
+	car->rpm_vehicle = fixmul(fixmul(specs->mps_to_rpm_factor, car->speed_drivetrain), specs->gear_ratio_table[car->gear_selected + 2]) >> 16;
 
 	if (car->rpm_vehicle < 700)
 		car->rpm_vehicle = 700;
@@ -69,7 +72,8 @@ void tnfs_engine_rev_limiter(tnfs_car_data *car) {
 	if (car->is_gear_engaged) {
 		if (car->rpm_vehicle > car->rpm_engine) {
 			if (car->rpm_vehicle + 500 <= car->rpm_engine) {
-				car->rpm_engine += fix8(car->car_specs_ptr->gear_ratio_table[car->gear_selected] * specs->clutchDropRpmInc);
+				// unreachable
+				car->rpm_engine += fix8(g_gear_spin_decay[car->gear_selected + 2] * specs->clutchDropRpmInc);
 			} else {
 				car->rpm_engine += specs->clutchDropRpmInc;
 			}
@@ -105,7 +109,7 @@ void tnfs_engine_rev_limiter(tnfs_car_data *car) {
 		if (car->gear_selected == -1) {
 			car->rpm_engine -= car->car_specs_ptr->noGasRpmDec >> 1;
 		} else {
-			car->rpm_engine -= car->car_specs_ptr->noGasRpmDec >> 1;
+			car->rpm_engine -= car->car_specs_ptr->noGasRpmDec;
 		}
 		if (car->rpm_engine < specs->rpm_idle) {
 			car->rpm_engine = specs->rpm_idle;
@@ -174,15 +178,26 @@ void tnfs_engine_auto_shift_control(tnfs_car_data *car) {
 	}
 }
 
+/*
+ * tnfs_load_torque_table (DOS 0x43acc, PSX 0x8001b1e8): converts the torques (N.m) to 16.16 accelerations
+ */
+void tnfs_load_torque_table(tnfs_car_specs *specs, int is_automatic) {
+	int i;
+
+	// automatic gearbox: efficiency x 0xf8/256
+	specs->efficiency = fix8(specs->efficiency * (is_automatic ? 0xf8 : 0x100));
+
+	for (i = 0; i < specs->torque_table_entries; i++) {
+		specs->torque_table[i * 2 + 1] = math_mul(math_mul(math_mul(specs->torque_table[i * 2 + 1] << 0x10, specs->final_drive), //
+				math_mul(specs->efficiency, specs->inverse_wheel_radius)), specs->inverse_mass);
+	}
+}
+
 int tnfs_engine_torque(tnfs_car_specs *specs, int rpm) {
 	int offset;
 
-	//offset = (((rpm - (rpm + 100) % 200) + 100) - specs->torque_table[0]) / 200;
-	if (rpm < specs->torque_table[0]) {
-		offset = 0;
-	} else {
-		offset = (rpm - specs->torque_table[0]) / 200;
-	}
+	// rpm rounded to 200 rpm steps (DOS 0x43b7b, PSX 0x8001b2a0)
+	offset = (((rpm - (rpm + 100) % 200) + 100) - (int) specs->torque_table[0]) / 200;
 
 	if (offset < 0) {
 		offset = 0;
@@ -199,11 +214,13 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 	int max_rpm;
 	int tireslip;
 	int gear;
+	int is_rally_spin;
 	tnfs_car_specs *specs;
 
 	specs = car->car_specs_ptr;
 
 	gear = car->gear_selected + 2;
+	is_rally_spin = 0;
 
 	if (car->is_gear_engaged) {
 		if (car->rpm_engine >= car->rpm_vehicle) {
@@ -213,39 +230,38 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 			if (car->rpm_engine <= max_rpm) {
 				// engine rpm range
 				torque = tnfs_engine_torque(specs, car->rpm_engine);
-				torque = fixmul(torque, specs->gear_ratio_table[gear]);
-				torque = torque * specs->gear_efficiency[gear] >> 8;
+				torque = fix8(fix8(torque) * fix8(specs->gear_ratio_table[gear]) * specs->gear_efficiency[gear]);
 
 				if (torque > 0x70000)
 					torque = 0x70000;
 
-				tireslip = abs((car->rpm_engine << 16) / (fixmul(specs->gear_ratio_table[gear], specs->mps_to_rpm_factor) >> 16) - car->speed_local_lon);
+				// wheel speed at the engine rpm minus the car speed
+				tireslip = (car->rpm_engine << 16) / (fixmul(specs->gear_ratio_table[gear], specs->mps_to_rpm_factor) >> 16) - car->speed_local_lon;
 
-				if (tireslip > 0x30000 && car->throttle > 250 && car->gear_selected == 0) {
-					// engine overpower, doing burnouts
-					// guessed thrust => 1.25 * tire slip speed
+				if (abs(tireslip) <= 0x30000 || car->throttle < 0xfb || car->gear_selected > 0) {
+					thrust = (car->throttle * torque) >> 8;
+				} else {
+					// engine overpower, doing burnouts: thrust = 1.25 * tire slip speed
 					thrust = tireslip + fix2(tireslip);
 					is_drifting = 1;
-				} else {
-					thrust = (car->throttle * torque) >> 8;
 				}
 
 			} else {
 				// decceleration
 				torque = abs((car->rpm_engine - max_rpm) * specs->negTorque);
-				thrust = -abs(fixmul(specs->gear_ratio_table[gear], torque));
+				thrust = abs(fixmul(torque, specs->gear_ratio_table[gear]));
 
-				if (car->speed_local_lon == 0) {
-					thrust = 0;
-				} else if (thrust > abs(car->speed_local_lon) * 16) {
+				if (abs(car->speed_local_lon) * 16 < thrust) {
 					thrust = car->speed_local_lon * -16;
-				} else if (car->speed_local_lon < 0) {
+				} else if (car->speed_local_lon == 0) {
+					thrust = 0;
+				} else if (car->speed_local_lon > 0) {
 					thrust = -thrust;
 				}
 			}
 		} else {
 			// decceleration
-			thrust = fixmul(specs->gear_ratio_table[gear],  specs->negTorque) * (car->rpm_vehicle - car->rpm_engine) * -8;
+			thrust = ((car->rpm_vehicle - car->rpm_engine) * -8 * specs->negTorque >> 8) * (specs->gear_ratio_table[gear] >> 8);
 		}
 	} else {
 		// neutral
@@ -255,7 +271,47 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 	// final ratio
 	thrust = fix2(thrust * fix6(specs->final_drive_torque_ratio));
 
-	// rally mode
+	// rally mode, wheel spin on unpaved roads
+	if ((g_game_settings & 0x20) != 0 && road_surface_type_array[car->surface_type].is_unpaved //
+			&& abs(thrust) > car->tire_grip_rear //
+			&& car->rpm_engine < specs->rpm_redline //
+			&& car->throttle > 0xf0) {
+		is_rally_spin = 1;
+		thrust = thrust << 2;
+	}
+
+	if (is_rally_spin
+			|| ((car->throttle > 0xf0) // full throttle
+			&& (abs(thrust) > car->tire_grip_rear - car->tire_grip_loss) // tire grip slipping
+			&& (car->rpm_engine < specs->gear_upshift_rpm[1] - 500) // before cut off
+			&& (specs->front_drive_percentage == 0))) { // RWD car
+
+		// wheel spin: RPM to speed
+		car->speed_drivetrain = (car->rpm_engine << 16) / (fixmul(specs->gear_ratio_table[gear], specs->mps_to_rpm_factor) >> 16);
+
+		// PC/PSX version (DOS adds 100 rpm after the clamp below)
+		if (is_rally_spin && car->rpm_engine + 200 < specs->rpm_redline) {
+			car->rpm_engine += 150;
+			car->speed_drivetrain = ((car->rpm_engine - 200) << 16) / (fixmul(specs->gear_ratio_table[gear], specs->mps_to_rpm_factor) >> 16);
+		}
+
+		// wheels spin at least as fast as the car moves
+		if (car->speed_local_lon <= 0) {
+			if (car->speed_local_lon < car->speed_drivetrain)
+				car->speed_drivetrain = car->speed_local_lon;
+		} else if (car->speed_drivetrain < car->speed_local_lon) {
+			car->speed_drivetrain = car->speed_local_lon;
+		}
+	} else if (car->speed_local_lon < car->speed_drivetrain && car->speed_drivetrain > 0) {
+		// wheel spin slows down
+		car->speed_drivetrain -= g_gear_spin_decay[gear] * 0x1e00;
+		if (car->speed_drivetrain < car->speed_local_lon)
+			car->speed_drivetrain = car->speed_local_lon;
+	} else {
+		car->speed_drivetrain = car->speed_local_lon;
+	}
+
+	// rally mode (PSX and Win95)
 	if (((g_game_settings & 0x20) != 0) // rally mode enabled
 			&& (car->throttle > 0xfa) // full throttle
 			&& (car->gear_selected > 0) // forward gear
@@ -263,22 +319,6 @@ int tnfs_engine_thrust(tnfs_car_data *car) {
 		thrust = thrust << 1;
 	}
 
-	// tire slip
-	if ((car->throttle > 0xf0) // full throttle
-			&& (abs(thrust) > car->tire_grip_rear - car->tire_grip_loss) // tire grip slipping
-			&& (car->rpm_engine < car->car_specs_ptr->gear_upshift_rpm[0] - 500)) { // before cut off
-			//&& (car->car_specs_ptr->front_drive_percentage == 0)) { // RWD car ??
-
-		// RPM to speed
-		car->speed_drivetrain = 0x100000000 / fixmul(specs->gear_ratio_table[gear], specs->mps_to_rpm_factor) * car->rpm_engine;
-
-		// wheel spin faster than car speed
-		if (car->speed_drivetrain > abs(car->speed_local_lon)) {
-			return thrust;
-		}
-	}
-
-	car->speed_drivetrain = car->speed_local_lon;
 	return thrust;
 }
 

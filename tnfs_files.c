@@ -141,6 +141,7 @@ int read_pbs_file(char * file) {
 	unsigned char buffer[2048];
 	FILE *ptr;
 	int i;
+	unsigned int c;
 
 	ptr = fopen(file,"rb");
 	if (!ptr) {
@@ -158,18 +159,23 @@ int read_pbs_file(char * file) {
 	car_specs.inverse_mass = readFixed32(buffer, 0x14);
 	car_specs.front_drive_percentage = readFixed32(buffer, 0x18);
 	car_specs.front_brake_percentage = readFixed32(buffer, 0x1c);
+	car_specs.rear_brake_percentage = readFixed32(buffer, 0x20);
 	car_specs.centre_of_gravity_height = readFixed32(buffer, 0x24);
 	car_specs.max_brake_force_1 = readFixed32(buffer, 0x28);
 	car_specs.max_brake_force_2 = readFixed32(buffer, 0x2c);
+	car_specs.max_tire_coeff = readFixed32(buffer, 0x30);
 	car_specs.drag = readFixed32(buffer, 0x34);
 	car_specs.top_speed = readFixed32(buffer, 0x38);
 	car_specs.efficiency = readFixed32(buffer, 0x3c);
 	car_specs.wheelbase = readFixed32(buffer, 0x40);
 	car_specs.wheelbase_inv = readFixed32(buffer, 0x44);
 	car_specs.wheeltrack = readFixed32(buffer, 0x48);
+	car_specs.wheeltrack_inv = readFixed32(buffer, 0x4c);
+	car_specs.rear_weight_percentage = readFixed32(buffer, 0x50);
 	car_specs.mps_to_rpm_factor = readFixed32(buffer, 0x54);
 	car_specs.number_of_gears = readFixed32(buffer, 0x58);
 	car_specs.final_drive = readFixed32(buffer, 0x5c);
+	car_specs.wheel_roll_radius = readFixed32(buffer, 0x60);
 	car_specs.inverse_wheel_radius = readFixed32(buffer, 0x64);
 
 	for (i = 0; i < 8; i++) {
@@ -180,7 +186,11 @@ int read_pbs_file(char * file) {
 	car_specs.front_roll_stiffness = readFixed32(buffer, 0x8c);
 	car_specs.rear_roll_stiffness = readFixed32(buffer, 0x90);
 	car_specs.roll_axis_height = readFixed32(buffer, 0x94);
+	car_specs.front_roll_stiffness_2 = readFixed32(buffer, 0x98);
+	car_specs.rear_roll_stiffness_2 = readFixed32(buffer, 0x9c);
+	car_specs.weight_transfer_factor = readFixed32(buffer, 0xa0);
 	car_specs.cutoff_slip_angle = readFixed32(buffer, 0xa4);
+	car_specs.normal_coeff_loss = readFixed32(buffer, 0xa8);
 	car_specs.rpm_redline = readFixed32(buffer, 0xac);
 	car_specs.rpm_idle = readFixed32(buffer, 0xb0);
 
@@ -201,11 +211,32 @@ int read_pbs_file(char * file) {
 	car_specs.rear_friction_factor = readFixed32(buffer, 0x2e0);
 	car_specs.body_length = readFixed32(buffer, 0x2e4);
 	car_specs.body_width = readFixed32(buffer, 0x2e8);
+	car_specs.maxAutoSteerAngle = readFixed32(buffer, 0x2ec);
+	car_specs.autoRampMultShift = readFixed32(buffer, 0x2f0);
+	car_specs.autoRampDivShift = readFixed32(buffer, 0x2f4);
+	car_specs.steerModel = readFixed32(buffer, 0x2f8);
+	car_specs.vel1_AS2 = readFixed32(buffer, 0x2fc);
+	car_specs.vel2_AS2 = readFixed32(buffer, 0x300);
+	car_specs.vel3_AS2 = readFixed32(buffer, 0x304);
+	car_specs.vel4_AS2 = readFixed32(buffer, 0x308);
+	car_specs.velRamp_AS2 = readFixed32(buffer, 0x30c);
+	car_specs.velAttenuate_AS2 = readFixed32(buffer, 0x310);
+	car_specs.autoRampMultShift_AS2 = readFixed32(buffer, 0x314);
+	car_specs.autoRampDivShift_AS2 = readFixed32(buffer, 0x318);
 	car_specs.lateral_accel_cutoff = readFixed32(buffer, 0x31c);
+	car_specs.field_0x320 = readFixed32(buffer, 0x320);
+	car_specs.field_0x324 = readFixed32(buffer, 0x324);
 	car_specs.final_drive_torque_ratio = readFixed32(buffer, 0x328);
 	car_specs.thrust_to_acc_factor = readFixed32(buffer, 0x32c);
+	car_specs.field_0x330 = readFixed32(buffer, 0x330);
 	car_specs.abs_equipped = readFixed32(buffer, 0x334);
 	car_specs.tcs_equipped = readFixed32(buffer, 0x338);
+	car_specs.throttle_on_ramp = readFixed32(buffer, 0x33c);
+	car_specs.throttle_off_ramp = readFixed32(buffer, 0x340);
+	car_specs.brake_on_ramp_1 = readFixed32(buffer, 0x344);
+	car_specs.brake_on_ramp_2 = readFixed32(buffer, 0x348);
+	car_specs.brake_off_ramp_1 = readFixed32(buffer, 0x34c);
+	car_specs.brake_off_ramp_2 = readFixed32(buffer, 0x350);
 	car_specs.shift_timer = readFixed32(buffer, 0x354);
 	car_specs.noGasRpmDec = readFixed32(buffer, 0x358);
 	car_specs.gasRpmInc = readFixed32(buffer, 0x35c);
@@ -216,6 +247,16 @@ int read_pbs_file(char * file) {
 	car_specs.centre_y = readFixed32(buffer, 0x370);
 
 	memcpy(car_specs.grip_table, &buffer[0x374], 1024);
+	car_specs.checksum = readFixed32(buffer, 0x774);
+
+	// Fiziks_PreInitCar (DOS 0x63e72, PSX 0x80038ea4): a bad checksum zeroes the efficiency
+	c = 0;
+	for (i = 0; i < 0x758; i++) {
+		c += buffer[i];
+	}
+	if (c != car_specs.checksum) {
+		car_specs.efficiency = 0;
+	}
 
 	fclose(ptr);
 	printf("Loaded car file %s.\n", file);
@@ -243,9 +284,12 @@ int read_pdn_file(char *file, tnfs_car_data *car) {
 	car->collision_data.size.z = readFixed32(buffer, 8);
 
 	// non-playable cars have zeros as collision dimensions in their PDN files
+	// (tnfs_ai_init_car, DOS 0x6454b, then takes the size of the 3D model, which the port doesn't have)
 	car->collision_data.size.x = car->collision_data.size.x ? car->collision_data.size.x : 0x1020c;
 	car->collision_data.size.y = car->collision_data.size.y ? car->collision_data.size.y : 0x94fd;
 	car->collision_data.size.z = car->collision_data.size.z ? car->collision_data.size.z : 0x246e9;
+	car->car_length = car->collision_data.size.z * 2;
+	car->car_width = car->collision_data.size.x * 2;
 
 	car->collision_data.moment_of_inertia = readFixed32(buffer, 0xC);
 	car->collision_data.mass = readFixed32(buffer, 0x10);

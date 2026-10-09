@@ -187,6 +187,7 @@ typedef struct tnfs_car_specs {
 	int centre_y; //0x370
 
 	unsigned char grip_table[1024]; //0x374
+	unsigned int checksum; //0x774 byte sum of 0x000..0x757
 } tnfs_car_specs;
 
 typedef struct {
@@ -307,6 +308,7 @@ typedef struct tnfs_car_data {
 	int road_grip_increment; //0x3C9
 	int tire_grip_rear; //0x3CD
 	int tire_grip_front; //0x3D1
+	int gear_shift_button; //0x3D5 shift button of the last tick: 0 none, 1 down, 2 up (DOS 0x5e62f)
 	// ...
 	int slope_force_lat; //0x3D9
 	int unknown_flag_3DD; //0x3DD
@@ -642,9 +644,11 @@ extern int g_road_finish_node;
 extern int sound_flag;
 extern int cheat_crashing_cars;
 extern int g_game_settings;
+extern int selected_track;
 extern char g_control_throttle;
 extern char g_control_brake;
 extern signed char g_control_steer;
+extern char g_control_gear;
 extern int g_number_of_players;
 extern int g_selected_cheat;
 extern int selected_camera;

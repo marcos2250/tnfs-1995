@@ -156,6 +156,8 @@ void tnfs_ai_load_car(tnfs_car_data *car, int newCarModelId) {
 	for (i = 0; i < 6; i++) {
 		if (car->top_speed_per_gear[i] != 0) {
 			car->ai_gear_ratios[i] = 0x100000000 / car->top_speed_per_gear[i];
+		} else {
+			car->ai_gear_ratios[i] = 0;
 		}
 	}
 
@@ -898,7 +900,7 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 
 	iVar3 = abs(car->car_road_speed >> 0x10);
 	iVar44 = iVar3 + 1;
-	if (iVar3 > 99)
+	if (iVar44 > 99)
 		iVar44 = 99;
 
 	iVar14 = car->power_curve[iVar44];
@@ -956,7 +958,7 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 	// deccelerate a bit on curves
 	if (abs(car->steer_angle - car->target_angle) > 0x60000 && car->car_road_speed > 0x70000) {
 		if (is_a_racer) {
-			curve_deccel = (abs(car->steer_angle - car->target_angle) >> 16) * 0xCCCC;
+			curve_deccel = (abs(car->steer_angle - car->target_angle) >> 16) * 0xCCC;
 		} else {
 			curve_deccel = (abs(car->steer_angle - car->target_angle) >> 16) * 0x1745;
 		}

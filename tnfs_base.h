@@ -66,7 +66,7 @@ typedef struct tnfs_car_specs {
 	 * #rolling radius (metres) (lessoned a bit to compensate for tire deformation
 	 * #this decreases our torque,  and increases our reversed engineered rpm.
 	 */
-	int wheel_roll_radius; //0x6c;
+	int wheel_roll_radius; //0x060 unused (only inverse_wheel_radius is read)
 	int inverse_wheel_radius; //0x64;
 
 	int gear_ratio_table[8]; //0x68
@@ -149,8 +149,8 @@ typedef struct tnfs_car_specs {
 	int	autoRampMultShift_AS2; //0x314
 	int	autoRampDivShift_AS2; //0x318
 
-	int field_0x320;
-	int field_0x324;
+	int field_0x320; //0x320 unused; DOS/SE rally mode halves it
+	int field_0x324; //0x324 unused, = 0x10000 / field_0x320
 
 	/*
 	 * # WST new lateral acc cutoff multiplier (in m/s/s)
@@ -159,15 +159,15 @@ typedef struct tnfs_car_specs {
 
 	int final_drive_torque_ratio; //0x328
 	int thrust_to_acc_factor; //0x32c
-	int field_0x330;
+	int field_0x330; //0x330 unused
 	int abs_equipped; //0x334
 	int tcs_equipped; //0x338
-	int throttle_on_ramp; //unused
-	int throttle_off_ramp; //unused
-	int brake_on_ramp_1; //unused
-	int brake_on_ramp_2; //unused
-	int brake_off_ramp_1; //unused
-	int brake_off_ramp_2; //unused
+	int throttle_on_ramp; //0x33c throttle rise per tick (DOS 0x5e42a, PSX tnfs_control_throttle)
+	int throttle_off_ramp; //0x340 throttle fall per tick
+	int brake_on_ramp_1; //0x344 brake rise per tick (x1.25) while brake < 144 (DOS 0x5e4e9, PSX tnfs_control_brake)
+	int brake_on_ramp_2; //0x348 same while brake >= 144
+	int brake_off_ramp_1; //0x34c brake fall per tick while brake < 144
+	int brake_off_ramp_2; //0x350 same while brake >= 144
 	int shift_timer; //0x354
 	int noGasRpmDec; //0x358
 	int gasRpmInc; //0x35C
@@ -177,10 +177,12 @@ typedef struct tnfs_car_specs {
 
 	/*
 	 * #WST Ride height
+	 * DOS/SE use it only as the in-car camera height (DOS 0x4304c)
 	 */
 	int ride_height; //0x36c
 	/*
 	 * #and centre y for BRAD
+	 * in-car view projection centre y (320x200 pixels, base 108; DOS 0x4304c)
 	 */
 	int centre_y; //0x370
 
@@ -275,6 +277,7 @@ typedef struct tnfs_car_data {
 
 	/*
 	 * #top speeds per gear (mph) must be 6 figures, if less than 6 gears set first to 0
+	 * (the PDN values are m/s: compared with car_road_speed)
 	 */
 	int top_speed_per_gear[6]; //0x308
 
@@ -345,7 +348,7 @@ typedef struct tnfs_car_data {
 	int rear_yaw_factor; //0x45D
 	// ...
 	int field_461; //0x461
-	int pdn_number_of_gears; //0x46c
+	int pdn_number_of_gears; //0x46c only read as the traffic horn pitch index (DOS 0x79f3b)
 	struct tnfs_car_specs *car_specs_ptr; //0x471
 	int car_id2; //0x475
 	// ...

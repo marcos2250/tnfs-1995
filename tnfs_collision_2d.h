@@ -6,5 +6,6 @@
 #define TNFS_COLLISION_H_
 
 void tnfs_track_fence_collision(tnfs_car_data *car_data);
+void tnfs_track_item_mode_flags(tnfs_car_data *car_data);
 
 #endif /* TNFS_COLLISION_3D_H_ */

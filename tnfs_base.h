@@ -66,7 +66,7 @@ typedef struct tnfs_car_specs {
 	 * #rolling radius (metres) (lessoned a bit to compensate for tire deformation
 	 * #this decreases our torque,  and increases our reversed engineered rpm.
 	 */
-	int wheel_roll_radius; //0x6c;
+	int wheel_roll_radius; //0x060 unused (only inverse_wheel_radius is read)
 	int inverse_wheel_radius; //0x64;
 
 	int gear_ratio_table[8]; //0x68
@@ -149,8 +149,8 @@ typedef struct tnfs_car_specs {
 	int	autoRampMultShift_AS2; //0x314
 	int	autoRampDivShift_AS2; //0x318
 
-	int field_0x320;
-	int field_0x324;
+	int field_0x320; //0x320 unused; DOS/SE rally mode halves it
+	int field_0x324; //0x324 unused, = 0x10000 / field_0x320
 
 	/*
 	 * # WST new lateral acc cutoff multiplier (in m/s/s)
@@ -159,15 +159,15 @@ typedef struct tnfs_car_specs {
 
 	int final_drive_torque_ratio; //0x328
 	int thrust_to_acc_factor; //0x32c
-	int field_0x330;
+	int field_0x330; //0x330 unused
 	int abs_equipped; //0x334
 	int tcs_equipped; //0x338
-	int throttle_on_ramp; //unused
-	int throttle_off_ramp; //unused
-	int brake_on_ramp_1; //unused
-	int brake_on_ramp_2; //unused
-	int brake_off_ramp_1; //unused
-	int brake_off_ramp_2; //unused
+	int throttle_on_ramp; //0x33c throttle rise per tick (DOS 0x5e42a, PSX tnfs_control_throttle)
+	int throttle_off_ramp; //0x340 throttle fall per tick
+	int brake_on_ramp_1; //0x344 brake rise per tick (x1.25) while brake < 144 (DOS 0x5e4e9, PSX tnfs_control_brake)
+	int brake_on_ramp_2; //0x348 same while brake >= 144
+	int brake_off_ramp_1; //0x34c brake fall per tick while brake < 144
+	int brake_off_ramp_2; //0x350 same while brake >= 144
 	int shift_timer; //0x354
 	int noGasRpmDec; //0x358
 	int gasRpmInc; //0x35C
@@ -177,14 +177,17 @@ typedef struct tnfs_car_specs {
 
 	/*
 	 * #WST Ride height
+	 * DOS/SE use it only as the in-car camera height (DOS 0x4304c)
 	 */
 	int ride_height; //0x36c
 	/*
 	 * #and centre y for BRAD
+	 * in-car view projection centre y (320x200 pixels, base 108; DOS 0x4304c)
 	 */
 	int centre_y; //0x370
 
 	unsigned char grip_table[1024]; //0x374
+	unsigned int checksum; //0x774 byte sum of 0x000..0x757
 } tnfs_car_specs;
 
 typedef struct {
@@ -275,6 +278,7 @@ typedef struct tnfs_car_data {
 
 	/*
 	 * #top speeds per gear (mph) must be 6 figures, if less than 6 gears set first to 0
+	 * (the PDN values are m/s: compared with car_road_speed)
 	 */
 	int top_speed_per_gear[6]; //0x308
 
@@ -304,6 +308,7 @@ typedef struct tnfs_car_data {
 	int road_grip_increment; //0x3C9
 	int tire_grip_rear; //0x3CD
 	int tire_grip_front; //0x3D1
+	int gear_shift_button; //0x3D5 shift button of the last tick: 0 none, 1 down, 2 up (DOS 0x5e62f)
 	// ...
 	int slope_force_lat; //0x3D9
 	int unknown_flag_3DD; //0x3DD
@@ -345,7 +350,7 @@ typedef struct tnfs_car_data {
 	int rear_yaw_factor; //0x45D
 	// ...
 	int field_461; //0x461
-	int pdn_number_of_gears; //0x46c
+	int pdn_number_of_gears; //0x46c only read as the traffic horn pitch index (DOS 0x79f3b)
 	struct tnfs_car_specs *car_specs_ptr; //0x471
 	int car_id2; //0x475
 	// ...
@@ -359,9 +364,16 @@ typedef struct tnfs_car_data {
 	short drag_const_0x4ae; //0x4ae
 	int surface_type; //0x49D
 	int surface_type_b; //0x4A1
+	int in_tunnel; //0x4A5 slice item_mode 4, 7, 9, 12 or 13 (tunnels) (PSX 0x4b8)
+	int in_tunnel_or_8; //0x4A9 as in_tunnel, or item_mode 8; never read (PSX 0x4bc)
+	int on_cobbles; //item_mode 5 (PSX 0x4d4; DOS global DAT_001454a0, player only)
+	int waterfall_left; //item_mode 14 (PSX 0x4d8; DOS global DAT_001454a4, player only)
+	int waterfall_right; //item_mode 15 (PSX 0x4dc; DOS global DAT_001454a8, player only)
 	// ...
 	int tcs_on; //0x4AD
 	int abs_on; //0x4B1
+	int road_object_slice; //0x4B9 slice of the road object at road_object_index (PSX 0x4f8)
+	int road_object_index; //0x4BD cursor into g_road_objects (PSX 0x4fc)
 	// ...
 	int is_wrecked; //
 	int field_4c5; //0x4C5 checkpoint flick maneuvre
@@ -411,6 +423,17 @@ typedef struct tnfs_track_data {
 	vector3f vf_fence_L;
 	vector3f vf_fence_R;
 } tnfs_track_data;
+
+/* TRI prop placed on the map ("RoadObjects" in DOS, 16 bytes per record, sorted by slice, -1 terminated) */
+typedef struct tnfs_road_object {
+	int slice; // road spline point the object belongs to, -1 for unused trailing records
+	int prop_descr; // index of the prop description
+	int rotation; // 8-bit angle relative to the spline point heading
+	int flags;
+	short pos_x; // 8.8 offset from the spline point position
+	short pos_y;
+	short pos_z;
+} tnfs_road_object;
 
 typedef struct tnfs_surface_type {
 	int roadFriction;
@@ -593,6 +616,9 @@ typedef struct tnfs_camera_specs {
 // global variables
 extern struct tnfs_track_data track_data[2400];
 extern struct tnfs_surface_type road_surface_type_array[3];
+extern tnfs_road_object g_road_objects[1000];
+extern int g_road_object_count;
+extern char g_sign_status[2000]; // "SignStatus": 2 bytes per road object, nonzero once knocked down
 extern struct tnfs_track_speed g_track_speed[600]; // 000FDB8C road speed limit array
 
 extern struct tnfs_car_specs car_specs;
@@ -618,9 +644,11 @@ extern int g_road_finish_node;
 extern int sound_flag;
 extern int cheat_crashing_cars;
 extern int g_game_settings;
+extern int selected_track;
 extern char g_control_throttle;
 extern char g_control_brake;
 extern signed char g_control_steer;
+extern char g_control_gear;
 extern int g_number_of_players;
 extern int g_selected_cheat;
 extern int selected_camera;

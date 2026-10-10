@@ -39,6 +39,9 @@ char is_drifting;
 int iSimTimeClock = 0;
 int g_road_node_count = 0;
 int g_tri_num_chunks = 0;
+tnfs_road_object g_road_objects[1000];
+int g_road_object_count = 0;
+char g_sign_status[2000];
 int g_road_finish_node = 0;
 int sound_flag = 0;
 int g_selected_cheat = 0;
@@ -47,6 +50,7 @@ int g_game_settings = 0;
 char g_control_throttle;
 char g_control_brake;
 signed char g_control_steer;
+char g_control_gear; // shift button for the next tick: 0 none, 1 down, 2 up
 int g_police_on_chase = 0; //000fdb90
 int g_police_speeding_ticket = 0; //0016513C
 int g_police_chase_time = 0; //0016533c
@@ -73,8 +77,8 @@ static const unsigned int g_torque_table[120] = {
 int DAT_800eb6a4 = 0; //800eb6a4
 int DAT_8010d310 = 0; //8010d310
 
-int g_collision_bump_ref = 0x6666; //DAT_000f9a70 800eae58
-int g_collision_force_carcar; // f9a70
+int g_collision_bump_ref = 0x6666; //DAT_000f99f0 800eae58
+int g_collision_force_carcar; // f9a70 800dae58
 int g_collision_force_wall; // f9a74;
 int DAT_000F9BB0 = 0;
 int DAT_000f99e4 = 0x10000;
@@ -325,11 +329,31 @@ void tnfs_create_car_specs() {
 	car_specs.rear_friction_factor = 0x2f332;
 	car_specs.body_length = 0x47333; //4.45m
 	car_specs.body_width = 0x1eb85; //1.92m
+	car_specs.maxAutoSteerAngle = 983; // DVIPER.PBS steering and pedal values
+	car_specs.autoRampMultShift = 1;
+	car_specs.autoRampDivShift = 1;
+	car_specs.steerModel = 2;
+	car_specs.vel1_AS2 = 2;
+	car_specs.vel2_AS2 = 4;
+	car_specs.vel3_AS2 = 8;
+	car_specs.vel4_AS2 = 16;
+	car_specs.velRamp_AS2 = 0x23333; //2.2
+	car_specs.velAttenuate_AS2 = 0xa3d; //0.04
+	car_specs.autoRampMultShift_AS2 = 1;
+	car_specs.autoRampDivShift_AS2 = 1;
 	car_specs.lateral_accel_cutoff = 0x158000;
+	car_specs.field_0x320 = 0x280;
+	car_specs.field_0x324 = 0x66;
 	car_specs.final_drive_torque_ratio = 0x280;
 	car_specs.thrust_to_acc_factor = 0x66;
 	car_specs.abs_equipped = 0;
 	car_specs.tcs_equipped = 0;
+	car_specs.throttle_on_ramp = 25;
+	car_specs.throttle_off_ramp = 17;
+	car_specs.brake_on_ramp_1 = 12;
+	car_specs.brake_on_ramp_2 = 2;
+	car_specs.brake_off_ramp_1 = 51;
+	car_specs.brake_off_ramp_2 = 51;
 	car_specs.shift_timer = 3;
 	car_specs.noGasRpmDec = 0x12c; //300
 	car_specs.gasRpmInc = 0x258; //600
@@ -365,6 +389,8 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->brake = 0;
 	car->abs_on = 0;
 	//car->abs_enabled = 0;
+	car->road_object_slice = 0;
+	car->road_object_index = 0;
 	car->is_crashed = 0;
 	car->is_wrecked = 0;
 	car->time_off_ground = 0;
@@ -373,6 +399,11 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->wheels_on_ground = 1;
 	car->surface_type = 0;
 	car->surface_type_b = 0;
+	car->in_tunnel = 0;
+	car->in_tunnel_or_8 = 0;
+	car->on_cobbles = 0;
+	car->waterfall_left = 0;
+	car->waterfall_right = 0;
 	car->slope_force_lat = 0;
 	car->unknown_flag_3DD = 0;
 	car->slope_force_lon = 0;
@@ -587,34 +618,37 @@ void tnfs_init_car() {
 	car->track_slice_lap = 0x10;
 	car->lap_number = 1;
 
-	// rally mode tweaks
+	// rally mode tweaks, Fiziks_PreInitCar (PC version: Win95 0x4400f4; DOS 0x63e72 only on tracks 1, 2, 3 and 5)
+	// PSX version (0x80038ea4) instead: lateral_accel_cutoff x 0.625, centre_of_gravity_height x 7/4,
+	// efficiency x a per track/segment table (max 0x19000), front_drive_percentage 0x8000
 	if (g_game_settings & 0x20) {
 		for (i = 0; i < 512; i++)
 			car_specs.grip_table[i + 512] = car_specs.grip_table[i];
 
-		car_specs.lateral_accel_cutoff = 0xd2000;
-		car_specs.centre_of_gravity_height = 0x7581 * 3 / 2;
-		car_specs.front_friction_factor = 0x2b331 / 2;
-		car_specs.rear_friction_factor = 0x2f332 / 2;
+		car_specs.field_0x320 = car_specs.field_0x320 / 2;
+		car_specs.field_0x324 = 0x10000 / car_specs.field_0x320;
+		car_specs.final_drive_torque_ratio = car_specs.final_drive_torque_ratio / 2;
+		car_specs.thrust_to_acc_factor = 0x10000 / car_specs.final_drive_torque_ratio;
+		car_specs.front_friction_factor = car_specs.front_friction_factor / 2;
+		car_specs.rear_friction_factor = car_specs.rear_friction_factor / 2;
+		car_specs.max_brake_force_1 = car_specs.max_brake_force_1 / 2;
+		car_specs.max_brake_force_2 = car_specs.max_brake_force_2 / 2;
+		car_specs.centre_of_gravity_height = car_specs.centre_of_gravity_height * 3 / 2;
+		if (selected_track == 3) {
+			car_specs.efficiency = fix8(car_specs.efficiency * 0x14c);
+		} else {
+			car_specs.efficiency = fix8(car_specs.efficiency * 0x133);
+		}
 	}
 
-	// net wheel torque values
-	i = 1;
-	do {
-		car_specs.torque_table[i] = //
-				math_mul(math_mul(math_mul(math_mul(
-						car_specs.torque_table[i] << 0x10,
-						car_specs.final_drive),
-						car_specs.efficiency),
-						car_specs.inverse_wheel_radius),
-						car_specs.inverse_mass);
-		i += 2;
-	} while (i < car_specs.torque_table_entries * 2);
+	// net wheel torque values; tnfs_reset_car starts the car with the automatic gearbox
+	tnfs_load_torque_table(&car_specs, 1);
 
 	car->car_length = car_specs.body_length;
 	car->car_width = car_specs.body_width;
-	car->abs_enabled = car_specs.abs_equipped;
-	car->tcs_enabled = car_specs.tcs_equipped;
+	// the front-end ABS/TCS options are taken as on
+	car->abs_enabled = car_specs.abs_equipped > 0;
+	car->tcs_enabled = car_specs.tcs_equipped > 0;
 	car->gear_auto_selected = 0;
 	car->drag_const_0x4a8 = 0;
 	car->drag_const_0x4aa = 0;
@@ -626,38 +660,276 @@ void tnfs_init_car() {
 
 /* basic game controls */
 
+/*
+ * steering with digital controls (Win95 0x438954 == PSX 0x800334a4; DOS 0x5e050 has no ">> autoRampDivShift_AS2" branch)
+ */
+void tnfs_control_steering_a(tnfs_car_data *car, int input, int auto_steer) {
+	tnfs_car_specs *specs;
+	int target;
+	int rate;
+	int attenuation;
+	int diff;
+
+	specs = car->car_specs_ptr;
+
+	input = (input & 0x3f) - 0x20;
+	if (input > 0) {
+		input++;
+	}
+	if (input >= 0x10) {
+		target = 0x1b0000;
+	} else if (input < -0xf) {
+		target = -0x1b0000;
+	} else {
+		target = 0;
+	}
+
+	// auto steer, when centred and moving forward
+	if (car->speed_local_lon >= 0 && target == 0) {
+		if (abs(auto_steer) < (car->speed_local_lon >> 0x10) * specs->maxAutoSteerAngle) {
+			target = auto_steer;
+		}
+	}
+
+	attenuation = (abs(car->speed_local_lon) >> 0x10) * specs->velAttenuate_AS2;
+	if (attenuation > 0x18000) {
+		attenuation = 0x18000;
+	}
+
+	// PSX version, rally mode
+	if ((g_game_settings & 0x20) != 0) {
+		attenuation = 0;
+		auto_steer = target;
+	}
+
+	rate = specs->velRamp_AS2 - attenuation;
+	if (rate > 0x19999) {
+		rate = 0x19999;
+	}
+	rate *= specs->vel2_AS2;
+
+	if (car->speed_local_lon > 0 && abs(auto_steer) < 0x400000) {
+		if ((auto_steer - car->steer_angle > 0 && target - car->steer_angle > 0) //
+				|| (auto_steer - car->steer_angle < 0 && target - car->steer_angle < 0)) {
+			rate = rate << specs->autoRampMultShift_AS2;
+			if (target == 0) {
+				rate = rate << 1;
+			}
+		} else {
+			rate = rate >> specs->autoRampDivShift_AS2;
+			if (target == 0) {
+				rate = rate / 2;
+			}
+		}
+	}
+
+	diff = abs(car->steer_angle - target);
+	if (diff < rate) {
+		rate = diff;
+	}
+	if (car->steer_angle < target) {
+		car->steer_angle += rate;
+	} else if (car->steer_angle > target) {
+		car->steer_angle -= rate;
+	} else {
+		car->steer_angle = target;
+	}
+}
+
+/*
+ * throttle ramp (DOS 0x5e42a, PSX 0x800337f4)
+ */
+void tnfs_control_throttle(tnfs_car_data *car, int target) {
+	if (car->throttle < target) {
+		if (car->car_specs_ptr->throttle_on_ramp < target - car->throttle) {
+			car->throttle += car->car_specs_ptr->throttle_on_ramp;
+			return;
+		}
+	} else {
+		if (car->throttle <= target) {
+			return;
+		}
+		if (car->car_specs_ptr->throttle_off_ramp < car->throttle - target) {
+			car->throttle -= car->car_specs_ptr->throttle_off_ramp;
+			return;
+		}
+	}
+	car->throttle = target;
+}
+
+/*
+ * brake ramp (DOS 0x5e4e9, PSX 0x80033864)
+ */
+void tnfs_control_brake(tnfs_car_data *car, int target) {
+	int ramp;
+	if (car->brake < target) {
+		if (car->brake < 144) {
+			ramp = car->car_specs_ptr->brake_on_ramp_1;
+		} else {
+			ramp = car->car_specs_ptr->brake_on_ramp_2;
+		}
+		ramp = ramp + fix2(ramp);
+		if (ramp < target - car->brake) {
+			car->brake += ramp;
+			return;
+		}
+	} else {
+		if (car->brake <= target) {
+			return;
+		}
+		if (car->brake < 144) {
+			ramp = car->car_specs_ptr->brake_off_ramp_1;
+		} else {
+			ramp = car->car_specs_ptr->brake_off_ramp_2;
+		}
+		if (ramp < car->brake - target) {
+			car->brake -= ramp;
+			return;
+		}
+	}
+	car->brake = target;
+}
+
+/*
+ * gear shift button, 0 none, 1 down, 2 up (DOS 0x5e62f, PSX 0x80033938)
+ */
+void tnfs_control_shift_gears(tnfs_car_data *car, int button) {
+	tnfs_car_specs *specs;
+
+	specs = car->car_specs_ptr;
+
+	if (iSimTimeClock < 300) {
+		car->gear_shift_button = button;
+		return;
+	}
+
+	if (button != 0) {
+		if (car->gear_auto_selected < 1) {
+			// manual transmission
+			if (car->gear_shift_button != 1 && button == 1 && car->gear_selected > -2) {
+				car->gear_selected--;
+				car->is_gear_engaged = 0;
+				car->is_shifting_gears = specs->shift_timer / 2;
+				car->throttle_previous_pos = car->throttle;
+				car->is_engine_cutoff = 1;
+			} else if (car->gear_shift_button != 2 && button == 2 && car->gear_selected < specs->number_of_gears - 3) {
+				car->gear_selected++;
+				car->is_gear_engaged = 0;
+				if (car->car_model_id == 4 && (iSimTimeClock & 0x31) == 0x10) { // F512TR
+					car->is_shifting_gears = specs->shift_timer + 3;
+				} else {
+					car->is_shifting_gears = specs->shift_timer;
+				}
+				car->throttle_previous_pos = car->throttle;
+				car->is_engine_cutoff = 1;
+			}
+		} else {
+			// automatic transmission: 1 Reverse, 2 Neutral, 3 Drive
+			if (car->gear_shift_button != 1 && button == 1 && car->gear_auto_selected > 1) {
+				car->gear_auto_selected--;
+				if (car->gear_auto_selected == 2) {
+					car->gear_selected = -1;
+					car->is_gear_engaged = 0;
+				} else {
+					car->gear_selected = 0;
+					car->is_gear_engaged = 1;
+					car->is_engine_cutoff = 0;
+				}
+			} else if (car->gear_shift_button != 2 && button == 2 && car->gear_auto_selected < 3) {
+				car->gear_auto_selected++;
+				if (car->gear_auto_selected == 2) {
+					car->is_gear_engaged = 0;
+					car->gear_selected = -1;
+				} else {
+					car->gear_selected = 0;
+					car->is_gear_engaged = 0;
+					car->is_shifting_gears = specs->shift_timer + 1;
+					car->throttle_previous_pos = car->throttle;
+					car->is_engine_cutoff = 1;
+				}
+			}
+		}
+	}
+	car->gear_shift_button = button;
+
+	// manual transmission shift time
+	if (car->gear_auto_selected == 0 && car->is_shifting_gears >= 0) {
+		if (car->is_shifting_gears == 0) {
+			car->is_engine_cutoff = 0;
+			car->throttle = car->throttle_previous_pos;
+			if (car->gear_selected != -1) {
+				car->is_gear_engaged = 1;
+			}
+		}
+		car->is_shifting_gears--;
+	}
+}
+
+/*
+ * auto steer target: heading to the road 6 slices ahead, at the lane (-2, 0 or +2 m) the car is in
+ * (PSX 0x80018a4c, DOS 0x41518)
+ */
+int tnfs_control_auto_steer_target(tnfs_car_data *car) {
+	int heading;
+	int side;
+	int lane;
+	int x;
+	int z;
+	int angle;
+	tnfs_track_data *node;
+
+	node = &track_data[car->track_slice & g_slice_mask];
+	heading = node->heading << 2;
+	side = math_mul(math_sin_2(heading), node->pos.z - car->position.z) - math_mul(math_cos_2(heading), node->pos.x - car->position.x);
+	if (side < -45875) {
+		lane = -0x20000;
+	} else if (side > 45875) {
+		lane = 0x20000;
+	} else {
+		lane = 0;
+	}
+
+	node = &track_data[(car->track_slice + 6) & g_slice_mask];
+	heading = node->heading << 2;
+	x = node->pos.x + math_mul(math_cos_2(heading), lane);
+	z = node->pos.z - math_mul(math_sin_2(heading), lane);
+
+	angle = math_atan2(z - car->position.z, x - car->position.x) - car->angle.y;
+	if (angle > 0x800000) {
+		angle -= 0x1000000;
+	} else if (angle < -0x800000) {
+		angle += 0x1000000;
+	}
+	return angle;
+}
+
+/*
+ * player controls (DOS 0x41b49, PSX 0x80018f78); input from g_control_* (keyboard: digital steering and pedals)
+ */
 void tnfs_controls_update() {
-	// steer ramp
-	if (g_control_steer > 0) {
-		g_car_array[0].steer_angle += 0x6C000;
-		if (g_car_array[0].steer_angle > 0x1B0000)
-			g_car_array[0].steer_angle = 0x1B0000;
-	} else if (g_control_steer < 0) {
-		g_car_array[0].steer_angle -= 0x6C000;
-		if (g_car_array[0].steer_angle < -0x1B0000)
-			g_car_array[0].steer_angle = -0x1B0000;
-	} else {
-		g_car_array[0].steer_angle >>= 1;
+	tnfs_car_data *car;
+	int auto_steer;
+
+	car = &g_car_array[0];
+
+	auto_steer = tnfs_control_auto_steer_target(car);
+	// PC version (DOS 0x41b7c, Win95 0x401412), PSX version: 0x400000
+	if (abs(auto_steer) > 0x40) {
+		auto_steer = 0;
 	}
-	// throttle ramp
-	if (g_control_throttle) {
-		g_car_array[0].throttle += 0x11;
-		if (g_car_array[0].throttle > 0xFF)
-			g_car_array[0].throttle = 0xFF;
-	} else {
-		g_car_array[0].throttle -= 0xC;
-		if (g_car_array[0].throttle < 0)
-			g_car_array[0].throttle = 0;
-	}
-	// brake ramp
+	tnfs_control_steering_a(car, 0x20 + g_control_steer * 0x1f, auto_steer);
+
+	// digital pedals, PSX version (tnfs_control_player_1 0x80033c8c); PC versions read one pedal axis
+	tnfs_control_shift_gears(car, g_control_gear);
+	g_control_gear = 0;
+	tnfs_control_throttle(car, g_control_throttle ? 0xff : 0);
 	if (g_control_brake) {
-		g_car_array[0].brake += g_car_array[0].brake < 140 ? 0xC : 2;
-		if (g_car_array[0].brake > 0xFF)
-			g_car_array[0].brake = 0xFF;
+		tnfs_control_brake(car, 0xff);
 	} else {
-		g_car_array[0].brake -= 0x33;
-		if (g_car_array[0].brake < 0)
-			g_car_array[0].brake = 0;
+		if (car->brake > 100) {
+			car->brake = 100;
+		}
+		tnfs_control_brake(car, 0);
 	}
 
 	//checkpoint flick
@@ -724,23 +996,12 @@ void tnfs_change_gear_manual(int shift) {
 }
 
 void tnfs_change_gear_up() {
-	if (g_car_array[0].gear_auto_selected == 0) {
-		if (g_car_array[0].gear_selected < car_specs.number_of_gears - 1)
-			tnfs_change_gear_manual(+1);
-	} else {
-		if (g_car_array[0].gear_auto_selected < 3)
-			tnfs_change_gear_automatic(+1);
-	}
+	// pressed for one tick, see tnfs_control_shift_gears
+	g_control_gear = 2;
 }
 
 void tnfs_change_gear_down() {
-	if (g_car_array[0].gear_auto_selected == 0) {
-		if (g_car_array[0].gear_selected > -2)
-			tnfs_change_gear_manual(-1);
-	} else {
-		if (g_car_array[0].gear_auto_selected > 1)
-			tnfs_change_gear_automatic(-1);
-	}
+	g_control_gear = 1;
 }
 
 /* additional features */
@@ -821,6 +1082,9 @@ void tnfs_crash_car() {
 
 /* common stub functions */
 
+// The collision code (car-car, crash model, fence) calls the game's sound function through a wrapper that
+// multiplies the volume by 20 (DOS 0x66360, PSX 0x8003abf8), so there the volume passed here is 1/20 of what
+// the sample selection sees. Other callers (prop hits, gear shift, landing) pass it unchanged.
 void tnfs_sfx_play(int a, int id1, int id2, int volume, int distance, int direction) {
 	printf("sound %i %i\n", id1, id2);
 }
@@ -1368,7 +1632,9 @@ void tnfs_update() {
 		}
 
 		if (car->crash_state == 1) {
-			tnfs_engine_gear_shift_main(car);
+			tnfs_car_wait_after_busted(car);
+		} else if (car->crash_state == 5) {
+			tnfs_ai_wrecked_wait(car);
 		} else if (car->crash_state != 4) {
 			if (i < g_number_of_players) {
 				tnfs_driving_main(car);

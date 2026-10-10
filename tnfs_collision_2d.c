@@ -103,6 +103,32 @@ int tnfs_collision_car_size(tnfs_car_data *car_data, int fence_angle) {
 	return ((((car_data->car_length - car_data->car_width) * x) >> 6) + car_data->car_width) >> 1;
 }
 
+/*
+ * Flags from the item_mode of the car's slice, read by the engine/wind sound code.
+ * PSX tnfs_track_item_mode_flags (0x80030fe8). DOS sets the same values at the start of
+ * tnfs_track_fence_collision (0x5b2b9): in_tunnel/in_tunnel_or_8 for every car, the other three
+ * in globals for the player only.
+ */
+void tnfs_track_item_mode_flags(tnfs_car_data *car_data) {
+	int item_mode;
+
+	item_mode = track_data[car_data->track_slice & g_slice_mask].item_mode;
+	if (item_mode == 4 || item_mode == 7 || item_mode == 9 || item_mode == 12 || item_mode == 13) {
+		car_data->in_tunnel = 1;
+		car_data->in_tunnel_or_8 = 1;
+	} else {
+		car_data->in_tunnel = 0;
+		if (item_mode == 8) {
+			car_data->in_tunnel_or_8 = 1;
+		} else {
+			car_data->in_tunnel_or_8 = 0;
+		}
+	}
+	car_data->on_cobbles = item_mode == 5;
+	car_data->waterfall_left = item_mode == 14;
+	car_data->waterfall_right = item_mode == 15;
+}
+
 void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	int abs_speed;
 	int distance;
@@ -179,7 +205,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 
 	// play collision sound
 	abs_speed = abs(rebound_speed_x);
-	if (fence_flag && (abs_speed > 0x60000)) {
+	if (fence_flag == 0 && (abs_speed > 0x60000)) {
 		if (sound_flag == 0) {
 			if (car_data->car_id2 == 0) {
 				if (selected_camera == 0) {
@@ -191,6 +217,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 				} else {
 					tnfs_car_local_position_vector(car_data, &sfxA, &sfxB);
 				}
+				tnfs_sfx_play(-1, 2, 9, abs_speed, sfxB, sfxA);
 			}
 		} else {
 			if (car_data->car_id2 == 0) {
@@ -198,8 +225,9 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 			} else {
 				sfxA = 0xc00000;
 			}
+			// sfxB is not set here, PSX passes the unset stack value too
+			tnfs_sfx_play(-1, 2, 9, abs_speed, sfxB, sfxA);
 		}
-		tnfs_sfx_play(-1, 2, 9, abs_speed, sfxB, sfxA);
 		if (abs_speed > 0x140000) {
 			tnfs_replay_highlight_record(0x32);
 		}

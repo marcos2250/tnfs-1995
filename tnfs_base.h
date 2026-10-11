@@ -437,7 +437,19 @@ typedef struct tnfs_track_data {
 	vector3f vf_fence_R;
 } tnfs_track_data;
 
-/* TRI prop placed on the map ("RoadObjects" in DOS, 16 bytes per record, sorted by slice, -1 terminated) */
+/*
+ * TRI prop placed on the map ("RoadObjects" in DOS, 16 bytes per record, sorted by slice, -1 terminated).
+ * How the original draws one (DOS tnfs_render_terrain_vertex_list 0x625d7 == Win95 SE 0x43eca4; PSX 0x80037900):
+ * base = track_data[slice].pos + pos * 0x100. Prop type 1 (3D model) is a point, whatever its sign status. Other
+ * types are a quad: bottom edge centred on the base along dir(a), a = -rotation * 0x10000 - heading * 0x400,
+ * half width = description +4 / 2, dir(angle) = (cos, sin) on (x, z). Status 0: the top edge is the bottom edge
+ * raised by description +0xc. Status != 0 (knocked down): it lies flat, top edge = bottom edge + description +0xc
+ * * dir(a'), a' = -rotation * 0x10000 (+0x800000 when < -0x400000) + 0x400000 - heading * 0x400. PSX first wraps
+ * -rotation * 0x10000 into (-0x800000, 0x800000] and adds 0x800000 when |value| > 0x400000, so for rotation
+ * 192..255 it falls the other way than DOS / SE. Type 6 adds a second quad on the +dir(a) edge: its far edge is
+ * that edge's bottom vertex + description +8 * dir(angle + 0x400000) (angle = a upright, a' knocked), raised by the
+ * same height offset (+0xc upright, 0 knocked).
+ */
 typedef struct tnfs_road_object {
 	int slice; // road spline point the object belongs to, -1 for unused trailing records
 	int prop_descr; // index of the prop description
@@ -631,7 +643,9 @@ extern struct tnfs_track_data track_data[2400];
 extern struct tnfs_surface_type road_surface_type_array[3];
 extern tnfs_road_object g_road_objects[1000];
 extern int g_road_object_count;
-extern char g_sign_status[2000]; // "SignStatus": 2 bytes per road object, nonzero once knocked down
+// "SignStatus": 2 bytes per road object. Byte 0 is nonzero once knocked down (see tnfs_collision_road_objects),
+// byte 1 is the replay copy of byte 0 (DOS saves it in 0x708c6 and restores it in 0x7091e before a rewind)
+extern char g_sign_status[2000];
 extern struct tnfs_track_speed g_track_speed[600]; // 000FDB8C road speed limit array
 
 extern struct tnfs_car_specs car_specs;

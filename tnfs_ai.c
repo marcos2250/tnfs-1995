@@ -2867,7 +2867,9 @@ void tnfs_player_pull_over(tnfs_car_data *car) {
 
 /*
  * Is the road object at (x, y, z) inside the car's footprint; plays the hit sound when close to the camera.
- * DOS tnfs_collision_sound_00047d9f (0x47d9f), PSX tnfs_physics_offroad_2 (0x8001f0f0). y is unused in both.
+ * DOS tnfs_collision_sound_00047d9f (0x47d9f), PSX tnfs_collision_scenery (0x8001f0f0), Win95 SE
+ * tnfs_collision_road_object (0x40fef0). y is unused in all three. SE also calls the joystick force feedback
+ * (_Jolt, 0x43cc10) on a hit when it is enabled (DAT_0052b320).
  */
 int tnfs_collision_road_object(tnfs_car_data *car, int x, int y, int z) {
 	int dx;
@@ -2884,9 +2886,9 @@ int tnfs_collision_road_object(tnfs_car_data *car, int x, int y, int z) {
 	cos = math_cos_2(car->angle.y >> 8);
 	sin = math_sin_2(car->angle.y >> 8);
 
-	// The original compares with half the width / length of the car's 3D model (DOS size at 0x619, PSX
-	// spec_collision_car_width/length, both computed from the model's vertex extents in the renderer). The port does
-	// not load the model, so the PDN half extents in collision_data.size are used instead.
+	// The original compares with half the width / length of the car's 3D model (DOS width 0x61d / length 0x619,
+	// SE 0x64e / 0x64a, PSX spec_collision_car_width/length, all computed from the model's vertex extents in the
+	// renderer). The port does not load the model, so the PDN half extents in collision_data.size are used instead.
 	lat = math_mul(cos, dx) - math_mul(sin, dz);
 	if (abs(lat) > car->collision_data.size.x) {
 		return 0;
@@ -2905,7 +2907,12 @@ int tnfs_collision_road_object(tnfs_car_data *car, int x, int y, int z) {
 
 /*
  * Walks the road objects of the car's slice (cursor road_object_index/slice kept per car) and knocks down the first
- * sign the car runs over. DOS FUN_00047a7d (0x47a7d), PSX FUN_8001ed38.
+ * sign the car runs over. DOS tnfs_scenery_collision (0x47a7d), PSX tnfs_collision_scenery_detect (0x8001ed38),
+ * Win95 SE tnfs_collision_road_objects (0x40fc64). Every road object is tested, 3D models (prop type 1) too.
+ * The status stores the time of the hit in replay keyframes + 1 (DOS ticks / 0x4b0, PSX and SE / 0x708): a replay
+ * rewind clears the signs knocked at or after the keyframe it restarts from (DOS 0x7085f, SE 0x4501a8).
+ * On a hit, all binaries then invalidate the renderer's cached track vertex lists (DOS 0x62f46, SE 0x43f51c,
+ * PSX 0x80038614 for both views) so the sign is rebuilt lying flat; the port has no renderer.
  */
 int tnfs_collision_road_objects(tnfs_car_data *car) {
 	int slice;
@@ -2932,7 +2939,7 @@ int tnfs_collision_road_objects(tnfs_car_data *car) {
 					y = track_data[slice].pos.y + (g_road_objects[car->road_object_index].pos_y << 8);
 					z = track_data[slice].pos.z + (g_road_objects[car->road_object_index].pos_z << 8);
 					if (tnfs_collision_road_object(car, x, y, z)) {
-						g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x4b0) + 1; // PSX: / 0x708
+						g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x4b0) + 1; // PSX, SE: / 0x708
 						return 1;
 					}
 				}
@@ -2952,7 +2959,7 @@ int tnfs_collision_road_objects(tnfs_car_data *car) {
 				y = track_data[slice].pos.y + (g_road_objects[car->road_object_index].pos_y << 8);
 				z = track_data[slice].pos.z + (g_road_objects[car->road_object_index].pos_z << 8);
 				if (tnfs_collision_road_object(car, x, y, z)) {
-					g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x4b0) + 1; // PSX: / 0x708
+					g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x4b0) + 1; // PSX, SE: / 0x708
 					return 1;
 				}
 			}
@@ -3002,13 +3009,14 @@ void tnfs_ai_collision_handler() {
 				iVar2 = car1->car_id;
 			}
 			if ((iVar2 >= 0) && (iVar2 < g_number_of_players)) {
-				if ((((track_data[car1->track_slice].num_lanes & 0xf) * 0x50000
-						+ (track_data[car1->track_slice].roadRightMargin >> 3) * 0x100
-						* (track_data[car1->track_slice].num_lanes & 0xf)) < car1->center_line_distance)
+				// off the lanes (right or left of them): lane width from the lane table; both bounds use the right
+				// margin and the right lane count for the table row (DOS 0x44b5a, PSX 0x8001c034, Win95 SE 0x40d8e8)
+				iVar3 = car1->track_slice & g_slice_mask;
+				if ((tnfs_ai_lane_table(track_data[iVar3].num_lanes & 0xf, track_data[iVar3].roadRightMargin >> 3) * 0x100
+						* (track_data[iVar3].num_lanes & 0xf) < car1->center_line_distance)
 						|| (car1->center_line_distance
-								< ((track_data[car1->track_slice].num_lanes & 0xf) * 40
-										+ (track_data[car1->track_slice].roadLeftMargin >> 3) * -0x100
-										* (track_data[car1->track_slice].num_lanes >> 4)))) {
+								< tnfs_ai_lane_table(track_data[iVar3].num_lanes & 0xf, track_data[iVar3].roadRightMargin >> 3) * -0x100
+										* (track_data[iVar3].num_lanes >> 4))) {
 					tnfs_collision_road_objects(car1);
 				}
 			}

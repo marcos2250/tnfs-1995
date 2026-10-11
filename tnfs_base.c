@@ -1538,24 +1538,6 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	g_ai_skill_cfg.opponent_glue_3[20] = 0x90000;
 
 	for (i = 0; i < 8; i++) {
-		g_ai_opp_data[i].id = i;
-		for (j = 0; j < 21; j++) {
-			g_ai_opp_data[i].opponent_glue_factors[j] = 0x10000;
-		}
-		g_ai_opp_data[i].field_0x55 = 0x10000; //???
-		g_ai_opp_data[i].field_0x59 = 0x10000;
-		g_ai_opp_data[i].opp_block_look_behind = 0xf;
-		g_ai_opp_data[i].opp_block_behind_distance = 0x50000; //
-		g_ai_opp_data[i].opp_lane_change_speeds = 0x3cccc; //3.8
-		g_ai_opp_data[i].field_0x69 = 0x4ccc; //0.3
-		g_ai_opp_data[i].opp_oncoming_look_ahead = 0x1b;
-		g_ai_opp_data[i].opp_oncoming_corner_swerve = 0;
-		g_ai_opp_data[i].opp_cut_corners = 0x1b;
-		for (j = 0; j < 4; j++) {
-			g_ai_opp_data[i].lane_slack[j] = 0;
-		}
-		g_ai_opp_data[i].field_0x89 = 0x3333; //0.2
-
 		g_stats_data[i].best_accel_time_1 = 99999;
 		g_stats_data[i].best_accel_time_2 = 99999;
 		g_stats_data[i].best_brake_time_2 = 999;

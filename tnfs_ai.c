@@ -297,6 +297,7 @@ void tnfs_ai_police_reset_state(int flag) {
 			g_cop_car_ptr->ai_state &= 0xfff7ffff; //disable 0x80000
 		}
 		g_cop_car_ptr->ai_state &= 0xff86dbff; //disable 0x2400
+		player_car_ptr->ai_state &= 0xfffedbff; //release the player: disable 0x10000, 0x2400
 		g_police_on_chase = 0;
 	}
 }

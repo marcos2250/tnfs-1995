@@ -399,6 +399,19 @@ typedef struct tnfs_car_data {
 	int field_4e9; //0x4e9 0x528
 } tnfs_car_data;
 
+/*
+ * Smoke of a wrecked player car, visual only (DOS g_big_struct 0x15ce5c, SE 0x5146ac, PSX 0x80103660)
+ */
+typedef struct tnfs_smoke_particles {
+	tnfs_vec3 position[100]; //0x000 render space: world x, y and -z
+	int age[100]; //0x4b0 0..0x10000 over the life, negative = free
+	int draw_order[100]; //0x640 back to front, sorted by the renderer only
+	int drift_x[100]; //0x7d0 0..0xff80
+	int next; //0x960 ring buffer index
+	int emit_accumulator; //0x964
+	int emit_threshold; //0x968
+} tnfs_smoke_particles;
+
 typedef struct tnfs_track_data {
 	unsigned char roadLeftMargin; // 0
 	unsigned char roadRightMargin; // 1

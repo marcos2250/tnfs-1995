@@ -1591,6 +1591,13 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	}
 	tnfs_ai_init();
 
+	// smoke particles (DOS 0x71ba8, SE 0x456a7c, minus the sprite loading)
+	for (i = 0; i < 100; i++) {
+		g_smoke_particles.draw_order[i] = i;
+		g_smoke_particles.age[i] = 0xffff0000;
+	}
+	tnfs_smoke_particles_reset(&g_smoke_particles);
+
 	tnfs_camera_init();
 }
 

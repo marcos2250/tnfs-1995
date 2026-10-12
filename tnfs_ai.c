@@ -47,6 +47,88 @@ int g_ai_opp_speed_factors[8] = { 0xf5c2, 0x10000, 0xfae1, 0xfae1, 0x10000, 0xfa
 
 void tnfs_ai_load_car(tnfs_car_data *car, int newCarModelId);
 
+/*
+ * opponent profiles A..I, Win95 SE 0x4c2888 (PSX 0x800c1de8 differs in A, B, C, E, F, G; DOS 0x103a1c in all but D)
+ */
+static const tnfs_ai_opp_data g_ai_opp_profiles[9] = {
+		{ 'A', //
+			{ 0x18000, 0x18000, 0x18000, 0x18000, 0x18000, 0x18000, 0x16666, 0x14ccc, 0x12666, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000 },
+			0x10000, 0x10000, 0x14, 0xa0000, 0x3cccc, 0x4ccc, 0x1e, 0x0, 0x19, { 0x0, 0x0, 0x0, 0x0 }, 0x28 },
+		{ 'B', //
+			{ 0x13333, 0x13333, 0x13333, 0x13333, 0x13333, 0x13333, 0x13333, 0x13333, 0x11999, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10ccc, 0x10ccc, 0x10ccc, 0x10ccc, 0x10ccc, 0x10ccc, 0x10ccc },
+			0xfd70, 0x10000, 0x14, 0x60000, 0x3cccc, 0x4ccc, 0xa, 0x0, 0x19, { 0x0, 0x0, 0x0, 0x0 }, 0x28 },
+		{ 'C', //
+			{ 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x12666, 0x10000, 0xf333, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000 },
+			0xfae1, 0x10000, 0x14, 0x50000, 0x3cccc, 0x4ccc, 0x14, 0x19, 0x19, { 0x3333, 0x6666, -0x3333, -0x6666 }, 0x14 },
+		{ 'D', //
+			{ 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000 },
+			0xf333, 0x10000, 0x0, 0xa0000, 0x3cccc, 0x4ccc, 0xa, 0x0, 0x0, { 0x0, 0x0, 0x0, 0x0 }, 0x32 },
+		{ 'E', //
+			{ 0xd999, 0xd999, 0xd999, 0xd999, 0xd999, 0xd999, 0xd999, 0xf333, 0x10000, 0x11999, 0x10000, 0xf333, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000 },
+			0xe8f5, 0x10000, 0xc, 0x140000, 0x3cccc, 0x4ccc, 0x14, 0x0, 0x0, { 0x0, 0x0, 0x0, 0x0 }, 0x0 },
+		{ 'F', //
+			{ 0xcccc, 0xcccc, 0xcccc, 0xcccc, 0xcccc, 0xcccc, 0xcccc, 0xcccc, 0xcccc, 0xf333, 0x10000, 0x10000, 0xe666, 0xf333, 0xf333, 0xf333, 0xf333, 0xf333, 0xf333, 0xf333, 0xf333 },
+			0xe8f5, 0xfae1, 0x14, 0x50000, 0x43333, 0x4ccc, 0x14, 0x19, 0x0, { 0x8000, 0x4000, -0x8000, -0x4000 }, 0x1e },
+		{ 'G', //
+			{ 0xb333, 0xb333, 0xb333, 0xb333, 0xc000, 0xc000, 0xc000, 0xc000, 0xc000, 0xd999, 0x10000, 0x10000, 0xf333, 0xf333, 0xe666, 0xe666, 0xe666, 0xe666, 0xe666, 0xe666, 0xe666 },
+			0xdc28, 0xf333, 0x0, 0x140000, 0x20000, 0x4ccc, 0x14, 0x32, 0x0, { 0x3333, -0x3333, 0x6666, -0x6666 }, 0x14 },
+		{ 'H', //
+			{ 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000 },
+			0x10000, 0x10000, 0xf, 0x50000, 0x3cccc, 0x4ccc, 0xc, 0x0, 0x32, { 0x0, 0x0, 0x0, 0x0 }, 0x0 },
+		{ 'I', //
+			{ 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000 },
+			0x10000, 0x10000, 0x2, 0x280000, 0x3cccc, 0x4ccc, 0x1e, 0x0, 0x0, { 0x0, 0x0, 0x0, 0x0 }, 0x28 },
+};
+
+/*
+ * profile letter by row and race position, Win95 SE 0x4c2850 == DOS 0x1039e4. Row 7 (time trial, no AI racers)
+ * is a single 'A' in the binaries, followed by the profile data.
+ */
+static const char g_ai_opp_profile_map[7][8] = {
+	{ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' }, //
+	{ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' }, //
+	{ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' }, //
+	{ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' }, //
+	{ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' }, //
+	{ 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H' }, // head-to-head
+	{ 'I', 'I', 'I', 'I', 'I', 'I', 'I', 'I' }, // head-to-head, No Mercy
+};
+
+/*
+ * DOS 0x7feee == Win95 SE 0x470238 == PSX 0x8005b104
+ */
+int tnfs_ai_opp_profile_row() {
+	switch (g_opponent_skill) {
+	case 0: // time trial
+		return 7;
+	case 1: // head-to-head
+		if (g_game_settings & 4) { // No Mercy
+			return 6;
+		}
+		return 5;
+	case 2: // single race
+		if (g_car_ptr_array[2]->car_model_id == g_car_ptr_array[3]->car_model_id) {
+			return 4;
+		}
+		return 3;
+	case 3: // tournament, by player car
+		switch (g_car_ptr_array[0]->car_model_id) {
+		case 0:
+		case 6:
+		case 7:
+			return 2;
+		case 1:
+		case 4:
+			return 0;
+		case 2:
+		case 3:
+		case 5:
+			return 1;
+		}
+	}
+	return 0; // uninitialized in the binaries (rows 0-4 are the same)
+}
+
 void tnfs_ai_init() {
 	int i, j;
     tnfs_car_data *car;
@@ -97,6 +179,14 @@ void tnfs_ai_init() {
 
 		// load car basic specs
 		tnfs_ai_load_car(car, car->car_model_id);
+	}
+
+	// opponent profiles, DOS tnfs_ai_init_traffic_logic 0x7fffb (SE 0x4702d4); the binaries pick the letters on
+	// track segment 0 only and keep them for the next open road segments. Row 7 (time trial) is skipped: the binaries
+	// never have AI racers there, and its letters past the first are profile data.
+	j = tnfs_ai_opp_profile_row();
+	for (i = g_number_of_players; i < g_racer_cars_in_scene && j < 7; i++) {
+		g_ai_opp_data[i] = g_ai_opp_profiles[g_ai_opp_profile_map[j][g_race_positions[i]] - 'A'];
 	}
 
 	// init random generator
@@ -207,6 +297,7 @@ void tnfs_ai_police_reset_state(int flag) {
 			g_cop_car_ptr->ai_state &= 0xfff7ffff; //disable 0x80000
 		}
 		g_cop_car_ptr->ai_state &= 0xff86dbff; //disable 0x2400
+		player_car_ptr->ai_state &= 0xfffedbff; //release the player: disable 0x10000, 0x2400
 		g_police_on_chase = 0;
 	}
 }
@@ -1651,7 +1742,7 @@ void tnfs_ai_traffic_swerve(tnfs_car_data *car1, int *lane_grid, int lane, int *
 						seg_distance = -seg_distance;
 					}
 					if ((car1->ai_state & 4) && (car->ai_state & 0x1000)) {
-						local_64 = g_ai_opp_data[car->car_id].opp_oncoming_look_ahead;
+						local_64 = g_ai_opp_data[car1->car_id].opp_oncoming_look_ahead;
 					} else {
 						local_64 = 27;
 					}
@@ -2867,7 +2958,9 @@ void tnfs_player_pull_over(tnfs_car_data *car) {
 
 /*
  * Is the road object at (x, y, z) inside the car's footprint; plays the hit sound when close to the camera.
- * DOS tnfs_collision_sound_00047d9f (0x47d9f), PSX tnfs_physics_offroad_2 (0x8001f0f0). y is unused in both.
+ * DOS tnfs_collision_sound_00047d9f (0x47d9f), PSX tnfs_collision_scenery (0x8001f0f0), Win95 SE
+ * tnfs_collision_road_object (0x40fef0). y is unused in all three. SE also calls the joystick force feedback
+ * (_Jolt, 0x43cc10) on a hit when it is enabled (DAT_0052b320).
  */
 int tnfs_collision_road_object(tnfs_car_data *car, int x, int y, int z) {
 	int dx;
@@ -2884,9 +2977,9 @@ int tnfs_collision_road_object(tnfs_car_data *car, int x, int y, int z) {
 	cos = math_cos_2(car->angle.y >> 8);
 	sin = math_sin_2(car->angle.y >> 8);
 
-	// The original compares with half the width / length of the car's 3D model (DOS size at 0x619, PSX
-	// spec_collision_car_width/length, both computed from the model's vertex extents in the renderer). The port does
-	// not load the model, so the PDN half extents in collision_data.size are used instead.
+	// The original compares with half the width / length of the car's 3D model (DOS width 0x61d / length 0x619,
+	// SE 0x64e / 0x64a, PSX spec_collision_car_width/length, all computed from the model's vertex extents in the
+	// renderer). The port does not load the model, so the PDN half extents in collision_data.size are used instead.
 	lat = math_mul(cos, dx) - math_mul(sin, dz);
 	if (abs(lat) > car->collision_data.size.x) {
 		return 0;
@@ -2905,7 +2998,12 @@ int tnfs_collision_road_object(tnfs_car_data *car, int x, int y, int z) {
 
 /*
  * Walks the road objects of the car's slice (cursor road_object_index/slice kept per car) and knocks down the first
- * sign the car runs over. DOS FUN_00047a7d (0x47a7d), PSX FUN_8001ed38.
+ * sign the car runs over. DOS tnfs_scenery_collision (0x47a7d), PSX tnfs_collision_scenery_detect (0x8001ed38),
+ * Win95 SE tnfs_collision_road_objects (0x40fc64). Every road object is tested, 3D models (prop type 1) too.
+ * The status stores the time of the hit in replay keyframes + 1 (DOS ticks / 0x4b0, PSX and SE / 0x708): a replay
+ * rewind clears the signs knocked at or after the keyframe it restarts from (DOS 0x7085f, SE 0x4501a8).
+ * On a hit, all binaries then invalidate the renderer's cached track vertex lists (DOS 0x62f46, SE 0x43f51c,
+ * PSX 0x80038614 for both views) so the sign is rebuilt lying flat; the port has no renderer.
  */
 int tnfs_collision_road_objects(tnfs_car_data *car) {
 	int slice;
@@ -2932,7 +3030,7 @@ int tnfs_collision_road_objects(tnfs_car_data *car) {
 					y = track_data[slice].pos.y + (g_road_objects[car->road_object_index].pos_y << 8);
 					z = track_data[slice].pos.z + (g_road_objects[car->road_object_index].pos_z << 8);
 					if (tnfs_collision_road_object(car, x, y, z)) {
-						g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x4b0) + 1; // PSX: / 0x708
+						g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x4b0) + 1; // PSX, SE: / 0x708
 						return 1;
 					}
 				}
@@ -2952,7 +3050,7 @@ int tnfs_collision_road_objects(tnfs_car_data *car) {
 				y = track_data[slice].pos.y + (g_road_objects[car->road_object_index].pos_y << 8);
 				z = track_data[slice].pos.z + (g_road_objects[car->road_object_index].pos_z << 8);
 				if (tnfs_collision_road_object(car, x, y, z)) {
-					g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x4b0) + 1; // PSX: / 0x708
+					g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x4b0) + 1; // PSX, SE: / 0x708
 					return 1;
 				}
 			}
@@ -3002,13 +3100,14 @@ void tnfs_ai_collision_handler() {
 				iVar2 = car1->car_id;
 			}
 			if ((iVar2 >= 0) && (iVar2 < g_number_of_players)) {
-				if ((((track_data[car1->track_slice].num_lanes & 0xf) * 0x50000
-						+ (track_data[car1->track_slice].roadRightMargin >> 3) * 0x100
-						* (track_data[car1->track_slice].num_lanes & 0xf)) < car1->center_line_distance)
+				// off the lanes (right or left of them): lane width from the lane table; both bounds use the right
+				// margin and the right lane count for the table row (DOS 0x44b5a, PSX 0x8001c034, Win95 SE 0x40d8e8)
+				iVar3 = car1->track_slice & g_slice_mask;
+				if ((tnfs_ai_lane_table(track_data[iVar3].num_lanes & 0xf, track_data[iVar3].roadRightMargin >> 3) * 0x100
+						* (track_data[iVar3].num_lanes & 0xf) < car1->center_line_distance)
 						|| (car1->center_line_distance
-								< ((track_data[car1->track_slice].num_lanes & 0xf) * 40
-										+ (track_data[car1->track_slice].roadLeftMargin >> 3) * -0x100
-										* (track_data[car1->track_slice].num_lanes >> 4)))) {
+								< tnfs_ai_lane_table(track_data[iVar3].num_lanes & 0xf, track_data[iVar3].roadRightMargin >> 3) * -0x100
+										* (track_data[iVar3].num_lanes >> 4))) {
 					tnfs_collision_road_objects(car1);
 				}
 			}

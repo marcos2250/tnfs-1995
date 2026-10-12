@@ -13,6 +13,7 @@
 static SDL_Event event;
 static SDL_Window *window;
 static SDL_GLContext glContext;
+static SDL_GameController *controller;
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
@@ -109,6 +110,94 @@ void handleKeys() {
 			break;
 		}
 	}
+}
+
+/*
+ * gamepad: left stick steers, triggers are throttle and brake, shoulders shift gears, A is the handbrake
+ */
+void handleGamepadEvents() {
+	if (event.type == SDL_CONTROLLERDEVICEADDED && !controller) {
+		controller = SDL_GameControllerOpen(event.cdevice.which);
+		if (controller) {
+			printf("Gamepad: %s\n", SDL_GameControllerName(controller));
+			g_control_analog_steering = 1;
+			g_control_analog_pedals = 1;
+		}
+	}
+	if (event.type == SDL_CONTROLLERDEVICEREMOVED && controller
+			&& event.cdevice.which == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller))) {
+		SDL_GameControllerClose(controller);
+		controller = 0;
+		g_control_analog_steering = 0;
+		g_control_analog_pedals = 0;
+	}
+	if (event.type == SDL_CONTROLLERBUTTONDOWN) {
+		switch (event.cbutton.button) {
+		case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+			tnfs_change_gear_up();
+			break;
+		case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+			tnfs_change_gear_down();
+			break;
+		case SDL_CONTROLLER_BUTTON_A:
+			g_car_array[0].handbrake = 1;
+			break;
+		}
+	}
+	if (event.type == SDL_CONTROLLERBUTTONUP && event.cbutton.button == SDL_CONTROLLER_BUTTON_A) {
+		g_car_array[0].handbrake = 0;
+	}
+}
+
+/*
+ * gamepad axes to the joystick values of Win95 0x43d598, calibrated to the SDL axis ranges as Win95 0x43bc00 does:
+ * stick: 35.0 / (range + 1) per side (range capped at 0x7ffa), 3 units dead zone, -0x20..0x1f
+ * pedals (separate pedal axes mode): 36.0 / ((max - min) / 2), 0x1f pressed .. 0 released, value brake - gas
+ */
+void readGamepadAxes() {
+	int x, gas, brake, pedal;
+	int gain_stick = 0x230000 / (0x7ffa + 1);
+	int gain_pedal = 0x240000 / (0x7fff >> 1);
+
+	if (!controller) {
+		return;
+	}
+
+	x = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX);
+	if (x < 0) {
+		x = ((x * gain_stick) >> 16) + 3;
+		if (x > 0) {
+			x = 0;
+		} else if (x < -0x20) {
+			x = -0x20;
+		}
+	} else {
+		x = ((x * gain_stick) >> 16) - 3;
+		if (x < 0) {
+			x = 0;
+		} else if (x > 0x1f) {
+			x = 0x1f;
+		}
+	}
+
+	// pedal axes are low when pressed, SDL triggers go 0 (released) .. 0x7fff (pressed)
+	gas = 0x1f - ((((0x7fff - SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT)) >> 1) * gain_pedal) >> 16);
+	brake = 0x1f - ((((0x7fff - SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT)) >> 1) * gain_pedal) >> 16);
+	if (gas < 0) {
+		gas = 0;
+	}
+	if (brake < 0) {
+		brake = 0;
+	}
+	pedal = brake - gas;
+	if (pedal < -0x1e) {
+		pedal = -0x1e;
+	} else if (pedal > 0x1e) {
+		pedal = 0x1e;
+	}
+
+	g_control_steer_axis = x;
+	g_control_pedal_axis = pedal;
 }
 
 /*
@@ -295,7 +384,7 @@ int main(int argc, char **argv) {
 	char * trifile = 0;
 	char * pbsfile = 0;
 
-	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) < 0) {
 		printf("SDL could not be initialized! SDL_Error: %s\n", SDL_GetError());
 		return 0;
 	}
@@ -346,7 +435,9 @@ int main(int argc, char **argv) {
 				quit = 1;
 			}
 			handleKeys();
+			handleGamepadEvents();
 		}
+		readGamepadAxes();
 
 		tnfs_update();
 

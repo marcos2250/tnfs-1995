@@ -15,6 +15,94 @@ int g_const_8CCC = 0x8ccc; //DAT_800eae70
 int g_const_7333 = 0x7333; //DAT_800eae74
 int g_const_CCCC = 0xCCCC; //DAT_800eae78
 
+/*
+ * Smoke of a wrecked player car (visual only, nothing in the physics reads it).
+ * One shared set of 100 particles, drawn with the "smok" sprite of SIMDATA/MISC/SMOKE.QFS.
+ */
+tnfs_smoke_particles g_smoke_particles;
+unsigned int g_smoke_random = 0; //DOS DAT_000fd968, SE DAT_004c5608: own LCG, used only here
+
+/*
+ * DOS 0x71b4b, SE 0x456a48, PSX 0x8004ce14
+ */
+void tnfs_smoke_particles_reset(tnfs_smoke_particles *smoke) {
+	int i;
+	for (i = 0; i < 100; i++) {
+		smoke->age[i] = -1;
+	}
+	smoke->emit_threshold = 0;
+	smoke->emit_accumulator = 0;
+}
+
+/*
+ * emits particles at the crash body position; amount 0x5555 on the first tick, then 0x888 per tick
+ * DOS 0x71e13 (amount in EBX), SE 0x456cc4, PSX 0x8004d1f0
+ */
+void tnfs_smoke_particles_emit(tnfs_smoke_particles *smoke, tnfs_car_data *car, int amount) {
+	tnfs_vec3 *p;
+
+	smoke->emit_accumulator += amount;
+	while (smoke->emit_threshold < smoke->emit_accumulator) {
+		g_smoke_random = g_smoke_random * 0x10004005 + 0x11;
+		smoke->drift_x[smoke->next] = ((int)(g_smoke_random >> 0xf) >> 8) << 7;
+		p = &smoke->position[smoke->next];
+		p->x = car->collision_data.position.x;
+		p->y = car->collision_data.position.y;
+		p->z = -car->collision_data.position.z;
+		// random offset of +-0.5m on each axis
+		g_smoke_random = g_smoke_random * 0x10004005 + 0x11;
+		p->x += ((int)(0x10000 - (g_smoke_random >> 0xf)) >> 8) * 0x80;
+		g_smoke_random = g_smoke_random * 0x10004005 + 0x11;
+		p->y += ((int)(0x10000 - (g_smoke_random >> 0xf)) >> 8) * 0x80;
+		g_smoke_random = g_smoke_random * 0x10004005 + 0x11;
+		p->z += ((int)(0x10000 - (g_smoke_random >> 0xf)) >> 8) * 0x80;
+		smoke->age[smoke->next] = 0;
+		smoke->next++;
+		if (smoke->next == 100) {
+			smoke->next = 0;
+		}
+		smoke->emit_accumulator -= smoke->emit_threshold;
+		g_smoke_random = g_smoke_random * 0x10004005 + 0x11;
+		// PC version; PSX uses 0x38e3
+		smoke->emit_threshold = (int)((g_smoke_random >> 0x17) * 0x6666) >> 8;
+	}
+}
+
+/*
+ * ages and moves the particles, delta_time 0x888 per tick; returns 1 while any particle is alive
+ * DOS 0x72000, SE 0x456e38, PSX 0x8004d484
+ */
+int tnfs_smoke_particles_update(tnfs_smoke_particles *smoke, int delta_time) {
+	int i;
+	int a;
+	int dt;
+	int is_alive = 0;
+
+	for (i = 0; i < 100; i++) {
+		if (smoke->age[i] >= 0) {
+			dt = delta_time >> 8;
+			smoke->age[i] += dt * 0xf;
+			if (smoke->age[i] < 0x10000) {
+				is_alive = 1;
+				if (smoke->age[i] < 0x4000) {
+					// accelerating rise
+					a = (smoke->age[i] << 2) >> 8;
+					smoke->position[i].y += (dt * (a * a >> 8) >> 8) * 0x180;
+				} else {
+					// rise, drift along +x and a circular sway (16 bit angle)
+					smoke->position[i].y += dt * 0x180;
+					smoke->position[i].x += (smoke->drift_x[i] >> 8) * dt;
+					smoke->position[i].x += (math_sin_2((smoke->age[i] << 9) >> 8) >> 8) * (delta_time >> 9);
+					smoke->position[i].z += (delta_time >> 9) * (math_cos_2((smoke->age[i] << 9) >> 8) >> 8);
+				}
+			} else {
+				smoke->age[i] = -0x10000;
+			}
+		}
+	}
+	return is_alive;
+}
+
 void tnfs_collision_off() {
 	printf("Collision OFF \n");
 	// ????
@@ -392,7 +480,7 @@ void tnfs_collision_recover_car(tnfs_car_data *car) {
 		car->angle.z -= 0x1000000;
 	}
 	g_cam_change_delay = 0;
-	//FUN_00071b4b(&g_big_struct); // smoke particles
+	tnfs_smoke_particles_reset(&g_smoke_particles);
 	car->ai_state &= 0xfffffdff;
 	car->is_crashed = 0;
 	if (car->gear_auto_selected != 0) {
@@ -625,16 +713,17 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	} else {
 		// player wrecked
 		if (car->ai_state & 0x200) {
-			//FUN_00072000(&g_big_struct, 0x888); // smoke particles
+			tnfs_smoke_particles_update(&g_smoke_particles, 0x888);
 		}
 		local_ec = abs(collision_data->speed.x) + abs(collision_data->speed.y) + abs(collision_data->speed.z);
 		if ((car->ai_state & 0x200) == 0) {
+			// DOS version; PSX 0x8001d3d8 and Win95 SE 0x40e811 compare with 0x80000
 			if (car->is_wrecked != 0 && local_ec < 0x40000) {
-				car->ai_state |= 0x200;
-				//FUN_00071e13(&g_big_struct, car, 0x5555); // smoke particles
+				car->ai_state |= 0x200; // smoke on
+				tnfs_smoke_particles_emit(&g_smoke_particles, car, 0x5555);
 			}
 		} else {
-			//FUN_00071e13(&g_big_struct, car, 0x888); // smoke particles
+			tnfs_smoke_particles_emit(&g_smoke_particles, car, 0x888);
 		}
 		g_cam_change_delay = 0x3c;
 
@@ -690,7 +779,7 @@ void tnfs_collision_main(tnfs_car_data *car) {
 					car->angle.z -= 0x1000000;
 				}
 				g_cam_change_delay = 0;
-				//FUN_00071b4b(&g_big_struct); // smoke particles
+				tnfs_smoke_particles_reset(&g_smoke_particles);
 				car->ai_state &= 0xfffffdff;
 				car->throttle = 0;
 				car->brake = 0;
@@ -879,7 +968,7 @@ void tnfs_collision_rollover_start_2(tnfs_car_data *car) {
 	tnfs_collision_data_set(car);
 	car->is_wrecked = 1;
 	car->crash_state = 4;
-	//FUN_8004ce14(&PTR_80103660);
+	tnfs_smoke_particles_reset(&g_smoke_particles);
 	car->ai_state = car->ai_state & 0xfffffdff;
 	car->collision_data.state_timer = 300;
 	tnfs_replay_highlight_record(0x5c);

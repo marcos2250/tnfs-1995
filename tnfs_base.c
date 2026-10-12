@@ -12,8 +12,6 @@
 
 const int g_gravity_const = 0x9CF5C;
 
-int g_race_status = 0;
-
 tnfs_track_data track_data[2400];
 tnfs_surface_type road_surface_type_array[3];
 tnfs_track_speed g_track_speed[600];
@@ -1291,6 +1289,21 @@ int tnfs_racer_crossed_finish_line(tnfs_car_data *car) {
 	return 0;
 }
 
+/*
+ * how far a racer is past the finish: slices past the finish node (open road), the slice on the extra lap (closed track)
+ * DOS 0x64c27
+ */
+int tnfs_racer_finish_distance(tnfs_car_data *car) {
+	if (g_is_closed_track == 0) {
+		if (car->track_slice > g_road_finish_node) {
+			return car->track_slice - g_road_finish_node;
+		}
+	} else if (car->lap_number > g_track_laps) {
+		return car->track_slice;
+	}
+	return 0;
+}
+
 void tnfs_racer_clock_lap_time(tnfs_car_data *car) {
 	int iVar1;
 	int iVar2;
@@ -1427,11 +1440,13 @@ int tnfs_track_node_update(tnfs_car_data *car) {
 			if (car->car_id2 == 0) {
 				printf("NEW LAP %d\n", car->lap_number);
 			}
-		} else if ((node > g_road_finish_node - 2) && (car->car_id2 == 0) && (lastnode < 2)) {
+		} else if ((node > g_road_finish_node - 2) && (lastnode < 2)) {
 			car->lap_number--;
-			printf("UN-LAP %d\n", car->lap_number);
+			if (car->car_id2 == 0) {
+				printf("UN-LAP %d\n", car->lap_number);
+			}
 		}
-		car->track_slice_lap = (car->lap_number - 1) * g_road_node_count * 4 + car->track_slice;
+		car->track_slice_lap = (car->lap_number - 1) * g_tri_num_chunks * 4 + car->track_slice;
 	}
 
 	return changed;
@@ -1562,8 +1577,6 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	cheat_crashing_cars = 0;
 	g_game_settings = 0;
 	sound_flag = 0;
-
-	g_race_status = 0;
 
 	//init track
 	tnfs_init_track(trifile);
@@ -1730,10 +1743,6 @@ void tnfs_update() {
 
 	iSimTimeClock++;
 
-	if (g_race_status == 0 && player_car_ptr->car_road_speed > 0) {
-		g_race_status = 1;
-		tnfs_ai_respawn_0007d647();
-	}
 	//FIX: disable cop if crashed or finished race
 	if (g_cop_car_ptr != 0) {
 		if (player_car_ptr->is_crashed || player_car_ptr->field_4c9) {
@@ -1766,9 +1775,7 @@ void tnfs_update() {
 				tnfs_driving_main(car);
 				math_matrix_from_pitch_yaw_roll(&car->matrix, car->angle.x + car->body_pitch, car->angle.y, car->angle.z + car->body_roll);
 			} else {
-				if (g_race_status > 0) {
-					tnfs_ai_driving_main(car);
-				}
+				tnfs_ai_driving_main(car);
 			}
 		} else {
 			tnfs_collision_main(car);

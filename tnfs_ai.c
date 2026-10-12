@@ -843,7 +843,7 @@ int tnfs_ai_racer_speed(tnfs_car_data *car) {
 	}
 	result_speed = math_mul(top_speed, local_24);
 	if (tnfs_racer_crossed_finish_line(car) == 2) {
-		if (tnfs_racer_finish_slot_reached(car->car_id2, tnfs_racer_crossed_finish_line(car))) {
+		if (tnfs_racer_finish_slot_reached(car->car_id2, tnfs_racer_finish_distance(car))) {
 			result_speed = 0;
 		}
 	}
@@ -2495,7 +2495,7 @@ void tnfs_ai_opp_engine_and_cornering(tnfs_car_data *car, int lane, tnfs_vec3 *d
 			bVar9 = 1;
 		}
 		if (bVar9) {
-			iVar10 = tnfs_racer_crossed_finish_line(car);
+			iVar10 = tnfs_racer_finish_distance(car);
 			iVar10 = tnfs_racer_finish_slot_reached(car->car_id2, iVar10 + 10);
 			if (iVar10 != 0) {
 				if ((g_race_positions[car->car_id2] & 1) == 0) {

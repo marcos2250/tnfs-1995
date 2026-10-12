@@ -723,6 +723,7 @@ void tnfs_update();
 void tnfs_crash_car();
 void tnfs_sfx_play(int a, int b, int c, int d, int e, int f);
 int tnfs_racer_crossed_finish_line(tnfs_car_data *car);
+int tnfs_racer_finish_distance(tnfs_car_data *car);
 void tnfs_car_local_position_vector(tnfs_car_data * car_data, int * angle, int * length);
 int tnfs_track_node_find(tnfs_vec3 *p_position, int *current);
 int tnfs_track_node_update(tnfs_car_data *car);

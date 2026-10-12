@@ -51,6 +51,11 @@ char g_control_throttle;
 char g_control_brake;
 signed char g_control_steer;
 char g_control_gear; // shift button for the next tick: 0 none, 1 down, 2 up
+// analog controls (Win95 0x4fb724/0x4fb728 per player: steering and pedal device, 1 joystick); axes as Win95 0x4fce54/0x4fce58
+char g_control_analog_steering; // 1: tnfs_control_steering_b
+char g_control_analog_pedals; // 1: tnfs_control_pedals_analog
+signed char g_control_steer_axis; // -0x20 left .. 0x1f right
+signed char g_control_pedal_axis; // -0x1e full throttle .. 0x1e full brake
 int g_police_on_chase = 0; //000fdb90
 int g_police_speeding_ticket = 0; //0016513C
 int g_police_chase_time = 0; //0016533c
@@ -106,6 +111,12 @@ int g_player_id = 0; //16707C
 int g_cam_change_delay = 0; // 00143844
 
 int g_race_positions[8] = { 7, 6, 5, 4, 3, 2, 1, 0 }; // 00167179
+
+// analog steering target by |input| (DOS 0xf9ef0, Win95 0x4baff0, PSX 0x800bd518), 0..32 are read
+int g_steering_analog_table[36] = { //
+		0x3333, 0x6666, 0xb333, 0x10000, 0x16666, 0x1cccc, 0x24ccc, 0x2cccc, 0x36666, 0x40000, 0x4cccc, 0x5b333, //
+		0x69999, 0x78000, 0x88000, 0x98000, 0xa8000, 0xb8000, 0xc8000, 0xd8000, 0xe8000, 0xf8000, 0x108000, 0x118000, //
+		0x128000, 0x138000, 0x14b333, 0x15e666, 0x173333, 0x184ccc, 0x199999, 0x1ae666, 0x1c8000, 0x1e0000, 0x1f0000, 0x200000 };
 
 /* create a random track and a generic car */
 
@@ -737,6 +748,71 @@ void tnfs_control_steering_a(tnfs_car_data *car, int input, int auto_steer) {
 }
 
 /*
+ * steering with analog controls (DOS 0x5e27f == Win95 0x438aac)
+ * PSX 0x8003367c: rate caps 0xa0000/0x140000, attenuation >> 8, rally mode sets the steer angle to the target
+ */
+void tnfs_control_steering_b(tnfs_car_data *car, int input, int auto_steer) {
+	int target;
+	int attenuation;
+	int diff;
+	int auto_diff;
+	int rate;
+
+	input = (input & 0x3f) - 0x20;
+	if (input > 0) {
+		input++;
+	}
+	if (input < 0) {
+		target = -g_steering_analog_table[-input];
+	} else {
+		target = g_steering_analog_table[input];
+	}
+
+	if (car->speed_local_lon < 0) {
+		auto_steer = 0;
+	}
+	if (car->speed_local_lon <= 0x120000) {
+		attenuation = 0;
+	} else {
+		attenuation = fix7(car->speed_local_lon - 0x120000);
+	}
+
+	diff = target - car->steer_angle;
+	auto_diff = auto_steer - car->steer_angle;
+	if (diff > 0 && auto_diff > 0) {
+		// towards the auto steer target: no rate cap
+		rate = diff;
+		if (auto_diff < diff) {
+			rate = auto_diff;
+		}
+	} else if (diff < 0 && auto_diff < 0) {
+		rate = diff;
+		if (diff < auto_diff) {
+			rate = auto_diff;
+		}
+	} else if (diff <= 0) {
+		if (diff < -0xc0000) {
+			rate = -(0x40000 - attenuation);
+		} else {
+			rate = -(0x18000 - attenuation);
+		}
+		if (rate < diff) {
+			rate = diff;
+		}
+	} else {
+		if (diff <= 0xc0000) {
+			rate = 0x18000 - attenuation;
+		} else {
+			rate = 0x40000 - attenuation;
+		}
+		if (diff < rate) {
+			rate = diff;
+		}
+	}
+	car->steer_angle += rate;
+}
+
+/*
  * throttle ramp (DOS 0x5e42a, PSX 0x800337f4)
  */
 void tnfs_control_throttle(tnfs_car_data *car, int target) {
@@ -788,6 +864,58 @@ void tnfs_control_brake(tnfs_car_data *car, int target) {
 		}
 	}
 	car->brake = target;
+}
+
+/*
+ * analog pedals, one axis: 0x1e centre, lower throttle, higher brake (DOS 0x5eb55 == Win95 0x438ff0, PC version)
+ * PSX 0x80033b8c: separate throttle and brake, 3 bits each (x0x25), through tnfs_control_throttle/brake
+ * the button bits of the control word (shift, handbrake) are the same as the digital pedals and handled by the caller
+ */
+void tnfs_control_pedals_analog(tnfs_car_data *car, int input) {
+	int throttle;
+	int rate;
+
+	throttle = 0;
+	input = (input & 0x3f) - 0x1e;
+	if (input > 0) {
+		input++;
+	}
+	if (input < 1) {
+		throttle = fix8(input * -0x889);
+		car->brake = 0;
+	} else {
+		car->throttle = 0;
+		if (car->abs_enabled == 0) {
+			tnfs_control_brake(car, fix8(input * 0x889));
+		} else {
+			car->brake = fix8(input * 0x889);
+		}
+	}
+
+	if (car->is_gear_engaged == 0) {
+		rate = 0xc;
+	} else {
+		rate = 0x33;
+	}
+	if (car->throttle < throttle) {
+		if (throttle - car->throttle < 0x4d) {
+			car->throttle = throttle;
+		} else {
+			car->throttle += 0x4c;
+		}
+	} else if (throttle < car->throttle) {
+		if (rate < car->throttle - throttle) {
+			car->throttle -= rate;
+		} else {
+			car->throttle = throttle;
+		}
+	}
+	if (car->throttle > 0xff) {
+		car->throttle = 0xff;
+	}
+	if (car->brake > 0xff) {
+		car->brake = 0xff;
+	}
 }
 
 /*
@@ -904,7 +1032,8 @@ int tnfs_control_auto_steer_target(tnfs_car_data *car) {
 }
 
 /*
- * player controls (DOS 0x41b49, PSX 0x80018f78); input from g_control_* (keyboard: digital steering and pedals)
+ * player controls (DOS 0x41b49, Win95 0x401400, PSX 0x80018f78); input from g_control_*
+ * digital (keyboard) or analog (joystick) steering and pedals, as the control word of Win95 0x43915c
  */
 void tnfs_controls_update() {
 	tnfs_car_data *car;
@@ -917,19 +1046,27 @@ void tnfs_controls_update() {
 	if (abs(auto_steer) > 0x40) {
 		auto_steer = 0;
 	}
-	tnfs_control_steering_a(car, 0x20 + g_control_steer * 0x1f, auto_steer);
+	if (!g_control_analog_steering) {
+		tnfs_control_steering_a(car, 0x20 + g_control_steer * 0x1f, auto_steer);
+	} else {
+		tnfs_control_steering_b(car, 0x20 + g_control_steer_axis, auto_steer);
+	}
 
-	// digital pedals, PSX version (tnfs_control_player_1 0x80033c8c); PC versions read one pedal axis
 	tnfs_control_shift_gears(car, g_control_gear);
 	g_control_gear = 0;
-	tnfs_control_throttle(car, g_control_throttle ? 0xff : 0);
-	if (g_control_brake) {
-		tnfs_control_brake(car, 0xff);
+	if (g_control_analog_pedals) {
+		tnfs_control_pedals_analog(car, 0x1e + g_control_pedal_axis);
 	} else {
-		if (car->brake > 100) {
-			car->brake = 100;
+		// digital pedals, PSX version (tnfs_control_pedals_digital 0x80033c8c); PC versions read one pedal axis
+		tnfs_control_throttle(car, g_control_throttle ? 0xff : 0);
+		if (g_control_brake) {
+			tnfs_control_brake(car, 0xff);
+		} else {
+			if (car->brake > 100) {
+				car->brake = 100;
+			}
+			tnfs_control_brake(car, 0);
 		}
-		tnfs_control_brake(car, 0);
 	}
 
 	//checkpoint flick

@@ -7,6 +7,7 @@
 
 
 extern int g_is_playing;
+extern int g_ai_frame_counter;
 void tnfs_ai_init();
 void tnfs_ai_driving_main(tnfs_car_data * car);
 void tnfs_ai_collision_handler();

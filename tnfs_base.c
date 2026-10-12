@@ -1578,6 +1578,9 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	g_game_settings = 0;
 	sound_flag = 0;
 
+	// DOS tnfs_car_Init_Collision 0x47d6c: AI lane change on the first tick
+	g_ai_frame_counter = 1;
+
 	//init track
 	tnfs_init_track(trifile);
 

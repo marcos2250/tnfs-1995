@@ -54,6 +54,10 @@ char g_control_analog_steering; // 1: tnfs_control_steering_b
 char g_control_analog_pedals; // 1: tnfs_control_pedals_analog
 signed char g_control_steer_axis; // -0x20 left .. 0x1f right
 signed char g_control_pedal_axis; // -0x1e full throttle .. 0x1e full brake
+char g_control_handbrake; // handbrake key (control word bit 15)
+char g_control_horn; // horn key (control word bit 14)
+// control word per player (DOS 0x1458c4, SE 0x4fb704), latched once per control step, see tnfs_control_word_get
+int g_control_word[8];
 int g_police_on_chase = 0; //000fdb90
 int g_police_speeding_ticket = 0; //0016513C
 int g_police_chase_time = 0; //0016533c
@@ -864,17 +868,31 @@ void tnfs_control_brake(tnfs_car_data *car, int target) {
 	car->brake = target;
 }
 
+void tnfs_control_shift_gears(tnfs_car_data *car, int button);
+
 /*
  * analog pedals, one axis: 0x1e centre, lower throttle, higher brake (DOS 0x5eb55 == Win95 0x438ff0, PC version)
  * PSX 0x80033b8c: separate throttle and brake, 3 bits each (x0x25), through tnfs_control_throttle/brake
- * the button bits of the control word (shift, handbrake) are the same as the digital pedals and handled by the caller
+ * input is the control word: buttons (bits 12-15) as tnfs_control_pedals_digital, pedal axis in bits 6-11
  */
 void tnfs_control_pedals_analog(tnfs_car_data *car, int input) {
 	int throttle;
 	int rate;
+	int buttons;
 
 	throttle = 0;
-	input = (input & 0x3f) - 0x1e;
+	buttons = input >> 12;
+	if (buttons & 2) {
+		tnfs_control_shift_gears(car, 1);
+	} else if (buttons & 1) {
+		tnfs_control_shift_gears(car, 2);
+	} else {
+		tnfs_control_shift_gears(car, 0);
+	}
+	car->handbrake = (buttons & 8) != 0;
+	car->horn = (buttons & 4) != 0;
+
+	input = ((input >> 6) & 0x3f) - 0x1e;
 	if (input > 0) {
 		input++;
 	}
@@ -1030,14 +1048,122 @@ int tnfs_control_auto_steer_target(tnfs_car_data *car) {
 }
 
 /*
- * player controls (DOS 0x41b49, Win95 0x401400, PSX 0x80018f78); input from g_control_*
- * digital (keyboard) or analog (joystick) steering and pedals, as the control word of Win95 0x43915c
+ * digital pedals (DOS 0x5e9c9 == Win95 0x438f00, PC version), input is the control word:
+ * buttons (bits 12-15): 2 shift down, 1 shift up (down wins), 8 handbrake, 4 horn;
+ * one pedal axis (bits 6-11, 0x1e centre; keyboard: throttle 5, brake 0x3c, brake wins when both are held):
+ * < -15: brake = 0, throttle ramps to 0xff; > 15: brake ramps to 0xff and throttle to 0;
+ * centre: brake capped at 100, the throttle ramps down to 0 first, then the brake.
+ * PSX tnfs_control_pedals_digital (0x80033c8c) reads separate throttle and brake bits instead.
  */
-void tnfs_controls_update() {
-	tnfs_car_data *car;
-	int auto_steer;
+void tnfs_control_pedals_digital(tnfs_car_data *car, int input) {
+	int buttons;
+	int pedal;
 
-	car = &g_car_array[0];
+	buttons = input >> 12;
+	pedal = (input >> 6) & 0x3f;
+	if (buttons & 2) {
+		tnfs_control_shift_gears(car, 1);
+	} else if (buttons & 1) {
+		tnfs_control_shift_gears(car, 2);
+	} else {
+		tnfs_control_shift_gears(car, 0);
+	}
+	car->handbrake = (buttons & 8) != 0;
+	car->horn = (buttons & 4) != 0;
+
+	pedal = pedal - 0x1e;
+	if (pedal > 0) {
+		pedal++;
+	}
+	if (pedal < -0xf) {
+		car->brake = 0;
+		tnfs_control_throttle(car, 0xff);
+	} else if (pedal < 0x10) {
+		if (car->brake > 100) {
+			car->brake = 100;
+		}
+		if (car->throttle == 0) {
+			if (car->brake != 0) {
+				tnfs_control_brake(car, 0);
+			}
+		} else {
+			tnfs_control_throttle(car, 0);
+		}
+	} else {
+		tnfs_control_brake(car, 0xff);
+		tnfs_control_throttle(car, 0);
+	}
+}
+
+/*
+ * Control word of the local player (Win95 SE tnfs_control_word_get 0x43915c; DOS FUN_0005ed8b is the same without
+ * the mirror mode, with right winning over left), from the front end's input state (g_control_*):
+ * bits 0-5 steering: keyboard 0 left / 0x20 / 0x3c right (both keys held: 0x20), joystick g_control_steer_axis + 0x20;
+ * bits 6-11 pedals: keyboard 0x1e / throttle 5 / brake 0x3c (brake wins), joystick g_control_pedal_axis + 0x1e;
+ * bits 12-15 buttons: 1 shift up, 2 shift down (up wins), 4 horn, 8 handbrake. Neutral word 0x7a0.
+ * The device per control is g_control_analog_steering / g_control_analog_pedals (SE g_control_steer_device /
+ * g_control_pedal_device of the player: 0 keyboard, 1 joystick); shifting is always on the keyboard here.
+ * Not ported: mouse and joystick-button devices, SE mirror mode (flips the steering), the disconnected network
+ * player (0xffff87a0) and SE's B+R+W cheat (both shift bits with the automatic gearbox, turned into a launch
+ * boost flag DAT_004faa5c in FUN_004397f4, which is not recorded in the replay).
+ * The original reads the keys once per control step (SE timer FUN_0043b970 pushes a word every 2 timer ticks, the
+ * recorder pops it), so a shift press (g_control_gear) is consumed here.
+ */
+int tnfs_control_word_get() {
+	int steer;
+	int pedal;
+	int buttons;
+
+	if (g_control_analog_steering == 0) {
+		steer = 0x20;
+		if (g_control_steer < 0) {
+			steer = 0;
+		} else if (g_control_steer > 0) {
+			steer = 0x3c;
+		}
+	} else {
+		steer = g_control_steer_axis + 0x20;
+	}
+
+	if (g_control_analog_pedals == 0) {
+		pedal = 0x1e;
+		if (g_control_throttle) {
+			pedal = 5;
+		}
+		if (g_control_brake) {
+			pedal = 0x3c;
+		}
+	} else {
+		pedal = g_control_pedal_axis + 0x1e;
+	}
+
+	buttons = 0;
+	if (g_control_gear == 2) {
+		buttons = 1;
+	} else if (g_control_gear == 1) {
+		buttons = 2;
+	}
+	g_control_gear = 0;
+	if (g_control_handbrake) {
+		buttons |= 8;
+	}
+	if (g_control_horn) {
+		buttons |= 4;
+	}
+	return buttons << 12 | steer | pedal << 6;
+}
+
+/*
+ * player controls (DOS 0x41b49, Win95 0x401400, PSX 0x80018f78), the control handler of the player cars (DOS handler
+ * table 0x153b60 [1], car +0x4dd = 1; AI cars have the empty handler 2, DOS 0x7bc76). The game loop calls it on control
+ * steps only (general_flags & 4: every second simulation tick, 15 per second) with the latched control word.
+ * The device decides the steering and pedal functions (DOS/SE per player, here g_control_analog_* for every player).
+ */
+void tnfs_controls_update(tnfs_car_data *car) {
+	int auto_steer;
+	int word;
+
+	word = g_control_word[car->car_id2];
 
 	auto_steer = tnfs_control_auto_steer_target(car);
 	// PC version (DOS 0x41b7c, Win95 0x401412), PSX version: 0x400000
@@ -1045,33 +1171,22 @@ void tnfs_controls_update() {
 		auto_steer = 0;
 	}
 	if (!g_control_analog_steering) {
-		tnfs_control_steering_a(car, 0x20 + g_control_steer * 0x1f, auto_steer);
+		tnfs_control_steering_a(car, word, auto_steer);
 	} else {
-		tnfs_control_steering_b(car, 0x20 + g_control_steer_axis, auto_steer);
+		tnfs_control_steering_b(car, word, auto_steer);
 	}
 
-	tnfs_control_shift_gears(car, g_control_gear);
-	g_control_gear = 0;
 	if (g_control_analog_pedals) {
-		tnfs_control_pedals_analog(car, 0x1e + g_control_pedal_axis);
+		tnfs_control_pedals_analog(car, word);
 	} else {
-		// digital pedals, PSX version (tnfs_control_pedals_digital 0x80033c8c); PC versions read one pedal axis
-		tnfs_control_throttle(car, g_control_throttle ? 0xff : 0);
-		if (g_control_brake) {
-			tnfs_control_brake(car, 0xff);
-		} else {
-			if (car->brake > 100) {
-				car->brake = 100;
-			}
-			tnfs_control_brake(car, 0);
-		}
+		tnfs_control_pedals_digital(car, word);
 	}
 
 	//checkpoint flick
-	if (tnfs_racer_crossed_finish_line(&g_car_array[0])) {
-		tnfs_driving_checkpoint_flick(&g_car_array[0]);
+	if (tnfs_racer_crossed_finish_line(car)) {
+		tnfs_driving_checkpoint_flick(car);
 	} else {
-		g_car_array[0].field_4cd = 0;
+		car->field_4cd = 0;
 	}
 }
 
@@ -1131,7 +1246,7 @@ void tnfs_change_gear_manual(int shift) {
 }
 
 void tnfs_change_gear_up() {
-	// pressed for one tick, see tnfs_control_shift_gears
+	// pressed until the next control word is latched, see tnfs_control_word_get
 	g_control_gear = 2;
 }
 
@@ -1224,9 +1339,1089 @@ void tnfs_sfx_play(int a, int id1, int id2, int volume, int distance, int direct
 	printf("sound %i %i\n", id1, id2);
 }
 
-void tnfs_replay_highlight_record(char a) {
-	if (iSimTimeClock % 30 == 0)
-		printf("replay highlight %i\n", a);
+/*
+ * Replays (Win95 SE layout, see tnfs_replay_file in tnfs_base.h; DOS has the same code with other sizes).
+ *
+ * The original records the control word of every player once per control step (every 4 clock units, every second
+ * simulation tick: the game reads its controls only then) and, every TNFS_REPLAY_KEYFRAME clock units, a keyframe of
+ * every car and of the race globals. Right after saving a keyframe it reinstates it (restores the cars from it), so
+ * the live race goes through exactly what a playback does. A playback reinstates the keyframe at each keyframe time
+ * and feeds the recorded control words to the same simulation. The buffer is circular: the replay tick is the clock
+ * modulo TNFS_REPLAY_TICKS.
+ *
+ * Replay mode g_is_playing (DOS 0xfd8e0, SE DAT_004c5390): 0 off (sim init), 1 race (recording), 2 playing back,
+ * 3 cueing (simulating to a clock without drawing), 4 scrubbing (rewind / fast forward buttons held: no simulation).
+ *
+ * Front-end parts of the original functions (sounds, camera choice, replay panel, skid marks, HUD messages, timers)
+ * are left out; they are noted where they happen.
+ */
+tnfs_replay_file g_replay;
+int g_replay_tick = 0; // clock % TNFS_REPLAY_TICKS (DOS 0x15af44, SE 0x512d90)
+int g_replay_speed = 4; // 4 full, 3 half, 2 quarter, 1 eighth, 0 paused (DOS 0xfd8e8, SE 0x4c5398)
+int g_replay_frame_step = 0; // simulation ticks left in a frame step while paused (DOS 0xfd8ec, SE 0x4c539c)
+int g_replay_speed_skip = 0; // timer ticks per simulation tick - 1 in slow motion: 0, 2, 4, 8 (DOS 0xfd8f0, SE 0x4c53a0)
+int g_replay_return_mode = 4; // mode after the end of a replay: 1 back to the race, 4 replay again (DOS 0xfd8e4, SE 0x4c5394)
+int g_replay_clip_cut = 0; // a crashed car was put back on the road (cuts a highlight clip) (DOS 0xfd8dc, SE 0x4c538c)
+int g_replay_highlights_only = 0; // leave after the last highlight clip instead of looping (DOS 0x15c598, SE 0x5137e4)
+extern int general_flags;
+// AI globals of the keyframes (tnfs_ai.c)
+extern int g_some_car_array2[8];
+extern tnfs_random_struct g_random_struct[2];
+extern int g_cop_park_position;
+extern int g_random_direction[2];
+extern int DAT_0016532c;
+
+// world block: header
+#define REPLAY_WORLD_END_CLOCK 0x04 // last recorded clock (DOS g_min_iSimTimeClock 0x15af4c, SE 0x5120c8)
+#define REPLAY_WORLD_COUNTDOWN 0x10 // control steps until the next keyframe (DOS 0x15af58: 300, SE 0x5120d4: 0x1c2)
+#define REPLAY_WORLD_KEYFRAMES 0x14 // keyframe records of 0xa2 bytes (room for 20 in SE, 16 used)
+// recording block
+#define REPLAY_CONTROLS_HIGH (2 * TNFS_REPLAY_SAMPLES) // low bytes of player 0, 1, then high bytes of player 0, 1
+#define REPLAY_PLAYER_FRAMES (4 * TNFS_REPLAY_SAMPLES) // 0x7080 [player][keyframe] 0x1a4 bytes (DOS 36000)
+#define REPLAY_OTHER_FRAMES (REPLAY_PLAYER_FRAMES + 2 * TNFS_REPLAY_KEYFRAMES * 0x1a4) // 0xa500 [keyframe][slot] 0x172
+
+static void replay_put32(unsigned char *p, int v) {
+	p[0] = (unsigned char) v;
+	p[1] = (unsigned char) (v >> 8);
+	p[2] = (unsigned char) (v >> 16);
+	p[3] = (unsigned char) (v >> 24);
+}
+
+static int replay_get32(const unsigned char *p) {
+	return (int) ((unsigned int) p[0] | (unsigned int) p[1] << 8 | (unsigned int) p[2] << 16 | (unsigned int) p[3] << 24);
+}
+
+static void replay_put_vec3(unsigned char *p, tnfs_vec3 *v) {
+	replay_put32(p, v->x);
+	replay_put32(p + 4, v->y);
+	replay_put32(p + 8, v->z);
+}
+
+static void replay_get_vec3(const unsigned char *p, tnfs_vec3 *v) {
+	v->x = replay_get32(p);
+	v->y = replay_get32(p + 4);
+	v->z = replay_get32(p + 8);
+}
+
+static void replay_put_vec9(unsigned char *p, tnfs_vec9 *m) {
+	replay_put32(p, m->ax);
+	replay_put32(p + 4, m->ay);
+	replay_put32(p + 8, m->az);
+	replay_put32(p + 12, m->bx);
+	replay_put32(p + 16, m->by);
+	replay_put32(p + 20, m->bz);
+	replay_put32(p + 24, m->cx);
+	replay_put32(p + 28, m->cy);
+	replay_put32(p + 32, m->cz);
+}
+
+static void replay_get_vec9(const unsigned char *p, tnfs_vec9 *m) {
+	m->ax = replay_get32(p);
+	m->ay = replay_get32(p + 4);
+	m->az = replay_get32(p + 8);
+	m->bx = replay_get32(p + 12);
+	m->by = replay_get32(p + 16);
+	m->bz = replay_get32(p + 20);
+	m->cx = replay_get32(p + 24);
+	m->cy = replay_get32(p + 28);
+	m->cz = replay_get32(p + 32);
+}
+
+static void replay_set_flags() {
+	general_flags = (iSimTimeClock & 1) == 0;
+	if ((iSimTimeClock & 3) == 0) {
+		general_flags |= 4;
+	}
+	if ((iSimTimeClock & 7) == 0) {
+		general_flags |= 0x10;
+	}
+}
+
+int tnfs_replay_end_clock() {
+	return replay_get32(g_replay.world + REPLAY_WORLD_END_CLOCK);
+}
+
+/*
+ * Random generator seed (Win95 SE 0x428fe0 == DOS 0x8cd90; PSX 0x8005c3dc), called with the setup's random_seed
+ * (SE: time() at race start, or the seed of a loaded replay) before the race is initialized.
+ */
+void tnfs_random_seed(unsigned int seed) {
+	g_lcg_random_mod = seed * 3;
+	if ((seed & 1) == 0) {
+		seed = seed + 1;
+	}
+	g_lcg_random_seed = seed;
+	if ((g_lcg_random_mod & 1) == 0) {
+		g_lcg_random_mod = g_lcg_random_mod + 1;
+	}
+}
+
+/*
+ * Road sign status copies (Win95 SE 0x4501fc / 0x450250 / 0x4501a8, DOS 0x708c6 / 0x7091e / 0x7085f): byte 1 of
+ * each prop is the replay copy of byte 0 (the keyframe + 1 when it was knocked down).
+ */
+void tnfs_sign_status_save() {
+	int i;
+	for (i = 0; i < g_road_object_count; i++) {
+		g_sign_status[i * 2 + 1] = g_sign_status[i * 2];
+	}
+}
+
+void tnfs_sign_status_restore() {
+	int i;
+	for (i = 0; i < g_road_object_count; i++) {
+		g_sign_status[i * 2] = g_sign_status[i * 2 + 1];
+	}
+}
+
+// stands the signs knocked down at keyframe "keyframe" or later up again
+void tnfs_sign_status_replay_rewind(int keyframe) {
+	int i;
+	for (i = 0; i < g_road_object_count; i++) {
+		if (keyframe <= (int) (unsigned char) g_sign_status[i * 2] - 1) {
+			g_sign_status[i * 2] = 0;
+		}
+	}
+}
+
+/*
+ * Replay buffers reset at race init (Win95 SE FUN_0044edd8, DOS tnfs_car_init_Mobile_InitCarData 0x6f28e).
+ * The original allocates the recording buffer ("UsrCtrlBuff") without clearing it.
+ */
+void tnfs_replay_init() {
+	int i;
+	replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, 0x1c2);
+	g_replay.highlights.clip = -2;
+	replay_put32(g_replay.world, 0);
+	replay_put32(g_replay.world + REPLAY_WORLD_END_CLOCK, 0);
+	g_replay.highlights.return_pending = 0;
+	g_replay.highlights.camera_restart = 0;
+	g_replay.highlights.reinstating = 0;
+	g_replay.highlights.current_second = 0;
+	g_replay.highlights.play_count = 1;
+	g_replay.highlights.panel_state = 6;
+	for (i = 0; i < 480; i++) {
+		g_replay.highlights.seconds[i] = 0;
+	}
+	g_replay.highlights.tv_camera = 0;
+	g_replay_highlights_only = 0;
+	g_replay_clip_cut = 0;
+}
+
+/*
+ * Highlight scoring (Win95 SE FUN_0044d744, DOS 0x6d15b, PSX 0x800489a4), recording only: keeps the best score of each
+ * second, marked with + 0x80 until tnfs_replay_highlights_select picks it. A later event in the same second wins only
+ * when its score is higher than the stored value including the mark. Scores: 0x5c rollover start, 0x54 landing after
+ * > 10 ticks in the air, 0x32 hard fence hit, 0x57 sliding sideways / spinning, 0x28 skidding fast, 0x78 the player
+ * first moves, 0x50 race order change, 0x52 cop spun out, car-car hits from a table (20..98).
+ */
+void tnfs_replay_highlight_record(int score) {
+	int *second;
+	if (g_is_playing == 1) {
+		g_replay.highlights.current_second = g_replay_tick / 0x3c;
+		second = &g_replay.highlights.seconds[g_replay.highlights.current_second];
+		if (*second >> 8 < iSimTimeClock / 0x3c) {
+			*second = 0;
+		}
+		if ((*second & 0xff) < score) {
+			*second = (iSimTimeClock / 0x3c) << 8 | (score + 0x80);
+		}
+	}
+}
+
+/*
+ * Highlight clips (Win95 SE FUN_0044d7d8, DOS 0x6d221 with 600 seconds and + 0x28): up to 30 seconds with the best
+ * marked scores, oldest first, each becomes the clip second - 2 .. second + 5 (clock rounded down to 4), overlapping
+ * clips are merged (the higher coolness is kept). No highlight: one clip of the whole race, coolness 200.
+ */
+void tnfs_replay_highlights_select() {
+	tnfs_replay_highlights *hl = &g_replay.highlights;
+	int end;
+	int count;
+	int min;
+	int pass;
+	int i;
+	int best;
+	int best_i;
+	int value;
+	int swapped;
+	int sorted;
+	int cc;
+	int s;
+	int next;
+
+	end = tnfs_replay_end_clock();
+	count = end / 0x3c;
+	if (count > 480) {
+		count = 480;
+	}
+	min = (end - TNFS_REPLAY_TICKS) / 0x3c;
+	if (min < -2) {
+		min = -2;
+	} else {
+		min = min + 0x3c;
+	}
+
+	best_i = 0;
+	s = 0;
+	for (pass = 0; pass < 30; pass++) {
+		best = 0x80;
+		for (i = 0; i < count; i++) {
+			value = hl->seconds[i] & 0xff;
+			if (best <= value && min <= hl->seconds[i] >> 8) {
+				hl->best_seconds[s] = hl->seconds[i] >> 8;
+				best = value;
+				best_i = i;
+			}
+		}
+		if (best > 0x80) {
+			s++;
+			hl->seconds[best_i] -= 0x80;
+		}
+	}
+	for (i = 0; i < count; i++) {
+		value = hl->seconds[i] & 0xff;
+		if (value != 0 && value < 0x80) {
+			hl->seconds[i] += 0x80;
+		}
+	}
+
+	sorted = 0;
+	if (s > 0) {
+		do {
+			swapped = 0;
+			for (i = 1; i < s; i++) {
+				if (hl->best_seconds[i] < hl->best_seconds[i - 1]) {
+					value = hl->best_seconds[i];
+					hl->best_seconds[i] = hl->best_seconds[i - 1];
+					hl->best_seconds[i - 1] = value;
+					swapped = 1;
+				}
+			}
+		} while (swapped && ++sorted < s);
+	}
+
+	hl->clip_count = 0;
+	for (i = 0; i < s; i++) {
+		cc = hl->clip_count;
+		next = cc;
+		if (min <= hl->best_seconds[i] - 2) {
+			hl->clips[cc][0] = (hl->best_seconds[i] - 2) * 0x3c;
+			hl->clips[cc][1] = (hl->best_seconds[i] + 5) * 0x3c;
+			// the original indexes the seconds by the absolute second, which is past the array after 8 minutes
+			// (it then reads the following globals); here the read stays inside the highlights block
+			value = hl->best_seconds[i];
+			if (value >= 0 && value < 480 + 9) {
+				hl->clips[cc][2] = ((int *) hl->seconds)[value] & 0xff;
+			} else {
+				hl->clips[cc][2] = 0;
+			}
+			hl->clips[cc][0] -= hl->clips[cc][0] % 4;
+			hl->clips[cc][1] -= hl->clips[cc][1] % 4;
+			if (hl->clips[cc][0] < 0) {
+				hl->clips[cc][0] = 0;
+			}
+			if (end < hl->clips[cc][1]) {
+				hl->clips[cc][1] = end;
+			}
+			next = cc + 1;
+			if (next > 1 && hl->clips[cc][0] < hl->clips[cc - 1][1]) {
+				hl->clips[cc - 1][1] = hl->clips[cc][1];
+				if (hl->clips[cc - 1][2] < hl->clips[cc][2]) {
+					hl->clips[cc - 1][2] = hl->clips[cc][2];
+				}
+				next = cc;
+			}
+		}
+		hl->clip_count = next;
+	}
+	if (hl->clip_count == 0) {
+		hl->clips[0][0] = 0;
+		hl->clips[0][1] = end;
+		hl->clips[0][2] = 200;
+		hl->clip_count = 1;
+	}
+}
+
+/*
+ * Control samples (Win95 SE FUN_0044db34 store / FUN_0044dbc8 load, DOS 0x6d8f9 / 0x6d9ac): one per control step at
+ * replay tick / 4; low byte of the word in the first area, high byte in the second (2 players).
+ */
+static void tnfs_replay_store_controls() {
+	int i;
+	int sample;
+	sample = g_replay_tick / 4;
+	for (i = 0; i < g_number_of_players && i < 2; i++) {
+		g_replay.recording[i * TNFS_REPLAY_SAMPLES + sample] = (unsigned char) g_control_word[i];
+		g_replay.recording[REPLAY_CONTROLS_HIGH + i * TNFS_REPLAY_SAMPLES + sample] = (unsigned char) (g_control_word[i] >> 8);
+	}
+}
+
+static void tnfs_replay_load_controls() {
+	int i;
+	int sample;
+	sample = g_replay_tick / 4;
+	for (i = 0; i < g_number_of_players && i < 2; i++) {
+		g_control_word[i] = g_replay.recording[i * TNFS_REPLAY_SAMPLES + sample] //
+				| g_replay.recording[REPLAY_CONTROLS_HIGH + i * TNFS_REPLAY_SAMPLES + sample] << 8;
+	}
+}
+
+/*
+ * Car state of a keyframe, 0x168 bytes (Win95 SE FUN_0044dc40 save / FUN_0044dd9c restore, DOS 0x6da74 / 0x6dc64).
+ * Offsets in the comments are the record's; car offsets are DOS (SE + 0x31 from 0x47d on).
+ */
+static void tnfs_replay_car_save(tnfs_car_data *car, unsigned char *r) {
+	tnfs_collision_data *c = &car->collision_data;
+
+	// 0x00 control handler (DOS +0x4dd: 1 player controls, 2 AI); the port has no such field
+	replay_put32(r + 0x00, (car->car_id >= 0 && car->car_id < g_number_of_players) ? 1 : 2);
+	replay_put32(r + 0x04, car->crash_state);
+	replay_put32(r + 0x08, car->car_id << 24 | car->field_4e9 << 8);
+	replay_put_vec3(r + 0x0c, &car->position);
+	replay_put_vec3(r + 0x18, &car->angle);
+	replay_put32(r + 0x24, car->steer_angle);
+	replay_put32(r + 0x28, car->target_angle);
+	replay_put32(r + 0x2c, car->is_crashed);
+	replay_put_vec9(r + 0x30, &car->matrix);
+	replay_put32(r + 0x54, car->track_slice);
+	replay_put32(r + 0x58, car->lap_number);
+	replay_put32(r + 0x5c, car->speed_x);
+	replay_put32(r + 0x60, car->speed_y);
+	replay_put32(r + 0x64, car->speed_z);
+	replay_put32(r + 0x68, car->speed_local_lat);
+	replay_put32(r + 0x6c, car->speed_local_vert);
+	replay_put32(r + 0x70, car->speed_local_lon);
+	replay_put32(r + 0x74, car->speed);
+	replay_put32(r + 0x78, car->angular_speed);
+	replay_put32(r + 0x7c, car->car_length);
+	replay_put32(r + 0x80, car->car_width);
+	replay_put32(r + 0x84, car->center_line_distance);
+	replay_put32(r + 0x88, car->side_width);
+	replay_put_vec3(r + 0x8c, &car->road_fence_normal);
+	replay_put_vec3(r + 0x98, &car->road_surface_normal);
+	replay_put_vec3(r + 0xa4, &car->road_heading);
+	replay_put_vec3(r + 0xb0, &car->road_position);
+	replay_put32(r + 0xbc, car->ai_state);
+	replay_put32(r + 0xc0, car->collision_height_offset);
+	// 0xc4: the 0x94 bytes of the crash body (DOS tnfs_collision_data)
+	replay_put_vec9(r + 0xc4, &c->matrix);
+	replay_put_vec3(r + 0xc4 + 0x24, &c->position);
+	replay_put_vec3(r + 0xc4 + 0x30, &c->speed);
+	replay_put_vec3(r + 0xc4 + 0x3c, &c->angular_speed);
+	replay_put_vec3(r + 0xc4 + 0x48, &c->gravity_vector);
+	// 0xc4 + 0x54..0x5f: not in the port's struct
+	replay_put32(r + 0xc4 + 0x60, c->mass);
+	replay_put32(r + 0xc4 + 0x64, c->moment_of_inertia);
+	replay_put32(r + 0xc4 + 0x68, c->linear_acc_factor);
+	replay_put32(r + 0xc4 + 0x6c, c->angular_acc_factor);
+	replay_put32(r + 0xc4 + 0x70, c->edge_length);
+	replay_put_vec3(r + 0xc4 + 0x74, &c->size);
+	replay_put32(r + 0xc4 + 0x80, c->state_timer);
+	replay_put32(r + 0xc4 + 0x84, c->field_084);
+	replay_put32(r + 0xc4 + 0x88, c->field_088);
+	replay_put32(r + 0xc4 + 0x8c, c->field_08c);
+	replay_put32(r + 0xc4 + 0x90, c->traffic_speed_factor);
+	replay_put32(r + 0x158, car->car_road_speed);
+	replay_put32(r + 0x15c, car->field_158);
+	replay_put32(r + 0x160, car->lane_slack);
+	replay_put32(r + 0x164, car->is_wrecked);
+}
+
+static void tnfs_replay_car_restore(tnfs_car_data *car, const unsigned char *r) {
+	tnfs_collision_data *c = &car->collision_data;
+	int v;
+
+	// 0x00 control handler: not kept by the port
+	car->crash_state = replay_get32(r + 0x04);
+	v = replay_get32(r + 0x08);
+	car->car_id = v >> 24;
+	car->field_4e9 = (v >> 8) & 0xffff;
+	replay_get_vec3(r + 0x0c, &car->position);
+	replay_get_vec3(r + 0x18, &car->angle);
+	car->steer_angle = replay_get32(r + 0x24);
+	car->target_angle = replay_get32(r + 0x28);
+	car->is_crashed = replay_get32(r + 0x2c);
+	replay_get_vec9(r + 0x30, &car->matrix);
+	car->track_slice = replay_get32(r + 0x54);
+	car->lap_number = replay_get32(r + 0x58);
+	car->speed_x = replay_get32(r + 0x5c);
+	car->speed_y = replay_get32(r + 0x60);
+	car->speed_z = replay_get32(r + 0x64);
+	car->speed_local_lat = replay_get32(r + 0x68);
+	car->speed_local_vert = replay_get32(r + 0x6c);
+	car->speed_local_lon = replay_get32(r + 0x70);
+	car->speed = replay_get32(r + 0x74);
+	car->angular_speed = replay_get32(r + 0x78);
+	car->car_length = replay_get32(r + 0x7c);
+	car->car_width = replay_get32(r + 0x80);
+	car->center_line_distance = replay_get32(r + 0x84);
+	car->side_width = replay_get32(r + 0x88);
+	replay_get_vec3(r + 0x8c, &car->road_fence_normal);
+	replay_get_vec3(r + 0x98, &car->road_surface_normal);
+	replay_get_vec3(r + 0xa4, &car->road_heading);
+	replay_get_vec3(r + 0xb0, &car->road_position);
+	car->ai_state = replay_get32(r + 0xbc);
+	car->collision_height_offset = replay_get32(r + 0xc0);
+	replay_get_vec9(r + 0xc4, &c->matrix);
+	replay_get_vec3(r + 0xc4 + 0x24, &c->position);
+	replay_get_vec3(r + 0xc4 + 0x30, &c->speed);
+	replay_get_vec3(r + 0xc4 + 0x3c, &c->angular_speed);
+	replay_get_vec3(r + 0xc4 + 0x48, &c->gravity_vector);
+	c->mass = replay_get32(r + 0xc4 + 0x60);
+	c->moment_of_inertia = replay_get32(r + 0xc4 + 0x64);
+	c->linear_acc_factor = replay_get32(r + 0xc4 + 0x68);
+	c->angular_acc_factor = replay_get32(r + 0xc4 + 0x6c);
+	c->edge_length = replay_get32(r + 0xc4 + 0x70);
+	replay_get_vec3(r + 0xc4 + 0x74, &c->size);
+	c->state_timer = replay_get32(r + 0xc4 + 0x80);
+	c->field_084 = replay_get32(r + 0xc4 + 0x84);
+	c->field_088 = replay_get32(r + 0xc4 + 0x88);
+	c->field_08c = replay_get32(r + 0xc4 + 0x8c);
+	c->traffic_speed_factor = replay_get32(r + 0xc4 + 0x90);
+	car->car_road_speed = replay_get32(r + 0x158);
+	car->field_158 = replay_get32(r + 0x15c);
+	car->lane_slack = replay_get32(r + 0x160);
+	car->is_wrecked = replay_get32(r + 0x164);
+	car->slide_front = 0;
+	car->slide_rear = 0;
+	car->track_slice_lap = (car->lap_number - 1) * g_tri_num_chunks * 4 + car->track_slice;
+}
+
+/*
+ * Keyframe of one car (Win95 SE FUN_0044e154, DOS 0x6e298): players (car_id < g_number_of_players) in the player area
+ * by car_id, 0x1a4 bytes; the other cars in the next free slot of the keyframe, 0x172 bytes.
+ */
+static void tnfs_replay_car_keyframe_save(tnfs_car_data *car, int slot) {
+	unsigned char *r;
+	int k = g_replay_tick / TNFS_REPLAY_KEYFRAME;
+
+	if (car->car_id < g_number_of_players) {
+		r = g_replay.recording + REPLAY_PLAYER_FRAMES + car->car_id * (TNFS_REPLAY_KEYFRAMES * 0x1a4) + k * 0x1a4;
+		tnfs_replay_car_save(car, r);
+		replay_put32(r + 0x170, car->road_grip_increment);
+		replay_put32(r + 0x174, car->tire_grip_rear);
+		replay_put32(r + 0x178, car->tire_grip_front);
+		replay_put32(r + 0x190, car->slope_force_lat);
+		replay_put32(r + 0x194, car->unknown_flag_3DD);
+		replay_put32(r + 0x198, car->slope_force_lon);
+		replay_put32(r + 0x19c, car->thrust);
+		replay_put32(r + 0x18c, car->gear_shift_button);
+		replay_put32(r + 0x180, car->tire_grip_loss);
+		replay_put32(r + 0x17c, car->speed_drivetrain);
+		r[0x184] = (unsigned char) car->gear_auto_selected;
+		r[0x168] = (unsigned char) car->throttle;
+		r[0x169] = (unsigned char) car->throttle_previous_pos;
+		r[0x16a] = (unsigned char) car->brake;
+		replay_put32(r + 0x188, car->time_off_ground);
+		replay_put32(r + 0x16c, car->rpm_vehicle << 16 | (car->rpm_engine & 0xffff));
+		r[0x186] = (unsigned char) (car->is_engine_cutoff * 2 | car->handbrake << 2 | car->is_gear_engaged << 3 | car->wheels_on_ground);
+		if ((car->tire_skid_rear & 2) != 0) {
+			r[0x186] |= 0x20;
+		}
+		// 0x187 is never written
+		r[0x185] = (unsigned char) (car->gear_selected + 2);
+		r[0x16b] = (unsigned char) (car->is_shifting_gears + 100);
+		replay_put32(r + 0x1a0, car->surface_type);
+	} else {
+		r = g_replay.recording + REPLAY_OTHER_FRAMES + k * (8 * 0x172) + slot * 0x172;
+		tnfs_replay_car_save(car, r);
+		replay_put32(r + 0x168, car->speed_target);
+		replay_put32(r + 0x16c, car->target_center_line);
+		r[0x171] = 0; // byte at DOS +0x340, which nothing else reads
+		r[0x170] = car->wheels_on_ground;
+	}
+}
+
+/*
+ * Reinstates the cars of a keyframe (Win95 SE FUN_0044df20, DOS 0x6df8e): player "index", or the other car in slot
+ * "index" (whose record names the car).
+ */
+static void tnfs_replay_car_keyframe_restore(int is_player, int k, int index) {
+	tnfs_car_data *car;
+	const unsigned char *r;
+	int flags;
+
+	if (is_player) {
+		car = g_car_ptr_array[index];
+		r = g_replay.recording + REPLAY_PLAYER_FRAMES + index * (TNFS_REPLAY_KEYFRAMES * 0x1a4) + k * 0x1a4;
+		tnfs_replay_car_restore(car, r);
+		car->throttle = r[0x168];
+		car->throttle_previous_pos = r[0x169];
+		car->brake = r[0x16a];
+		car->road_grip_increment = replay_get32(r + 0x170);
+		car->tire_grip_rear = replay_get32(r + 0x174);
+		car->tire_grip_front = replay_get32(r + 0x178);
+		car->slope_force_lat = replay_get32(r + 0x190);
+		car->unknown_flag_3DD = replay_get32(r + 0x194);
+		car->slope_force_lon = replay_get32(r + 0x198);
+		car->thrust = replay_get32(r + 0x19c);
+		car->gear_shift_button = replay_get32(r + 0x18c);
+		car->tire_grip_loss = replay_get32(r + 0x180);
+		car->speed_drivetrain = replay_get32(r + 0x17c);
+		car->gear_auto_selected = r[0x184];
+		car->is_shifting_gears = r[0x16b] - 100;
+		car->gear_selected = r[0x185] - 2;
+		car->rpm_vehicle = replay_get32(r + 0x16c) >> 16;
+		car->rpm_engine = replay_get32(r + 0x16c) & 0xffff;
+		car->time_off_ground = replay_get32(r + 0x188);
+		flags = r[0x186];
+		if (((flags >> 5) & 1) == 0) {
+			car->tire_skid_rear = 0;
+		} else {
+			car->tire_skid_rear = 2;
+		}
+		car->is_gear_engaged = (flags >> 3) & 1;
+		car->handbrake = (flags >> 2) & 1;
+		car->is_engine_cutoff = (flags >> 1) & 1;
+		car->wheels_on_ground = flags & 1;
+		car->surface_type = replay_get32(r + 0x1a0);
+		car->tire_skid_front = 0;
+		// the crash model's tyre sound override (SE DAT_004c5f98 / 9c)
+		DAT_000FDCEC = -1;
+		DAT_000FDCF0 = -1;
+	} else {
+		r = g_replay.recording + REPLAY_OTHER_FRAMES + k * (8 * 0x172) + index * 0x172;
+		if ((replay_get32(r + 8) >> 24) >= g_total_cars_in_scene) {
+			// the port has 8 car slots, SE 9 (a head-to-head with a cop and 6 traffic cars): not restored
+			return;
+		}
+		car = g_car_ptr_array[replay_get32(r + 8) >> 24];
+		tnfs_replay_car_restore(car, r);
+		car->speed_target = replay_get32(r + 0x168);
+		car->target_center_line = replay_get32(r + 0x16c);
+		car->wheels_on_ground = r[0x170];
+		// r[0x171] goes to the byte at DOS +0x340, which nothing else reads
+	}
+}
+
+/*
+ * Race globals of keyframe k, 0xa2 bytes at world + 0x14 + k * 0xa2 (Win95 SE FUN_0044e8f8 / tnfs_replay_reinstate,
+ * DOS tnfs_control_0006ec66 / 0x6e53b). Unaligned record, so written byte by byte.
+ */
+static void tnfs_replay_world_save(int k, int other_cars) {
+	unsigned char *r = g_replay.world + REPLAY_WORLD_KEYFRAMES + k * 0xa2;
+	int i;
+
+	for (i = 0; i < g_total_cars_in_scene; i++) {
+		// 0x00 handler order (DOS g_some_car_array1 0x153bec, SE 0x509e68): the port runs the cars in index order
+		replay_put32(r + i * 4, i);
+		// 0x24 race order (g_some_car_array2)
+		replay_put32(r + 0x24 + i * 4, g_some_car_array2[i]);
+	}
+	// 0x48, 0x4c: never written
+	replay_put32(r + 0x50, other_cars);
+	replay_put32(r + 0x54, g_ai_frame_counter);
+	replay_put32(r + 0x58, g_police_on_chase);
+	// 0x5c, 0x68: 12 bytes from g_random_struct[i] + 2 (a..e and the next 2 bytes: g_random_struct[1].id after [0])
+	for (i = 0; i < 2; i++) {
+		r[0x5c + i * 12 + 0] = (unsigned char) g_random_struct[i].a;
+		r[0x5c + i * 12 + 1] = (unsigned char) (g_random_struct[i].a >> 8);
+		r[0x5c + i * 12 + 2] = (unsigned char) g_random_struct[i].b;
+		r[0x5c + i * 12 + 3] = (unsigned char) (g_random_struct[i].b >> 8);
+		r[0x5c + i * 12 + 4] = (unsigned char) g_random_struct[i].c;
+		r[0x5c + i * 12 + 5] = (unsigned char) (g_random_struct[i].c >> 8);
+		r[0x5c + i * 12 + 6] = (unsigned char) g_random_struct[i].d;
+		r[0x5c + i * 12 + 7] = (unsigned char) (g_random_struct[i].d >> 8);
+		r[0x5c + i * 12 + 8] = (unsigned char) g_random_struct[i].e;
+		r[0x5c + i * 12 + 9] = (unsigned char) (g_random_struct[i].e >> 8);
+		if (i == 0) {
+			r[0x5c + 10] = (unsigned char) g_random_struct[1].id;
+			r[0x5c + 11] = (unsigned char) (g_random_struct[1].id >> 8);
+		} else {
+			// 2 bytes after the array (DOS 0x165136)
+			r[0x68 + 10] = 0;
+			r[0x68 + 11] = 0;
+		}
+	}
+	replay_put32(r + 0x74, g_police_chase_time);
+	replay_put32(r + 0x78, 0); // siren sound state (DOS DAT_000fdcf4, SE DAT_004c5fa0), sound code
+	replay_put32(r + 0x7c, g_lcg_random_mod);
+	replay_put32(r + 0x80, g_cop_park_position);
+	replay_put32(r + 0x84, g_random_direction[0]);
+	replay_put32(r + 0x88, g_random_direction[1]);
+	replay_put32(r + 0x8c, DAT_0016532c);
+	replay_put32(r + 0x90, 0); // DOS DAT_00153b94 / SE DAT_00509e10, read by nothing else
+	// 0x94: never written
+	r[0x98] = 0; // DOS DAT_000f9e4c / SE DAT_004b9624 (bit 0 restored), read by nothing else
+	r[0x99] = (unsigned char) g_police_speeding_ticket;
+	replay_put32(r + 0x9a, 0); // split time checkpoint of the player (DOS DAT_001664fc, SE DAT_0051c970), HUD
+	replay_put32(r + 0x9e, 0); // split time checkpoint of the opponent (DOS DAT_00166500, SE DAT_0051c974), HUD
+}
+
+/*
+ * Restores keyframe k (Win95 SE tnfs_replay_reinstate 0x44e354, DOS 0x6e53b). k = tick / TNFS_REPLAY_KEYFRAME, or
+ * param_2 + 16 (DOS + 30) for param_2 >= 0, which nothing calls. Camera and sound restarts are left out.
+ */
+void tnfs_replay_reinstate(int tick, int param_2) {
+	unsigned char *r;
+	int k;
+	int i;
+	int other_cars;
+
+	if (param_2 >= 0) {
+		iSimTimeClock = g_replay.highlights.return_clock[param_2];
+		replay_set_flags();
+		k = param_2 + 0x10;
+	} else {
+		k = tick / TNFS_REPLAY_KEYFRAME;
+	}
+	tnfs_sign_status_restore();
+	tnfs_sign_status_replay_rewind(iSimTimeClock / TNFS_REPLAY_KEYFRAME);
+
+	r = g_replay.world + REPLAY_WORLD_KEYFRAMES + k * 0xa2;
+	for (i = 0; i < g_total_cars_in_scene; i++) {
+		// handler order (r + i * 4): the port runs the cars in index order
+		g_some_car_array2[i] = replay_get32(r + 0x24 + i * 4);
+	}
+	other_cars = replay_get32(r + 0x50);
+	g_lcg_random_mod = replay_get32(r + 0x7c);
+	g_police_chase_time = replay_get32(r + 0x74);
+	g_police_speeding_ticket = r[0x99];
+	// r + 0x78: siren sound state
+	g_police_on_chase = replay_get32(r + 0x58);
+	g_cop_park_position = replay_get32(r + 0x80);
+	g_random_direction[0] = replay_get32(r + 0x84);
+	g_random_direction[1] = replay_get32(r + 0x88);
+	DAT_0016532c = replay_get32(r + 0x8c);
+	// r + 0x90, r[0x98]: globals read by nothing else
+	for (i = 0; i < 2; i++) {
+		g_random_struct[i].a = (short) (r[0x5c + i * 12 + 0] | r[0x5c + i * 12 + 1] << 8);
+		g_random_struct[i].b = (short) (r[0x5c + i * 12 + 2] | r[0x5c + i * 12 + 3] << 8);
+		g_random_struct[i].c = (short) (r[0x5c + i * 12 + 4] | r[0x5c + i * 12 + 5] << 8);
+		g_random_struct[i].d = (short) (r[0x5c + i * 12 + 6] | r[0x5c + i * 12 + 7] << 8);
+		g_random_struct[i].e = (short) (r[0x5c + i * 12 + 8] | r[0x5c + i * 12 + 9] << 8);
+	}
+	g_random_struct[1].id = (short) (r[0x5c + 10] | r[0x5c + 11] << 8);
+	for (i = 0; i < g_total_cars_in_scene; i++) {
+		g_car_ptr_array[i]->road_object_index = 0;
+		g_car_ptr_array[i]->road_object_slice = 0;
+	}
+	g_ai_frame_counter = replay_get32(r + 0x54);
+	// r + 0x9a, r + 0x9e: split time checkpoints (HUD)
+
+	for (i = 0; i < g_number_of_players && i < 2; i++) {
+		tnfs_replay_car_keyframe_restore(1, k, i);
+	}
+	for (i = 0; i < other_cars; i++) {
+		tnfs_replay_car_keyframe_restore(0, k, i);
+	}
+	g_replay.highlights.reinstating = 0;
+
+	if (param_2 >= 0) {
+		if (g_is_playing == 1) {
+			tnfs_sign_status_save();
+		}
+		g_is_playing = 2;
+		g_replay.highlights.camera_restart = 1;
+	}
+	// camera re-targeted unless recording, looped sounds restarted when sound_restart: front end
+}
+
+/*
+ * Recording, once per control step in mode 1 (Win95 SE FUN_0044e8f8, DOS tnfs_control_0006ec66): latches the
+ * control words (neutral before clock 0x78), then either stores a sample or, every TNFS_REPLAY_KEYFRAME clock units
+ * (countdown of 0x1c2 control steps), saves a keyframe (sign status, race globals, sample, cars) and reinstates it.
+ * Only the local player's word is read here (SE FUN_004397f4 pops every player's word from the input / network
+ * queues); the words of other players are whatever the caller put in g_control_word.
+ */
+static void tnfs_replay_record() {
+	int k;
+	int i;
+	int other_cars;
+	int countdown;
+	tnfs_car_data *car;
+
+	g_control_word[g_player_id] = tnfs_control_word_get();
+
+	if (iSimTimeClock < 0x78) {
+		for (i = 0; i < g_number_of_players; i++) {
+			g_control_word[i] = 0x7a0;
+		}
+	}
+
+	k = g_replay_tick / TNFS_REPLAY_KEYFRAME;
+	countdown = replay_get32(g_replay.world + REPLAY_WORLD_COUNTDOWN);
+	if (countdown == 0) {
+		tnfs_sign_status_save();
+		replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, 0x1c2);
+		other_cars = 0;
+		tnfs_replay_store_controls();
+		for (i = 0; i < g_total_cars_in_scene; i++) {
+			car = g_car_ptr_array[i];
+			tnfs_replay_car_keyframe_save(car, other_cars);
+			if (g_number_of_players <= car->car_id) {
+				other_cars++;
+			}
+		}
+		tnfs_replay_world_save(k, other_cars);
+		tnfs_replay_reinstate(g_replay_tick, -1);
+	} else {
+		tnfs_replay_store_controls();
+	}
+	replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, replay_get32(g_replay.world + REPLAY_WORLD_COUNTDOWN) - 1);
+}
+
+/*
+ * Moves the replay to a clock (Win95 SE FUN_0044e700, DOS tnfs_game_clock_0006e9e0), playing until play_to (capped at
+ * the end of the recording). On a keyframe it plays at once (mode 2), otherwise it goes back to the keyframe before
+ * and cues (mode 3: the game loop simulates without drawing until seek_target, the caller runs tnfs_update until the
+ * mode is not 3, as SE tnfs_game_InitSim does). Leaving the race (mode 1) saves the sign status.
+ * Front end, left out: sounds stopped, skid marks and HUD message timers reset, the race timers saved.
+ */
+void tnfs_replay_seek(int clock, int play_to) {
+	int end = tnfs_replay_end_clock();
+
+	if (end < play_to) {
+		play_to = end;
+	}
+	g_replay_tick = clock % TNFS_REPLAY_TICKS;
+	g_replay.highlights.play_to = play_to;
+	if (g_replay_tick % TNFS_REPLAY_KEYFRAME == 0) {
+		iSimTimeClock = clock;
+		if (g_is_playing == 1) {
+			tnfs_sign_status_save();
+		}
+		g_is_playing = 2;
+		g_replay.highlights.sound_restart = 1;
+		g_replay.highlights.camera_restart = 1;
+	} else {
+		iSimTimeClock = (clock / TNFS_REPLAY_KEYFRAME) * TNFS_REPLAY_KEYFRAME;
+		g_replay.highlights.seek_target = clock;
+		if (g_is_playing == 1) {
+			tnfs_sign_status_save();
+		}
+		g_is_playing = 3;
+		g_replay.highlights.camera_restart = 0;
+	}
+	g_replay_tick = iSimTimeClock % TNFS_REPLAY_TICKS;
+	replay_set_flags();
+	g_replay.highlights.reinstating = 1;
+	tnfs_smoke_particles_reset(&g_smoke_particles);
+	g_replay.highlights.sound_restart = 1;
+}
+
+/*
+ * One played control step (Win95 SE FUN_0044ecc4, DOS 0x6f125): reinstates the keyframe at keyframe times and loads
+ * the recorded control words. The camera for the clip (by its coolness, random), the TV camera change every 256 clock
+ * units and the sounds are front end; the first played tick of a replay stores the clock to loop back to.
+ */
+void tnfs_replay_play_tick() {
+	if (g_replay_tick % TNFS_REPLAY_KEYFRAME == 0) {
+		tnfs_replay_reinstate(g_replay_tick, -1);
+	}
+	tnfs_replay_load_controls();
+	if (g_replay.highlights.camera_restart != 0) {
+		g_replay_clip_cut = 0;
+		g_replay.highlights.camera_restart = 0;
+		if (g_replay.highlights.return_pending != 0) {
+			g_replay.highlights.return_pending = 0;
+			g_replay.highlights.return_clock[0] = iSimTimeClock;
+		}
+	}
+}
+
+/*
+ * Next highlight clip (Win95 SE FUN_0044fc74, DOS 0x702f3); after the last one the highlights loop, or end the replay
+ * (DAT_00153B24 = 0x20, the game's exit code) in highlights-only mode. The random slow motion of cool clips (coolness
+ * 0xdb..0xf7, the cop clip 0xe4 only near the other player) is front end.
+ */
+static void tnfs_replay_next_clip() {
+	tnfs_replay_highlights *hl = &g_replay.highlights;
+
+	g_replay_speed = 4;
+	g_replay_speed_skip = 0;
+	hl->clip++;
+	if (hl->clip >= hl->clip_count) {
+		if (g_replay_highlights_only == 0) {
+			hl->clip = 0;
+			tnfs_replay_seek(hl->clips[0][0], hl->clips[0][1]);
+			tnfs_replay_play_tick();
+			return;
+		}
+		DAT_00153B24 = 0x20;
+		return;
+	}
+	tnfs_replay_seek(hl->clips[hl->clip][0], hl->clips[hl->clip][1]);
+	tnfs_replay_play_tick();
+}
+
+/*
+ * Playback, once per control step in mode 2 (Win95 SE FUN_0044fe84, DOS tnfs_replay_00070565). At the end of a
+ * replay that is not a highlight clip it switches to g_replay_return_mode: back to the race (1, the race goes on from
+ * the replayed state) or a seek back to where the replay started (4: it loops).
+ */
+static void tnfs_replay_playback() {
+	tnfs_replay_highlights *hl = &g_replay.highlights;
+	int end = tnfs_replay_end_clock();
+
+	if (g_replay_speed == 0 && g_replay_frame_step < 1) {
+		hl->panel_state = 5;
+		replay_set_flags();
+		return;
+	}
+	if (iSimTimeClock < hl->play_to && (g_replay_clip_cut == 0 || hl->clip < 0)) {
+		tnfs_replay_play_tick();
+		return;
+	}
+	if (hl->play_to == end && hl->clip < 0) {
+		g_is_playing = g_replay_return_mode;
+		// skid marks, camera, sounds: front end
+		if (g_is_playing != 1) {
+			iSimTimeClock = hl->return_clock[0];
+			replay_set_flags();
+			g_replay_tick = iSimTimeClock % TNFS_REPLAY_TICKS;
+			tnfs_replay_seek(iSimTimeClock, end);
+			tnfs_replay_play_tick();
+		}
+		// else the race timers are restored (front end)
+		return;
+	}
+	if (hl->clip >= 0) {
+		tnfs_replay_next_clip();
+	}
+}
+
+/*
+ * Replay part of the game loop, on control steps (Win95 SE FUN_00450020, DOS FUN_000706e2). The replay panel input
+ * (SE FUN_0044f9b8, DOS tnfs_game_00070023) and the end of race check run before it in the original (front end).
+ */
+void tnfs_replay_update() {
+	if ((general_flags & 4) != 0) {
+		g_replay_tick = iSimTimeClock % TNFS_REPLAY_TICKS;
+		if (g_is_playing == 1) {
+			tnfs_replay_record();
+			replay_put32(g_replay.world + REPLAY_WORLD_END_CLOCK, iSimTimeClock);
+		} else if (g_is_playing == 2) {
+			tnfs_replay_playback();
+			g_replay.highlights.play_count++;
+		} else if (g_is_playing == 3) {
+			if (g_replay.highlights.seek_target <= iSimTimeClock) {
+				g_is_playing = 2;
+				g_replay.highlights.play_count++;
+				g_replay.highlights.camera_restart = 1;
+			}
+			if (iSimTimeClock < g_replay.highlights.play_to) {
+				tnfs_replay_play_tick();
+			}
+		} else if (g_is_playing == 4) {
+			replay_set_flags();
+		}
+	}
+}
+
+/*
+ * Starts a replay (Win95 SE FUN_0044f188, DOS 0x6f763): 2 the highlights (from the race: the camera mode is kept to
+ * return to), 3 the whole buffer (the last 27000 clock units, TV cameras), else the last 600 clock units (10 s).
+ * 3 and others loop (return mode 4).
+ */
+void tnfs_replay_start(int type) {
+	tnfs_replay_highlights *hl = &g_replay.highlights;
+	int end = tnfs_replay_end_clock();
+	int clock;
+
+	if (type == 2) {
+		if (g_is_playing == 1) {
+			hl->saved_camera = camera.id_user;
+		}
+		tnfs_replay_highlights_select();
+		if (hl->clip_count > 0) {
+			hl->clip = 0;
+			tnfs_replay_seek(hl->clips[0][0], hl->clips[0][1]);
+			g_replay_speed = 4;
+			g_replay_speed_skip = 0;
+		}
+		return;
+	}
+	hl->clip = -2;
+	g_replay_speed = 4;
+	g_replay_speed_skip = 0;
+	if (type == 3) {
+		clock = end - 27000;
+	} else {
+		clock = end - 600;
+	}
+	if (clock < 0) {
+		clock = 0;
+	}
+	hl->return_pending = 1;
+	g_replay_return_mode = 4;
+	tnfs_replay_seek(clock - clock % 4, end);
+	if (type == 3) {
+		hl->tv_camera = 1;
+	}
+	hl->clip = -1;
+}
+
+/*
+ * Back to the race from a replay (Win95 SE FUN_0044f090, DOS 0x6f62d): plays the last 8 clock units, then
+ * (return mode 1) the race goes on. The camera mode saved by tnfs_replay_start(2) is restored by the front end.
+ */
+void tnfs_replay_return_to_race() {
+	int end = tnfs_replay_end_clock();
+	int clock = end - 8;
+
+	if (clock < 0) {
+		clock = 0;
+	}
+	tnfs_replay_seek(clock - clock % 4, end);
+	g_replay.highlights.clip = -2;
+	g_replay_speed = 4;
+	g_replay_speed_skip = 0;
+	g_replay_return_mode = 1;
+	g_replay.highlights.panel_state = 6;
+}
+
+/*
+ * Replay panel time buttons (Win95 SE FUN_0044ef3c, DOS tnfs_game_clock_0006f408) while held (repeat = frames held):
+ * 1 to the start of the buffer, 2 to the end (300 clock units before it), 3 back, 4 forward, by (repeat / 16) * 4
+ * clock units (4 at first). Mode 4: the simulation stops; releasing (any tnfs_replay_speed_command) cues the clock.
+ */
+void tnfs_replay_scrub(int command, int repeat) {
+	int end = tnfs_replay_end_clock();
+	int step = (repeat / 16) * 4;
+	int first = end - (TNFS_REPLAY_TICKS - TNFS_REPLAY_KEYFRAME / 2);
+
+	if (end - 300 < iSimTimeClock) {
+		iSimTimeClock = end - 300;
+	}
+	if (repeat == 0) {
+		step = 4;
+	}
+	if (command == 1) {
+		iSimTimeClock = first;
+		if (first < 0) {
+			iSimTimeClock = 0;
+		}
+	} else if (command == 2) {
+		iSimTimeClock = end - 300;
+		if (iSimTimeClock < first) {
+			iSimTimeClock = first;
+		}
+		if (iSimTimeClock < 0) {
+			iSimTimeClock = 0;
+		}
+	} else if (command == 3) {
+		if (step < iSimTimeClock) {
+			iSimTimeClock -= step;
+		}
+		if (iSimTimeClock < first) {
+			iSimTimeClock = first;
+		}
+	} else if (command == 4) {
+		if (iSimTimeClock < end - 300 - step) {
+			iSimTimeClock += step;
+		}
+		if (iSimTimeClock < 0) {
+			iSimTimeClock = 0;
+		}
+	}
+	if (command >= 1 && command <= 4) {
+		g_replay.highlights.tv_camera = 0;
+	}
+	iSimTimeClock -= iSimTimeClock % 4;
+	if (g_is_playing == 1) {
+		tnfs_sign_status_save();
+	}
+	g_is_playing = 4;
+	g_replay.highlights.clip = -2;
+	g_replay_speed = 4;
+	g_replay_speed_skip = 0;
+}
+
+/*
+ * Replay panel play buttons (Win95 SE FUN_0044f378, DOS 0x6f9bb), not while racing: 6 full speed, 7 half, 8 quarter,
+ * 9 eighth (the play button cycles 6, 7, 8: SE table 0x4c5374), 5 pause / one frame step (repeat 0: two simulation
+ * ticks, one control step). After scrubbing (mode 4) it cues the replay from the shown clock and loops from there.
+ */
+void tnfs_replay_speed_command(int command, int repeat) {
+	if (g_is_playing == 1) {
+		return;
+	}
+	if (command == 6) {
+		g_replay_speed = 4;
+		g_replay_speed_skip = 0;
+	} else if (command == 7) {
+		g_replay_speed = 3;
+		g_replay_speed_skip = 2;
+	} else if (command == 9) {
+		g_replay_speed = 1;
+		g_replay_speed_skip = 8;
+	} else if (command == 8) {
+		g_replay_speed = 2;
+		g_replay_speed_skip = 4;
+	} else {
+		if (command != 5 || repeat != 0) {
+			return;
+		}
+		if (g_is_playing != 3 && g_replay_frame_step == 0) {
+			g_replay_frame_step = 2;
+			g_replay_speed = 0;
+		}
+	}
+	if (g_is_playing == 4) {
+		g_replay_return_mode = 4;
+		g_replay.highlights.return_pending = 1;
+		tnfs_replay_seek(iSimTimeClock - iSimTimeClock % 4, tnfs_replay_end_clock());
+		g_replay.highlights.tv_camera = 0;
+	}
+}
+
+/*
+ * Stats block of the file, 9 x 0x1d2 (Win95 SE 0x51cc5c; the original writes and reads its live g_stats_data):
+ * 0x000 lap times[17], 0x044 split times[85] (not in the port), 0x198 best times, quarter mile, penalties, warnings,
+ * 0x1b8 wrecks, 0x1bc finish time, 0x1c0 race distance, 0x1c4 top speed, 0x1c8.. end of race data (not in the port).
+ * Port fields are mapped by what they hold: lap_time is the finish time (DOS +0x1bc), prev_lap_time DOS +0x1c0.
+ */
+void tnfs_replay_stats_save() {
+	int i;
+	int j;
+	unsigned char *r;
+
+	memset(g_replay.stats, 0, sizeof(g_replay.stats));
+	for (i = 0; i < 8; i++) {
+		r = g_replay.stats[i];
+		for (j = 0; j < 17; j++) {
+			replay_put32(r + j * 4, g_stats_data[i].lap_timer[j]);
+		}
+		replay_put32(r + 0x198, g_stats_data[i].best_accel_time_1);
+		replay_put32(r + 0x19c, g_stats_data[i].best_accel_time_2);
+		replay_put32(r + 0x1a0, g_stats_data[i].best_brake_time_1);
+		replay_put32(r + 0x1a4, g_stats_data[i].best_brake_time_2);
+		replay_put32(r + 0x1a8, g_stats_data[i].quarter_mile_speed);
+		replay_put32(r + 0x1ac, g_stats_data[i].quarter_mile_time);
+		replay_put32(r + 0x1b0, g_stats_data[i].penalty_count);
+		replay_put32(r + 0x1b4, g_stats_data[i].warning_count);
+		replay_put32(r + 0x1b8, g_stats_data[i].field_0x1b8);
+		replay_put32(r + 0x1bc, g_stats_data[i].lap_time);
+		replay_put32(r + 0x1c0, g_stats_data[i].prev_lap_time);
+		replay_put32(r + 0x1c4, g_stats_data[i].top_speed);
+	}
+}
+
+void tnfs_replay_stats_load() {
+	int i;
+	int j;
+	unsigned char *r;
+
+	for (i = 0; i < 8; i++) {
+		r = g_replay.stats[i];
+		for (j = 0; j < 17; j++) {
+			g_stats_data[i].lap_timer[j] = replay_get32(r + j * 4);
+		}
+		g_stats_data[i].best_accel_time_1 = replay_get32(r + 0x198);
+		g_stats_data[i].best_accel_time_2 = replay_get32(r + 0x19c);
+		g_stats_data[i].best_brake_time_1 = replay_get32(r + 0x1a0);
+		g_stats_data[i].best_brake_time_2 = replay_get32(r + 0x1a4);
+		g_stats_data[i].quarter_mile_speed = replay_get32(r + 0x1a8);
+		g_stats_data[i].quarter_mile_time = replay_get32(r + 0x1ac);
+		g_stats_data[i].penalty_count = replay_get32(r + 0x1b0);
+		g_stats_data[i].warning_count = replay_get32(r + 0x1b4);
+		g_stats_data[i].field_0x1b8 = replay_get32(r + 0x1b8);
+		g_stats_data[i].lap_time = replay_get32(r + 0x1bc);
+		g_stats_data[i].prev_lap_time = replay_get32(r + 0x1c0);
+		g_stats_data[i].top_speed = replay_get32(r + 0x1c4);
+	}
 }
 
 /* common original TNFS functions */
@@ -1573,7 +2768,7 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 
 	g_pbs_file = pbsfile;
 
-	iSimTimeClock = 200;
+	iSimTimeClock = 0; // DOS InitSim 0x40da4
 	cheat_crashing_cars = 0;
 	g_game_settings = 0;
 	sound_flag = 0;
@@ -1734,17 +2929,51 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	tnfs_smoke_particles_reset(&g_smoke_particles);
 
 	tnfs_camera_init();
+
+	// replay buffers (DOS tnfs_car_init_Mobile_InitCarData 0x6f28e), then the state after tnfs_sim_start
+	tnfs_replay_init();
+	g_is_playing = 1;
+	replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, 0);
+	for (i = 0; i < 8; i++) {
+		g_control_word[i] = 0x7a0;
+	}
 }
 
 
 /*
- * minimal basic main loop
+ * game loop, one simulation tick (DOS tnfs_game_loop_000650cb, Win95 SE tnfs_game_loop_00440ef0); the per car part is
+ * the port's own (see tnfs_update)
  */
-void tnfs_update() {
+void tnfs_game_loop() {
 	int i;
 	tnfs_car_data *car;
 
-	iSimTimeClock++;
+	if (g_is_playing != 0) {
+		tnfs_replay_update();
+	}
+	if (iSimTimeClock < 0x78) {
+		for (i = 0; i < g_number_of_players; i++) {
+			g_control_word[i] = 0x7a0;
+		}
+	}
+	if (g_is_playing == 4 || (g_is_playing == 2 && g_replay_speed == 0 && g_replay_frame_step < 1)) {
+		// scrubbing or paused: no simulation (the original only keeps the cars' last positions for the renderer)
+		return;
+	}
+
+	// control step: the control handlers of the cars (players: tnfs_controls_update; AI: empty)
+	if (general_flags & 4) {
+		for (i = 0; i < g_total_cars_in_scene; i++) {
+			car = g_car_ptr_array[i];
+			if ((car->field_4e9 & 4) != 0 && car->car_id < g_number_of_players) {
+				tnfs_controls_update(car);
+			}
+		}
+	}
+
+	if ((general_flags & 1) == 0) {
+		return;
+	}
 
 	//FIX: disable cop if crashed or finished race
 	if (g_cop_car_ptr != 0) {
@@ -1756,9 +2985,15 @@ void tnfs_update() {
 
 	player_car_ptr->car_road_speed = tnfs_car_road_speed(player_car_ptr);
 
-	tnfs_controls_update();
-	tnfs_ai_collision_handler();
-	FUN_00064e46();
+	// race times, while racing only (DOS tnfs_ai_finish_line_cross 0x64c8e for every racer)
+	if (g_is_playing == 1) {
+		for (i = 0; i < g_racer_cars_in_scene; i++) {
+			car = g_car_ptr_array[i];
+			if ((car->field_4e9 & 4) != 0) {
+				tnfs_racer_clock_lap_time(car);
+			}
+		}
+	}
 
 	// for each car
 	for (i = 0; i < g_total_cars_in_scene; i++) {
@@ -1791,12 +3026,50 @@ void tnfs_update() {
 		}
 
 		tnfs_car_update_center_line(car);
-		tnfs_racer_clock_lap_time(car);
 
 		// set ground point for the collision engine
 		car->road_ground_position = track_data[car->track_slice].pos;
 	}
 
+	// DOS order: race order, collisions between the cars, race order again
+	FUN_00064e46();
+	tnfs_ai_collision_handler();
+	FUN_00064e46();
+
 	tnfs_camera_auto_change(player_car_ptr);
 	tnfs_camera_update(&camera);
+}
+
+/*
+ * main loop step (DOS tnfs_game_loop_00040c90, Win95 SE tnfs_game_loop_0045597c), called at 30 per second:
+ * the clock counts 2 per tick (60 per second, the unit of the race times and of the replay), the flags are
+ * 1 every tick, 4 every second tick (control step: controls, replay samples, gearbox), 0x10 every fourth (ABS/TCS).
+ * The clock stops while a replay is scrubbed or paused; a frame step (g_replay_frame_step) runs while paused.
+ */
+void tnfs_update() {
+	replay_set_flags();
+	tnfs_game_loop();
+	if (g_is_playing != 4 && (g_is_playing != 2 || g_replay_speed != 0 || g_replay_frame_step > 0)) {
+		if (g_replay_frame_step > 0) {
+			g_replay_frame_step--;
+		}
+		iSimTimeClock += 2;
+	}
+}
+
+/*
+ * Starts the race simulation after the setup (DOS tnfs_game_InitSim 0x40da4 "Starting Engine", Win95 SE 0x455a5c):
+ * clock 0, all flags on, three game loop ticks without a replay mode (control words neutral) and without
+ * advancing the clock, then recording (mode 1) with a keyframe on the first control step.
+ * tnfs_init_sim leaves the sim in the state after this block, without the three ticks.
+ */
+void tnfs_sim_start() {
+	iSimTimeClock = 0;
+	general_flags = 0xffffffff;
+	g_is_playing = 0;
+	tnfs_game_loop();
+	tnfs_game_loop();
+	tnfs_game_loop();
+	g_is_playing = 1;
+	replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, 0);
 }

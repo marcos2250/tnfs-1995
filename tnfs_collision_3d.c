@@ -822,6 +822,8 @@ void tnfs_collision_main(tnfs_car_data *car) {
 				// DAT_00153b10 (not 2 or 3) is not tracked
 				g_stats_data[car->car_id2].field_0x1b8++;
 			}
+			// the car was put back on the road: cuts a replay highlight clip (DOS DAT_000fd8dc, SE DAT_004c538c)
+			g_replay_clip_cut = 1;
 			return;
 		}
 
@@ -1887,7 +1889,7 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 
 				if (iVar12 < 0x3333) { // PC
 				//if ((iVar12 < DAT_800eae48) && (DAT_800eae1c == 0)) { // PSX
-					uVar2 = math_vec3_length_XYZ(local_68.x, piVar5, aux);
+					uVar2 = math_vec3_length(&local_68); // PSX 0x80024d5c, DOS 0x4db4f: length of the relative speed
 					iVar4 = math_inverse_value(uVar2);
 					bVar1 = 1;
 				} else {
@@ -1903,7 +1905,7 @@ int tnfs_collision_carcar_box_detect(tnfs_collision_data *car1, tnfs_collision_d
 					//if (((DAT_800eae50 < piVar5) && (DAT_800eae20 == 0)) || (((DAT_800eae30 != 0 && (DAT_800eae54 < piVar5)) && (iVar7 < DAT_800eae4c)))) { //PSX
 					if (piVar5 > 0xd999) { //PC
 						bVar1 = 1;
-						uVar2 = math_vec3_length_XYZ(local_68.x, piVar5, aux);
+						uVar2 = math_vec3_length(&local_68); // PSX 0x80024d5c, DOS 0x4db4f: length of the relative speed
 						iVar4 = math_inverse_value(uVar2);
 					}
 				}
@@ -2038,7 +2040,9 @@ void tnfs_collision_carcar_exageration(tnfs_car_data *car) {
 	car->collision_data.speed.z += (car->collision_data.matrix.bz >> 8) * 0x5b3;
 }
 
-int DAT_000f99f4 = 0;
+// replay highlight scores of car-car hits (DOS 0xf99f4 == Win95 SE 0x4b909c), index: 1 the car in slot 2 (the cop
+// in head-to-head), 4 a player, 8 a crash
+int DAT_000f99f4[16] = { 20, 30, 32, 34, 60, 70, 80, 0, 37, 38, 38, 39, 92, 95, 98, 0 };
 
 int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 
@@ -2075,7 +2079,8 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 	if ((car1 == DAT_00153BC4) || (car2 == DAT_00153BC4)) {
 		local_34 = 1;
 	}
-	if ((car1 == g_car_ptr_array[0]) || (car2 == g_car_ptr_array[0])) {
+	// DOS 0x46be4: DAT_00153ba8, SE 0x40f384: PTR_00509e24 (car slot 2)
+	if ((car1 == g_car_ptr_array[2]) || (car2 == g_car_ptr_array[2])) {
 		local_30 = 1;
 	}
 
@@ -2090,8 +2095,8 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 		if ((doWreckCarA && !car1->is_wrecked) || (doWreckCarB && !car2->is_wrecked)) {
 			car1->car_road_speed = tnfs_car_road_speed_2(car1);
 			car2->car_road_speed = tnfs_car_road_speed_2(car2);
-			if (abs(car1->car_road_speed) > 0x100000 || abs(car2->car_road_speed) > 0x100000) {
-				tnfs_replay_highlight_record((DAT_000f99f4 + (local_34 * 2 + local_38 * 4 + local_2c * 8 + local_30) * 4));
+			if (abs(car1->car_road_speed) > 0x100000 && abs(car2->car_road_speed) > 0x100000) {
+				tnfs_replay_highlight_record(DAT_000f99f4[local_34 * 2 + local_38 * 4 + local_2c * 8 + local_30]);
 			}
 		}
 		return 1;
@@ -2100,7 +2105,7 @@ int tnfs_collision_carcar_start(tnfs_car_data *car1, tnfs_car_data *car2) {
 	// crash and rollover
 	local_2c = 1;
 
-	tnfs_replay_highlight_record((DAT_000f99f4 + (local_34 * 2 + local_38 * 4 + 8 + local_30) * 4));
+	tnfs_replay_highlight_record(DAT_000f99f4[local_34 * 2 + local_38 * 4 + 8 + local_30]);
 
 	if ((g_car_ptr_array[g_player_id] == car1) && (car1->crash_state != 4)) {
 		tnfs_collision_on();

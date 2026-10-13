@@ -2034,6 +2034,8 @@ void tnfs_car_wait_after_busted(tnfs_car_data *car) {
 		if (car->gear_auto_selected != 0) {
 			car->gear_auto_selected = 2;
 		}
+		// cuts a replay highlight clip (DOS DAT_000fd8dc)
+		g_replay_clip_cut = 1;
 	}
 }
 
@@ -3133,7 +3135,7 @@ int tnfs_collision_road_objects(tnfs_car_data *car) {
 					y = track_data[slice].pos.y + (g_road_objects[car->road_object_index].pos_y << 8);
 					z = track_data[slice].pos.z + (g_road_objects[car->road_object_index].pos_z << 8);
 					if (tnfs_collision_road_object(car, x, y, z)) {
-						g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x4b0) + 1; // PSX, SE: / 0x708
+						g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x708) + 1; // replay keyframe: SE and PSX / 0x708, DOS / 0x4b0
 						return 1;
 					}
 				}
@@ -3153,7 +3155,7 @@ int tnfs_collision_road_objects(tnfs_car_data *car) {
 				y = track_data[slice].pos.y + (g_road_objects[car->road_object_index].pos_y << 8);
 				z = track_data[slice].pos.z + (g_road_objects[car->road_object_index].pos_z << 8);
 				if (tnfs_collision_road_object(car, x, y, z)) {
-					g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x4b0) + 1; // PSX, SE: / 0x708
+					g_sign_status[car->road_object_index * 2] = (char)(iSimTimeClock / 0x708) + 1; // replay keyframe: SE and PSX / 0x708, DOS / 0x4b0
 					return 1;
 				}
 			}

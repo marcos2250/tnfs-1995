@@ -49,7 +49,7 @@ void handleKeys() {
 			g_control_brake = 1;
 			break;
 		case SDLK_SPACE:
-			g_car_array[0].handbrake = 1;
+			g_control_handbrake = 1;
 			break;
 		}
 	}
@@ -104,7 +104,7 @@ void handleKeys() {
 			g_control_steer = 0;
 			break;
 		case SDLK_SPACE:
-			g_car_array[0].handbrake = 0;
+			g_control_handbrake = 0;
 			break;
 		default:
 			break;
@@ -140,12 +140,12 @@ void handleGamepadEvents() {
 			tnfs_change_gear_down();
 			break;
 		case SDL_CONTROLLER_BUTTON_A:
-			g_car_array[0].handbrake = 1;
+			g_control_handbrake = 1;
 			break;
 		}
 	}
 	if (event.type == SDL_CONTROLLERBUTTONUP && event.cbutton.button == SDL_CONTROLLER_BUTTON_A) {
-		g_car_array[0].handbrake = 0;
+		g_control_handbrake = 0;
 	}
 }
 

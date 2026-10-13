@@ -1758,6 +1758,7 @@ void tnfs_update() {
 
 	tnfs_controls_update();
 	tnfs_ai_collision_handler();
+	FUN_00064e46();
 
 	// for each car
 	for (i = 0; i < g_total_cars_in_scene; i++) {
@@ -1765,6 +1766,11 @@ void tnfs_update() {
 
 		if ((car->field_4e9 & 4) == 0) {
 			//disabled car
+			continue;
+		}
+
+		if (car->crash_state == 6) {
+			//hidden traffic car
 			tnfs_ai_hidden_traffic_main(car);
 			continue;
 		}

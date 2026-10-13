@@ -633,11 +633,16 @@ void FUN_0007db5a(tnfs_car_data *car, int side) {
 }
 
 void tnfs_ai_respawn_reset(tnfs_car_data *car) {
+	tnfs_vec9 rot_matrix;
+
 	tnfs_track_update_vectors(car);
 
 	car->position.x = (car->road_position).x;
 	car->position.y = (car->road_position).y;
 	car->position.z = (car->road_position).z;
+	g_lcg_random_nbr = g_lcg_random_mod * g_lcg_random_seed;
+	g_lcg_random_mod = g_lcg_random_nbr & 0xffff;
+	car->position.z += (g_lcg_random_nbr & 0xffff00) >> 8;
 	car->position.x += fixmul(car->target_center_line, car->road_fence_normal.x);
 	car->position.y += fixmul(car->target_center_line, car->road_fence_normal.y);
 	car->position.z += fixmul(car->target_center_line, car->road_fence_normal.z);
@@ -646,21 +651,31 @@ void tnfs_ai_respawn_reset(tnfs_car_data *car) {
 		tnfs_track_update_vectors(car);
 	}
 
+	// body rotation matrix
+	if (car->ai_state & 0x1000) {
+		car->matrix.ax = -car->road_fence_normal.x;
+		car->matrix.ay = -car->road_fence_normal.y;
+		car->matrix.az = -car->road_fence_normal.z;
+		car->matrix.bx = car->road_surface_normal.x;
+		car->matrix.by = car->road_surface_normal.y;
+		car->matrix.bz = car->road_surface_normal.z;
+		car->matrix.cx = -car->road_heading.x;
+		car->matrix.cy = -car->road_heading.y;
+		car->matrix.cz = -car->road_heading.z;
+	} else {
+		memcpy(&car->matrix, &car->road_fence_normal, sizeof(car->matrix));
+	}
+	if (car->steer_angle) {
+		math_matrix_set_rot_Y(&rot_matrix, car->steer_angle);
+		math_matrix_multiply(&car->matrix, &rot_matrix, &car->matrix);
+	}
+
 	// ...
 	tnfs_collision_data_set(car);
 }
 
 void tnfs_ai_respawn_do(tnfs_car_data *car, int node, int side, int centerline, int flag) {
 
-	//FIXME added quirks ***
-	//never respawn outside track boundaries
-	if (node <= 0 || node >= g_road_node_count) {
-		return;
-	}
-	//never respawn racers
-	if (car->ai_state & 4) {
-		return;
-	}
 	// log respawn events
 	printf("Respawn car %d, node %d, direction %d, state=%x, f084=%d, f158=%x f4e9=%x\n", //
 			car->car_id, node, side, car->ai_state, car->collision_data.field_084, car->field_158, car->field_4e9);
@@ -672,14 +687,14 @@ void tnfs_ai_respawn_do(tnfs_car_data *car, int node, int side, int centerline, 
 	}
 
 	car->track_slice = node;
-	car->track_slice_lap = node;
+	car->track_slice_lap = (car->lap_number - 1) * g_tri_num_chunks * 4 + car->track_slice;
 
 	tnfs_ai_get_speed_factor(car);
 	tnfs_ai_get_lane_slack(car);
 
 	car->collision_data.field_08c = 0;
 	car->collision_data.field_084 = 0;
-	car->collision_data.field_088 = (car->ai_state & 4) ? 160 : 100;
+	car->collision_data.field_088 = (car->ai_state & 4) ? 100 : 160;
 	car->target_angle = 0;
 	car->steer_angle = 0;
 	car->collision_data.state_timer = 0;
@@ -1224,7 +1239,7 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 	right_normal.z = car->road_fence_normal.z;
 
 	if (car->collision_data.field_088 != 0 //
-			&& (car->collision_data.field_088 != (is_a_racer ? 160 : 100) //
+			&& (car->collision_data.field_088 != (is_a_racer ? 100 : 160) //
 	|| abs(car->steer_angle - car->target_angle) < 0x20000)) {
 		forward_vector.x = car->road_heading.x;
 		forward_vector.y = car->road_heading.y;
@@ -1375,7 +1390,7 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 
 	// speed vector
 	if (car->wheels_on_ground) {
-		if (car->collision_data.field_088 && car->collision_data.field_088 != (is_a_racer ? 160 : 100)) {
+		if (car->collision_data.field_088 && car->collision_data.field_088 != (is_a_racer ? 100 : 160)) {
 			car->speed_y = forward_vector.y;
 		} else {
 			car->speed_x = forward_vector.x;
@@ -1562,7 +1577,7 @@ void tnfs_ai_driving_main(tnfs_car_data *car) {
 		if (car->collision_data.field_088)
 			car->collision_data.field_088--;
 	} else {
-		car->collision_data.field_088 = is_a_racer ? 160 : 100;
+		car->collision_data.field_088 = is_a_racer ? 100 : 160;
 	}
 
 	if (car->track_slice_lap < 150) {
@@ -1724,7 +1739,7 @@ void tnfs_ai_driving_main(tnfs_car_data *car) {
 
 	// position car above road
 	if (car->collision_data.field_088 != 0 //
-			&& car->collision_data.field_088 != (is_a_racer ? 160 : 100)) {
+			&& car->collision_data.field_088 != (is_a_racer ? 100 : 160)) {
 		local_position.x = car->position.x - car->road_position.x;
 		local_position.y = car->position.y - car->road_position.y;
 		local_position.z = car->position.z - car->road_position.z;

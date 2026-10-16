@@ -26,6 +26,7 @@ int DAT_000fdbe8[4] = { 0x20, 0x40, 0x60, 0x80 };
 int g_cop_park_position = 0; //000fdbf8
 int g_tri_lap_chunks = 0x208;
 int DAT_0016532c = 0;
+int g_some_car_array2[8]; //00153bc8 car ids sorted by track_slice_lap, the last one leads
 int DAT_00165324 = 0;
 int DAT_00165328 = 0;
 int DAT_00165330 = 0;
@@ -201,6 +202,13 @@ void tnfs_ai_init() {
 		g_random_struct[i].a = g_random_struct[i].d + 11;
 		g_random_struct[i].b = g_random_struct[i].e - 8;
 	}
+
+	// race order, DOS tnfs_car_init_carObj 0x6466b and tnfs_ai_init_traffic_logic 0x7fffb
+	for (i = 0; i < g_total_cars_in_scene; i++) {
+		g_some_car_array2[i] = i;
+	}
+	DAT_0016532c = 0;
+	FUN_00064e46();
 }
 
 void tnfs_ai_load_car(tnfs_car_data *car, int newCarModelId) {
@@ -303,6 +311,84 @@ void tnfs_ai_police_reset_state(int flag) {
 }
 
 
+/*
+ * DOS 0x64e46: bubble sorts the cars by track_slice_lap (then track_center_distance), the leader last.
+ * Not ported: the first half, which sorts g_some_car_array1 by track_slice in the same way (the DOS game loop runs
+ * the car handlers in that order).
+ */
+void FUN_00064e46() {
+	int iVar1;
+	int bVar3;
+	int bVar4;
+	int i;
+
+	bVar3 = 1;
+	while (bVar3) {
+		bVar3 = 0;
+		for (i = 0; i < g_total_cars_in_scene - 1; i++) {
+			bVar4 = 0;
+			if (g_car_ptr_array[g_some_car_array2[i + 1]]->track_slice_lap < g_car_ptr_array[g_some_car_array2[i]]->track_slice_lap) {
+				bVar4 = 1;
+			} else if ((g_car_ptr_array[g_some_car_array2[i]]->track_slice_lap == g_car_ptr_array[g_some_car_array2[i + 1]]->track_slice_lap)
+					&& (g_car_ptr_array[g_some_car_array2[i + 1]]->track_center_distance < g_car_ptr_array[g_some_car_array2[i]]->track_center_distance)) {
+				bVar4 = 1;
+			}
+			if (bVar4) {
+				bVar3 = 1;
+				iVar1 = g_some_car_array2[i];
+				g_some_car_array2[i] = g_some_car_array2[i + 1];
+				g_some_car_array2[i + 1] = iVar1;
+			}
+		}
+	}
+}
+
+/*
+ * DOS 0x771b8: moves racer carId to traffic group "group", and the racer of that group to group "param_3",
+ * swapping the groups of the traffic cars too
+ */
+void FUN_000771b8(int carId, int group, int param_3) {
+	int iVar1;
+	int i;
+
+	iVar1 = g_random_struct[group].id;
+	g_car_ptr_array[iVar1]->field_158 = param_3;
+	g_random_struct[param_3].id = iVar1;
+	g_car_ptr_array[carId]->field_158 = group;
+	g_random_struct[group].id = carId;
+	for (i = g_racer_cars_in_scene; i < g_total_cars_in_scene; i++) {
+		if (g_car_ptr_array[i]->field_158 == group) {
+			g_car_ptr_array[i]->field_158 = param_3;
+		} else if (g_car_ptr_array[i]->field_158 == param_3) {
+			g_car_ptr_array[i]->field_158 = group;
+		}
+	}
+}
+
+/*
+ * DOS 0x77283, PSX 0x80053010: gives the traffic groups to the racers in race order, group 0 to the leader
+ * (tnfs_ai_random_generator merges the windows in that order)
+ */
+void FUN_00077283() {
+	int i;
+	int local_20;
+	tnfs_car_data *car;
+
+	local_20 = 0;
+	for (i = g_total_cars_in_scene - 1; i >= 0; i--) {
+		car = g_car_ptr_array[g_some_car_array2[i]];
+		if ((car->car_id >= 0) && (car->car_id < g_racer_cars_in_scene)) {
+			if (car->field_158 != local_20) {
+				FUN_000771b8(car->car_id, local_20, car->field_158);
+				if ((car->car_id >= 0) && (car->car_id < g_racer_cars_in_scene)) {
+					tnfs_replay_highlight_record(0x50);
+				}
+			}
+			local_20++;
+		}
+	}
+}
+
 void tnfs_ai_random_generator() {
 	int i;
 	int seed_value;
@@ -311,6 +397,8 @@ void tnfs_ai_random_generator() {
 	if (g_racer_cars_in_scene > 2) {
 		return;
 	}
+
+	FUN_00077283();
 
 	for (i = 0; i < 2; i++) {
 		seed_value = g_car_ptr_array[g_random_struct[i].id]->track_slice_lap;
@@ -545,11 +633,16 @@ void FUN_0007db5a(tnfs_car_data *car, int side) {
 }
 
 void tnfs_ai_respawn_reset(tnfs_car_data *car) {
+	tnfs_vec9 rot_matrix;
+
 	tnfs_track_update_vectors(car);
 
 	car->position.x = (car->road_position).x;
 	car->position.y = (car->road_position).y;
 	car->position.z = (car->road_position).z;
+	g_lcg_random_nbr = g_lcg_random_mod * g_lcg_random_seed;
+	g_lcg_random_mod = g_lcg_random_nbr & 0xffff;
+	car->position.z += (g_lcg_random_nbr & 0xffff00) >> 8;
 	car->position.x += fixmul(car->target_center_line, car->road_fence_normal.x);
 	car->position.y += fixmul(car->target_center_line, car->road_fence_normal.y);
 	car->position.z += fixmul(car->target_center_line, car->road_fence_normal.z);
@@ -558,21 +651,31 @@ void tnfs_ai_respawn_reset(tnfs_car_data *car) {
 		tnfs_track_update_vectors(car);
 	}
 
+	// body rotation matrix
+	if (car->ai_state & 0x1000) {
+		car->matrix.ax = -car->road_fence_normal.x;
+		car->matrix.ay = -car->road_fence_normal.y;
+		car->matrix.az = -car->road_fence_normal.z;
+		car->matrix.bx = car->road_surface_normal.x;
+		car->matrix.by = car->road_surface_normal.y;
+		car->matrix.bz = car->road_surface_normal.z;
+		car->matrix.cx = -car->road_heading.x;
+		car->matrix.cy = -car->road_heading.y;
+		car->matrix.cz = -car->road_heading.z;
+	} else {
+		memcpy(&car->matrix, &car->road_fence_normal, sizeof(car->matrix));
+	}
+	if (car->steer_angle) {
+		math_matrix_set_rot_Y(&rot_matrix, car->steer_angle);
+		math_matrix_multiply(&car->matrix, &rot_matrix, &car->matrix);
+	}
+
 	// ...
 	tnfs_collision_data_set(car);
 }
 
 void tnfs_ai_respawn_do(tnfs_car_data *car, int node, int side, int centerline, int flag) {
 
-	//FIXME added quirks ***
-	//never respawn outside track boundaries
-	if (node <= 0 || node >= g_road_node_count) {
-		return;
-	}
-	//never respawn racers
-	if (car->ai_state & 4) {
-		return;
-	}
 	// log respawn events
 	printf("Respawn car %d, node %d, direction %d, state=%x, f084=%d, f158=%x f4e9=%x\n", //
 			car->car_id, node, side, car->ai_state, car->collision_data.field_084, car->field_158, car->field_4e9);
@@ -584,14 +687,14 @@ void tnfs_ai_respawn_do(tnfs_car_data *car, int node, int side, int centerline, 
 	}
 
 	car->track_slice = node;
-	car->track_slice_lap = node;
+	car->track_slice_lap = (car->lap_number - 1) * g_tri_num_chunks * 4 + car->track_slice;
 
 	tnfs_ai_get_speed_factor(car);
 	tnfs_ai_get_lane_slack(car);
 
 	car->collision_data.field_08c = 0;
 	car->collision_data.field_084 = 0;
-	car->collision_data.field_088 = (car->ai_state & 4) ? 160 : 100;
+	car->collision_data.field_088 = (car->ai_state & 4) ? 100 : 160;
 	car->target_angle = 0;
 	car->steer_angle = 0;
 	car->collision_data.state_timer = 0;
@@ -603,7 +706,7 @@ void tnfs_ai_respawn_do(tnfs_car_data *car, int node, int side, int centerline, 
 	//}
 
 	FUN_0007da53(car);
-	//FUN_00064e46();
+	FUN_00064e46();
 	FUN_0007db5a(car, side);
 	car->target_center_line = centerline;
 	tnfs_ai_respawn_reset(car);
@@ -615,7 +718,7 @@ void tnfs_ai_respawn_do(tnfs_car_data *car, int node, int side, int centerline, 
 			g_lcg_random_nbr = g_lcg_random_mod * g_lcg_random_seed;
 			car->collision_data.field_084 = ((((g_lcg_random_nbr & 0xFFFF00) >> 8) * g_ai_skill_cfg.traffic_density) >> 16) + 1;
 			g_lcg_random_mod = g_lcg_random_nbr & 0xffff;
-			//car->crash_state = 6; //???
+			car->crash_state = 6; // hidden, tnfs_ai_hidden_traffic_main
 			if ((car->ai_state & 4) == 0) {
 				DAT_0016532c = DAT_0016532c + 1;
 			}
@@ -843,7 +946,7 @@ int tnfs_ai_racer_speed(tnfs_car_data *car) {
 	}
 	result_speed = math_mul(top_speed, local_24);
 	if (tnfs_racer_crossed_finish_line(car) == 2) {
-		if (tnfs_racer_finish_slot_reached(car->car_id2, tnfs_racer_crossed_finish_line(car))) {
+		if (tnfs_racer_finish_slot_reached(car->car_id2, tnfs_racer_finish_distance(car))) {
 			result_speed = 0;
 		}
 	}
@@ -1136,7 +1239,7 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 	right_normal.z = car->road_fence_normal.z;
 
 	if (car->collision_data.field_088 != 0 //
-			&& (car->collision_data.field_088 != (is_a_racer ? 160 : 100) //
+			&& (car->collision_data.field_088 != (is_a_racer ? 100 : 160) //
 	|| abs(car->steer_angle - car->target_angle) < 0x20000)) {
 		forward_vector.x = car->road_heading.x;
 		forward_vector.y = car->road_heading.y;
@@ -1287,7 +1390,7 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 
 	// speed vector
 	if (car->wheels_on_ground) {
-		if (car->collision_data.field_088 && car->collision_data.field_088 != (is_a_racer ? 160 : 100)) {
+		if (car->collision_data.field_088 && car->collision_data.field_088 != (is_a_racer ? 100 : 160)) {
 			car->speed_y = forward_vector.y;
 		} else {
 			car->speed_x = forward_vector.x;
@@ -1474,7 +1577,7 @@ void tnfs_ai_driving_main(tnfs_car_data *car) {
 		if (car->collision_data.field_088)
 			car->collision_data.field_088--;
 	} else {
-		car->collision_data.field_088 = is_a_racer ? 160 : 100;
+		car->collision_data.field_088 = is_a_racer ? 100 : 160;
 	}
 
 	if (car->track_slice_lap < 150) {
@@ -1636,7 +1739,7 @@ void tnfs_ai_driving_main(tnfs_car_data *car) {
 
 	// position car above road
 	if (car->collision_data.field_088 != 0 //
-			&& car->collision_data.field_088 != (is_a_racer ? 160 : 100)) {
+			&& car->collision_data.field_088 != (is_a_racer ? 100 : 160)) {
 		local_position.x = car->position.x - car->road_position.x;
 		local_position.y = car->position.y - car->road_position.y;
 		local_position.z = car->position.z - car->road_position.z;
@@ -2495,7 +2598,7 @@ void tnfs_ai_opp_engine_and_cornering(tnfs_car_data *car, int lane, tnfs_vec3 *d
 			bVar9 = 1;
 		}
 		if (bVar9) {
-			iVar10 = tnfs_racer_crossed_finish_line(car);
+			iVar10 = tnfs_racer_finish_distance(car);
 			iVar10 = tnfs_racer_finish_slot_reached(car->car_id2, iVar10 + 10);
 			if (iVar10 != 0) {
 				if ((g_race_positions[car->car_id2] & 1) == 0) {
@@ -3155,9 +3258,9 @@ void tnfs_ai_hidden_traffic_main(tnfs_car_data *car) {
 		}
 	}
 
-	if (((car->ai_state & 4) == 0) && (car->field_158 = 0) && (node < 0x78)) {
-		g_lcg_random_nbr = g_lcg_random_seed * g_lcg_random_mod;
-		g_lcg_random_seed = g_lcg_random_nbr & 0xffff;
+	if (((car->ai_state & 4) == 0) && (car->field_158 = 0, node < 0x78)) {
+		g_lcg_random_nbr = g_lcg_random_mod * g_lcg_random_seed;
+		g_lcg_random_mod = g_lcg_random_nbr & 0xffff;
 		if (((g_lcg_random_nbr & 0xffff00) >> 8 & 1) != 0) {
 			car->field_158 = 1;
 		}
@@ -3174,15 +3277,14 @@ void tnfs_ai_hidden_traffic_main(tnfs_car_data *car) {
 		return;
 	}
 
-	if (((car->car_id * 0x10 + 0xf) > node) //
-			//&& (DAT_0016532c > g_number_of_traffic_cars) //
+	if (((car->car_id * 0x10 + 0xf) <= node) //
+			&& (DAT_0016532c > g_number_of_traffic_cars - g_ai_skill_cfg.number_of_traffic_cars) //
 			&& ((car->ai_state & 4) == 0) // cop or traffic
 			&& ((g_game_settings & 4) == 0)) { //unknown setting
 
 		car->crash_state = 3;
 		DAT_0016532c--;
 		tnfs_ai_respawn_0007702c(car);
-		car->field_4e9 = 7; //FIXME QUIRK
 
 	} else {
 		car->collision_data.field_084 = 1;

@@ -7,6 +7,7 @@
 
 
 extern int g_is_playing;
+extern int g_ai_frame_counter;
 void tnfs_ai_init();
 void tnfs_ai_driving_main(tnfs_car_data * car);
 void tnfs_ai_collision_handler();
@@ -19,5 +20,6 @@ int tnfs_ai_car_in_slice_window(tnfs_car_data *car1, tnfs_car_data *car2);
 int tnfs_ai_car_near_player(tnfs_car_data *car);
 void tnfs_ai_wrecked_wait(tnfs_car_data *car);
 int tnfs_ai_lane_table(int lanes, int margin);
+void FUN_00064e46();
 
 #endif /* TNFS_AI_H_ */

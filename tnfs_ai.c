@@ -25,7 +25,7 @@ tnfs_car_data *g_lead_player = 0; //DAT_00165334
 int DAT_000fdbe8[4] = { 0x20, 0x40, 0x60, 0x80 };
 int g_cop_park_position = 0; //000fdbf8
 int g_tri_lap_chunks = 0x208;
-int DAT_0016532c = 0;
+int g_number_of_hidden_cars = 0;
 int g_some_car_array2[8]; //00153bc8 car ids sorted by track_slice_lap, the last one leads
 int DAT_00165324 = 0;
 int DAT_00165328 = 0;
@@ -207,7 +207,7 @@ void tnfs_ai_init() {
 	for (i = 0; i < g_total_cars_in_scene; i++) {
 		g_some_car_array2[i] = i;
 	}
-	DAT_0016532c = 0;
+	g_number_of_hidden_cars = 0;
 	FUN_00064e46();
 }
 
@@ -720,7 +720,7 @@ void tnfs_ai_respawn_do(tnfs_car_data *car, int node, int side, int centerline, 
 			g_lcg_random_mod = g_lcg_random_nbr & 0xffff;
 			car->crash_state = 6; // hidden, tnfs_ai_hidden_traffic_main
 			if ((car->ai_state & 4) == 0) {
-				DAT_0016532c = DAT_0016532c + 1;
+				g_number_of_hidden_cars = g_number_of_hidden_cars + 1;
 			}
 		}
 	}
@@ -1228,6 +1228,11 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 			curve_deccel = 0;
 		}
 	}
+
+	if (car->car_id == 1)
+			printf("speed %x target %x accel %x ivar14 %d iVar15 %d floor %d\n",
+			car->car_road_speed, car->speed_target, accel, iVar14, iVar15, floor_it);
+
 
 	if (car->car_road_speed > g_stats_data[car->car_id2].top_speed_2
 		&& (g_track_speed[car->track_slice >> 2].top_speed << 16) >= car->car_road_speed) {
@@ -2097,7 +2102,7 @@ void tnfs_ai_respawn_0007d647() {
 			if ((car->ai_state & 4) == 0) {
 				if ((car->car_id < 0) || (g_racer_cars_in_scene <= car->car_id)) {
 					if (car->crash_state == 6) {
-						DAT_0016532c--;
+						g_number_of_hidden_cars--;
 					}
 					car->crash_state = 3;
 					tnfs_ai_respawn_0007e2ee(car, 1);
@@ -2144,7 +2149,7 @@ void tnfs_ai_wrecked_wait(tnfs_car_data *car) {
 	}
 	if (tnfs_ai_car_near_player(car) == 0) {
 		if (car->car_data_ptr->crash_state == 6) {
-			DAT_0016532c--;
+			g_number_of_hidden_cars--;
 		}
 		tnfs_car_stop_0007d5c1(car);
 		car->car_data_ptr->crash_state = 3;
@@ -3278,12 +3283,12 @@ void tnfs_ai_hidden_traffic_main(tnfs_car_data *car) {
 	}
 
 	if (((car->car_id * 0x10 + 0xf) <= node) //
-			&& (DAT_0016532c > g_number_of_traffic_cars - g_ai_skill_cfg.number_of_traffic_cars) //
+			&& (g_number_of_hidden_cars > g_number_of_traffic_cars - g_ai_skill_cfg.number_of_traffic_cars) //
 			&& ((car->ai_state & 4) == 0) // cop or traffic
 			&& ((g_game_settings & 4) == 0)) { //unknown setting
 
 		car->crash_state = 3;
-		DAT_0016532c--;
+		g_number_of_hidden_cars--;
 		tnfs_ai_respawn_0007702c(car);
 
 	} else {

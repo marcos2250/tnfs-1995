@@ -1229,11 +1229,6 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 		}
 	}
 
-	if (car->car_id == 1)
-			printf("speed %x target %x accel %x ivar14 %d iVar15 %d floor %d\n",
-			car->car_road_speed, car->speed_target, accel, iVar14, iVar15, floor_it);
-
-
 	if (car->car_road_speed > g_stats_data[car->car_id2].top_speed_2
 		&& (g_track_speed[car->track_slice >> 2].top_speed << 16) >= car->car_road_speed) {
 		g_stats_data[car->car_id2].top_speed_2 = car->car_road_speed;

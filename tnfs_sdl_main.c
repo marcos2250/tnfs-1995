@@ -267,19 +267,35 @@ void readGamepadAxes() {
  * angle X+ pitch down Y+ yaw clockwise Z+ roll left
  */
 void drawVehicle(tnfs_car_data * car) {
+	tnfs_vec9 *m = &car->matrix;
+	tnfs_vec9 drawn;
+	tnfs_vec9 rot;
+
+	// the original draws a car that is not crashed from its angles plus the body lean, not from car->matrix:
+	// Rz(angle.z + 3/4 body_roll) * Rx(angle.x + body_pitch) * Ry(angle.y) (DOS gfx_draw_car 0x74d73, PSX 0x80050584);
+	// the port's AI does not keep its angles, so only the players' cars are drawn this way
+	if (car->car_id >= 0 && car->car_id < g_number_of_players && car->is_crashed == 0) {
+		math_matrix_set_rot_Z(&drawn, car->angle.z + car->body_roll - car->body_roll / 4);
+		math_matrix_set_rot_X(&rot, car->angle.x + car->body_pitch);
+		math_matrix_multiply(&drawn, &drawn, &rot);
+		math_matrix_set_rot_Y(&rot, car->angle.y);
+		math_matrix_multiply(&drawn, &drawn, &rot);
+		m = &drawn;
+	}
+
 	// TNFS uses LHS, convert to OpenGL's RHS
 	glMatrixMode(GL_MODELVIEW);
-	matrix[0] = (float) car->matrix.ax / 0x10000;
-	matrix[1] = (float) car->matrix.ay / 0x10000;
-	matrix[2] = (float) -car->matrix.az / 0x10000;
+	matrix[0] = (float) m->ax / 0x10000;
+	matrix[1] = (float) m->ay / 0x10000;
+	matrix[2] = (float) -m->az / 0x10000;
 	matrix[3] = 0;
-	matrix[4] = (float) car->matrix.bx / 0x10000;
-	matrix[5] = (float) car->matrix.by / 0x10000;
-	matrix[6] = (float) -car->matrix.bz / 0x10000;
+	matrix[4] = (float) m->bx / 0x10000;
+	matrix[5] = (float) m->by / 0x10000;
+	matrix[6] = (float) -m->bz / 0x10000;
 	matrix[7] = 0;
-	matrix[8] = (float) car->matrix.cx / 0x10000;
-	matrix[9] = (float) car->matrix.cy / 0x10000;
-	matrix[10] = (float) -car->matrix.cz / 0x10000;
+	matrix[8] = (float) m->cx / 0x10000;
+	matrix[9] = (float) m->cy / 0x10000;
+	matrix[10] = (float) -m->cz / 0x10000;
 	matrix[11] = 0;
 	matrix[12] = ((float) car->position.x) / 0x10000;
 	matrix[13] = ((float) car->position.y) / 0x10000;

@@ -3016,8 +3016,10 @@ void tnfs_game_loop() {
 			tnfs_ai_wrecked_wait(car);
 		} else if (car->crash_state != 4) {
 			if (i < g_number_of_players) {
+				// no matrix here: a driving player's matrix is the bare angles, rebuilt every 4th tick by
+				// tnfs_ai_update_speed_targets (DOS 0x77d1c, PSX 0x80053d98, SE 0x46aba4); the body lean is added
+				// only when drawing (DOS gfx_draw_car 0x74d73, PSX 0x80050584, SE 0x4591d4)
 				tnfs_driving_main(car);
-				math_matrix_from_pitch_yaw_roll(&car->matrix, car->angle.x + car->body_pitch, car->angle.y, car->angle.z + car->body_roll);
 			} else {
 				tnfs_ai_driving_main(car);
 			}

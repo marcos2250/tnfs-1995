@@ -21,6 +21,15 @@ const int SCREEN_HEIGHT = 600;
 GLfloat matrix[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 vector3f cam_orientation = { 0, 0, 0 };
 
+/*
+ * replay player (debug): F6 last 10 s, F7 whole recording, F8 highlights, F9 back to the race;
+ * while playing: P pause / frame step, 1-4 speed (full, half, quarter, eighth),
+ * [ / ] held rewind / fast forward, Home / End start / end of the recording
+ */
+static int replay_scrub = 0; // tnfs_replay_scrub command of the held key, 0 none
+static int replay_scrub_repeat = 0;
+static int replay_frame = 0;
+
 void sys_sdl_exit() {
 	SDL_GL_DeleteContext(glContext);
 	SDL_DestroyWindow(window);
@@ -84,6 +93,58 @@ void handleKeys() {
 			break;
 		case SDLK_F5:
 			tnfs_cheat_mode();
+			break;
+		case SDLK_F6:
+			tnfs_replay_start(1);
+			break;
+		case SDLK_F7:
+			tnfs_replay_start(3);
+			break;
+		case SDLK_F8:
+			tnfs_replay_start(2);
+			break;
+		case SDLK_F9:
+			if (g_is_playing != 1) {
+				tnfs_replay_return_to_race();
+			}
+			break;
+		case SDLK_p:
+			tnfs_replay_speed_command(5, 0);
+			break;
+		case SDLK_1:
+		case SDLK_2:
+		case SDLK_3:
+		case SDLK_4:
+			tnfs_replay_speed_command(6 + event.key.keysym.sym - SDLK_1, 0);
+			break;
+		case SDLK_HOME:
+			replay_scrub = 1;
+			break;
+		case SDLK_END:
+			replay_scrub = 2;
+			break;
+		case SDLK_LEFTBRACKET:
+			replay_scrub = 3;
+			break;
+		case SDLK_RIGHTBRACKET:
+			replay_scrub = 4;
+			break;
+		default:
+			break;
+		}
+	}
+	if (event.type == SDL_KEYUP && replay_scrub != 0) {
+		switch (event.key.keysym.sym) {
+		case SDLK_HOME:
+		case SDLK_END:
+		case SDLK_LEFTBRACKET:
+		case SDLK_RIGHTBRACKET:
+			// released: play from the shown clock
+			replay_scrub = 0;
+			replay_scrub_repeat = 0;
+			if (g_is_playing == 4) {
+				tnfs_replay_speed_command(6, 0);
+			}
 			break;
 		default:
 			break;
@@ -379,6 +440,38 @@ void gfx_update() {
 	drawTach();
 }
 
+void replayUpdate() {
+	static char shown[100];
+	char title[100];
+
+	if (replay_scrub != 0 && g_is_playing != 1) {
+		tnfs_replay_scrub(replay_scrub, replay_scrub_repeat++);
+	}
+
+	// slow motion: one simulation tick every 2, 4, 8 frames
+	replay_frame++;
+	if (g_is_playing == 2 && g_replay_speed > 0 && (replay_frame % (1 << (4 - g_replay_speed))) != 0) {
+		return;
+	}
+	tnfs_update();
+	// cueing: simulate to the seek target without drawing
+	while (g_is_playing == 3) {
+		tnfs_update();
+	}
+
+	if (g_is_playing == 1) {
+		snprintf(title, sizeof(title), "TNFS race, %d s", iSimTimeClock / 60);
+	} else {
+		snprintf(title, sizeof(title), "TNFS replay %s x%d, %d s / %d s", //
+				g_is_playing == 4 ? "scrubbing" : (g_replay_speed == 0 ? "paused" : "playing"), //
+				g_replay_speed, iSimTimeClock / 60, tnfs_replay_end_clock() / 60);
+	}
+	if (strcmp(title, shown) != 0) {
+		strcpy(shown, title);
+		SDL_SetWindowTitle(window, title);
+	}
+}
+
 int main(int argc, char **argv) {
 	char quit = 0;
 	char * trifile = 0;
@@ -439,7 +532,7 @@ int main(int argc, char **argv) {
 		}
 		readGamepadAxes();
 
-		tnfs_update();
+		replayUpdate();
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		gfx_update();

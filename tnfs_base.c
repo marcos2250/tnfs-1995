@@ -2975,14 +2975,6 @@ void tnfs_game_loop() {
 		return;
 	}
 
-	//FIX: disable cop if crashed or finished race
-	if (g_cop_car_ptr != 0) {
-		if (player_car_ptr->is_crashed || player_car_ptr->field_4c9) {
-			g_police_on_chase = 0;
-			g_cop_car_ptr->ai_state = 0x1e8;
-		}
-	}
-
 	player_car_ptr->car_road_speed = tnfs_car_road_speed(player_car_ptr);
 
 	// race times, while racing only (DOS tnfs_ai_finish_line_cross 0x64c8e for every racer)

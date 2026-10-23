@@ -2102,21 +2102,76 @@ static void tnfs_replay_record() {
 }
 
 /*
+ * Port extra: whether a player of the keyframe at clock "keyframe" runs the checkpoint flick, i.e.
+ * tnfs_racer_crossed_finish_line != 0 (behind the start or past the finish), read from the keyframe's player record
+ * (track_slice r + 0x54, lap_number r + 0x58) without that function's side effects.
+ */
+static int tnfs_replay_keyframe_flicking(int keyframe) {
+	const unsigned char *r;
+	int k = (keyframe % TNFS_REPLAY_TICKS) / TNFS_REPLAY_KEYFRAME;
+	int i;
+	int slice;
+	int lap;
+
+	for (i = 0; i < g_number_of_players && i < 2; i++) {
+		r = g_replay.recording + REPLAY_PLAYER_FRAMES + i * (TNFS_REPLAY_KEYFRAMES * 0x1a4) + k * 0x1a4;
+		slice = replay_get32(r + 0x54);
+		lap = replay_get32(r + 0x58);
+		if (g_is_closed_track == 0) {
+			if (slice < 0xc || slice > g_road_finish_node) {
+				return 1;
+			}
+		} else {
+			if (lap < 1 || lap > g_track_laps) {
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+/*
+ * Port extra, not in any binary: the keyframe a seek to "clock" cues from. The original always takes the keyframe
+ * before the clock. But while tnfs_racer_crossed_finish_line is nonzero, tnfs_controls_update runs
+ * tnfs_driving_checkpoint_flick every control step, whose state is in player fields the keyframes don't hold:
+ * field_4cd (0 none, 1 flicking, 2 turned), field_4c9 (counter), field_4c5 (lateral offset at the flick's start),
+ * field_4d1 (steer). There is no room for them in the player record (one spare byte), and field_4c5 can't be derived.
+ * So a seek to after the finish kept them from wherever playback was, and the player left the race's line at once.
+ * Before the line every control step sets field_4cd = 0 and the flick's first step sets the others, so the seek goes
+ * back to the last keyframe at which no player is past the line (or behind the start), as long as that keyframe is
+ * still in the buffer (its slot not overwritten: keyframe > end - TNFS_REPLAY_TICKS). The original's seeks diverge.
+ */
+static int tnfs_replay_cue_keyframe(int clock) {
+	int end = tnfs_replay_end_clock();
+	int keyframe = (clock / TNFS_REPLAY_KEYFRAME) * TNFS_REPLAY_KEYFRAME;
+
+	while (keyframe >= TNFS_REPLAY_KEYFRAME && keyframe - TNFS_REPLAY_KEYFRAME > end - TNFS_REPLAY_TICKS
+			&& tnfs_replay_keyframe_flicking(keyframe)) {
+		keyframe -= TNFS_REPLAY_KEYFRAME;
+	}
+	return keyframe;
+}
+
+/*
  * Moves the replay to a clock (Win95 SE FUN_0044e700, DOS tnfs_game_clock_0006e9e0), playing until play_to (capped at
  * the end of the recording). On a keyframe it plays at once (mode 2), otherwise it goes back to the keyframe before
  * and cues (mode 3: the game loop simulates without drawing until seek_target, the caller runs tnfs_update until the
  * mode is not 3, as SE tnfs_game_InitSim does). Leaving the race (mode 1) saves the sign status.
  * Front end, left out: sounds stopped, skid marks and HUD message timers reset, the race timers saved.
+ * Port extra: past the finish line it cues from an earlier keyframe, also for a clock on a keyframe.
  */
 void tnfs_replay_seek(int clock, int play_to) {
 	int end = tnfs_replay_end_clock();
+	int keyframe;
 
 	if (end < play_to) {
 		play_to = end;
 	}
 	g_replay_tick = clock % TNFS_REPLAY_TICKS;
 	g_replay.highlights.play_to = play_to;
-	if (g_replay_tick % TNFS_REPLAY_KEYFRAME == 0) {
+	// port extra: may go back further than the keyframe before the clock (tnfs_replay_cue_keyframe)
+	keyframe = tnfs_replay_cue_keyframe(clock);
+	if (keyframe == clock) {
 		iSimTimeClock = clock;
 		if (g_is_playing == 1) {
 			tnfs_sign_status_save();
@@ -2125,7 +2180,7 @@ void tnfs_replay_seek(int clock, int play_to) {
 		g_replay.highlights.sound_restart = 1;
 		g_replay.highlights.camera_restart = 1;
 	} else {
-		iSimTimeClock = (clock / TNFS_REPLAY_KEYFRAME) * TNFS_REPLAY_KEYFRAME;
+		iSimTimeClock = keyframe;
 		g_replay.highlights.seek_target = clock;
 		if (g_is_playing == 1) {
 			tnfs_sign_status_save();

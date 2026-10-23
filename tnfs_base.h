@@ -776,7 +776,7 @@ typedef struct tnfs_replay_highlights {
 	int play_to; //0x98c clock where the playback ends
 	int seek_target; //0x990 clock the cueing (mode 3) simulates to
 	int camera_restart; //0x994 the first played tick sets the camera (and return_clock)
-	int reinstating; //0x998 set by tnfs_replay_seek (only silences a debug check in DOS)
+	int reinstating; //0x998 set by tnfs_replay_seek (only silences a debug check in DOS; the port: tnfs_replay_seek_restore)
 	int panel_state; //0x99c replay panel button state (front end)
 	int sound_restart; //0x9a0 restart the looped sounds on the next reinstate (front end)
 } tnfs_replay_highlights;

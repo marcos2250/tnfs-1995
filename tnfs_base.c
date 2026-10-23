@@ -1950,6 +1950,41 @@ static void tnfs_replay_world_save(int k, int other_cars) {
 }
 
 /*
+ * Port extra, not in any binary: the first reinstate after a seek also sets two pieces of engine state that the
+ * keyframes don't hold. They are continuous in play-through, so a replay played from its start is exact, but after a
+ * seek they keep the values from wherever playback was before, and the AI racers, the cop and the traffic (through
+ * them the player too) leave the race's line until the next keyframe. The original's seeks diverge the same way.
+ * - g_random_struct[0].id, the racer leading traffic group 0 (FUN_000771b8 from the race order, FUN_00077283): the
+ *   keyframe copies g_random_struct + 2 (12 bytes per group), which holds [1].id but not [0].id. With up to 2 racers
+ *   (tnfs_ai_random_generator) the two ids are always the racers 0 and 1, and g_random_struct[car->field_158].id ==
+ *   car->car_id for both, so they follow from the player's group (field_158 is in the keyframe). With more racers
+ *   the groups never change after tnfs_ai_init.
+ * - road_ground_position of every car, the crash body's road reference: the game loop sets it last for every active
+ *   car each tick from its track slice. Not done on play-through keyframes: a car respawned in the tick before the
+ *   keyframe keeps its previous value there.
+ */
+static void tnfs_replay_seek_restore() {
+	tnfs_car_data *car;
+	int g;
+	int i;
+
+	if (g_racer_cars_in_scene <= 2) {
+		g = g_car_ptr_array[0]->field_158;
+		if (g == 0 || g == 1) {
+			g_random_struct[g].id = 0;
+			g_random_struct[1 - g].id = 1;
+		}
+	}
+	for (i = 0; i < g_total_cars_in_scene; i++) {
+		car = g_car_ptr_array[i];
+		// disabled cars and hidden traffic are skipped by the game loop
+		if ((car->field_4e9 & 4) != 0 && car->crash_state != 6) {
+			car->road_ground_position = track_data[car->track_slice].pos;
+		}
+	}
+}
+
+/*
  * Restores keyframe k (Win95 SE tnfs_replay_reinstate 0x44e354, DOS 0x6e53b). k = tick / TNFS_REPLAY_KEYFRAME, or
  * param_2 + 16 (DOS + 30) for param_2 >= 0, which nothing calls. Camera and sound restarts are left out.
  */
@@ -2005,6 +2040,10 @@ void tnfs_replay_reinstate(int tick, int param_2) {
 	}
 	for (i = 0; i < other_cars; i++) {
 		tnfs_replay_car_keyframe_restore(0, k, i);
+	}
+	// first reinstate after tnfs_replay_seek (port extra)
+	if (g_replay.highlights.reinstating != 0) {
+		tnfs_replay_seek_restore();
 	}
 	g_replay.highlights.reinstating = 0;
 

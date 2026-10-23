@@ -426,7 +426,9 @@ typedef struct tnfs_track_data {
 	short slope; // 20
 	short slant; // 22
 	short heading; // 24
-	// blank
+	// police parking spot (DOS 0x78f5d, PSX 0x80055014, Win95 SE 0x46b950 tnfs_ai_police_parked_respawn): 1 spot,
+	// 2 left side (else right), 4 not parked, 0x18 index into the chance table DAT_000fdbe8
+	short police_spot; // 26
 	short side_normal_x; // 28
 	short side_normal_y; // 30
 	short side_normal_z; // 32

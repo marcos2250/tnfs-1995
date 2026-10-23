@@ -524,7 +524,8 @@ void tnfs_ai_respawn_location(tnfs_car_data *car, int *direction, int *node) {
 	int local_28;
 
 	piVar1 = car->field_158;
-	bVar3 = track_data[car->track_slice & g_slice_mask].num_lanes >> 4 == 0;
+	// one-way road: the lanes of slice 0 (DOS 0x7dcae, PSX 0x80059190)
+	bVar3 = track_data[0].num_lanes >> 4 == 0;
 
 	if (((car->ai_state & 0x2400) != 0) //
 	|| (((car->ai_state & 8) != 0 && (bVar3)))) {
@@ -2376,6 +2377,11 @@ void tnfs_ai_police_chase(tnfs_car_data *car, int lane, tnfs_vec3 *direction) {
 	}
 }
 
+/*
+ * Parks the cop at the next police spot of the road (TRI police_spot flag 1) 0x31 slices ahead of the player, while the
+ * cop is out of play (field_4e9 without flag 4: FUN_0007da53 takes a cop out on every respawn that does not continue a
+ * chase, the start's included). DOS 0x78f5d == PSX 0x80055014 == Win95 SE 0x46b950.
+ */
 void tnfs_ai_police_parked_respawn() {
 	int iVar2;
 	int node;
@@ -2385,9 +2391,9 @@ void tnfs_ai_police_parked_respawn() {
 
 	tnfs_car_data *car = g_cop_car_ptr;
 
-	if ((car != 0) && (g_ai_skill_cfg.number_of_traffic_cars != 1) && (g_number_of_players < 2)) {
+	if ((car != 0) && (g_ai_skill_cfg.number_of_traffic_cars != 0) && (g_number_of_players < 2)) {
 		iVar2 = g_car_ptr_array[0]->track_slice;
-		if (g_track_slice < car->track_slice) {
+		if (g_road_finish_node < iVar2) {
 			tnfs_ai_police_reset_state(1);
 		}
 
@@ -2396,43 +2402,49 @@ void tnfs_ai_police_parked_respawn() {
 
 			for (i = g_cop_park_position + 1; i <= iVar2; i++) {
 
-				if (((g_tri_num_chunks << 2) <= (i + 0x32)) //
-					|| (((track_data[(i + 0x32) & g_slice_mask].side_normal_x) & 1) == 0)) {
+				if (((g_tri_num_chunks << 2) > (i + 0x31)) //
+					&& (((track_data[(i + 0x31) & g_slice_mask].police_spot) & 1) != 0)) {
 
-					node = i + 0x32;
+					node = i + 0x31;
 					g_lcg_random_nbr = g_lcg_random_mod * g_lcg_random_seed;
 					g_lcg_random_mod = g_lcg_random_nbr & 0xffff;
 
-					if ((DAT_000fdbe8[((track_data[node & g_slice_mask].side_normal_x & 0x18) >> 3)] << 16) //
+					if ((DAT_000fdbe8[((track_data[node & g_slice_mask].police_spot & 0x18) >> 3)] << 16) //
 							< (((g_lcg_random_nbr & 0xffff00) >> 8 & 0x7f00) << 8)) {
 						g_cop_park_position = iVar2;
 						return;
 					}
 
-					if ((track_data[node & g_slice_mask].side_normal_x & 2) == 0) {
+					if ((track_data[node & g_slice_mask].police_spot & 2) == 0) {
 						local_30 = track_data[node & g_slice_mask].roadRightFence * 0x2000 - car->collision_data.size.x;
 					} else {
 						local_30 = track_data[node & g_slice_mask].roadLeftFence * -0x2000 + car->collision_data.size.x;
 					}
 
+					// same way as the player on a one-way road (lanes of slice 0) or at a spot on the right
 					uVar2 = 1;
-					if (((track_data[node & g_slice_mask].num_lanes >> 4) & 0xF) //
-						|| (track_data[node & g_slice_mask].side_normal_x & 2)) {
+					if (((track_data[0].num_lanes >> 4) != 0) //
+						&& (track_data[node & g_slice_mask].police_spot & 2)) {
 						uVar2 = 0;
 					}
 
 					car->ai_state = car->ai_state & 0xff87dbff;
+					car->field_158 = g_car_ptr_array[0]->field_158;
 					g_police_on_chase = 0;
 
 					tnfs_ai_respawn_do(car, node, uVar2, local_30, 0);
 					car->field_4e9 = car->field_4e9 | 4; //re-enable flag 4
-					if ((track_data[node & g_slice_mask].side_normal_x & 4U) == 0) {
+					if ((track_data[node & g_slice_mask].police_spot & 4U) == 0) {
 						car->ai_state = car->ai_state | 0x20000; //parked
 					}
 					g_cop_park_position = iVar2;
 					return;
 				}
 			}
+		}
+		// also while the cop is in play, and when no spot was found
+		if (iVar2 > g_cop_park_position) {
+			g_cop_park_position = iVar2;
 		}
 	}
 }

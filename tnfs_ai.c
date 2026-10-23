@@ -154,9 +154,10 @@ void tnfs_ai_init() {
 		g_car_array[i].car_id = i;
 		g_car_array[i].car_id2 = i;
 
-		// starting grid
-		g_car_array[i].track_slice = 0x10;
-		tnfs_initial_position(&g_car_array[i]);
+		// not placed yet: slice 0, track_slice_lap 0 (DOS tnfs_ai_car_defaults 0x643fb, Win95 SE 0x4406d0). The first
+		// tnfs_ai_driving_main places the car through tnfs_ai_respawn_0077121, which also sets its road vectors; racers
+		// go to their grid slot there (tnfs_ai_respawn_racer_0007df87), in the ticks of tnfs_sim_start
+		g_car_array[i].track_slice = 0;
 
 		// ai states
 		if (i < g_racer_cars_in_scene) {
@@ -176,7 +177,7 @@ void tnfs_ai_init() {
 			g_car_array[i].collision_data.field_084 = 1;
 		}
 
-		g_car_array[i].track_slice_lap = g_car_array[i].track_slice;
+		g_car_array[i].track_slice_lap = 0;
 
 		// load car basic specs
 		tnfs_ai_load_car(car, car->car_model_id);
@@ -726,6 +727,38 @@ void tnfs_ai_respawn_do(tnfs_car_data *car, int node, int side, int centerline, 
 	}
 }
 
+/*
+ * Grid slot of a racer, set in the respawn path (DOS 0x7df87 == PSX 0x800594a0): the lane from the race position and
+ * the lane table of slice 10, the slice 0x20 - 2 * position (head-to-head: 0x20 - 4 * (position / 2)).
+ * Not ported: the binaries skip it when DAT_00167135 (PSX DAT_8010d248) is 9, an unknown mode.
+ */
+void tnfs_ai_respawn_racer_0007df87(tnfs_car_data *car, int *node) {
+	int lane_width;
+	int position;
+	int one_way;
+
+	if ((car->ai_state & 4) != 0) {
+		one_way = (track_data[0].num_lanes >> 4) == 0;
+		lane_width = tnfs_ai_lane_table(track_data[g_slice_mask & 10].num_lanes & 0xf,
+				track_data[g_slice_mask & 10].roadRightMargin >> 3);
+		position = g_race_positions[car->car_id2];
+		car->target_center_line = car->lane_slack //
+				+ one_way * lane_width * 0x100 //
+				+ lane_width * 0x100 * (position % 2) //
+				+ (lane_width * -0x100) / 2;
+		if (((track_data[g_slice_mask & 0x14].num_lanes >> 4) == 2) //
+				&& ((track_data[g_slice_mask & 0x14].num_lanes & 0xf) == 1) //
+				&& (position % 2 == 0)) {
+			car->target_center_line += lane_width * -0x100;
+		}
+		if (g_racer_cars_in_scene < 3) {
+			*node = (position / 2) * -4 + 0x20;
+		} else {
+			*node = position * -2 + 0x20;
+		}
+	}
+}
+
 void tnfs_ai_respawn_0007e2ee(tnfs_car_data *car, int flag) {
 	int direction;
 	int node;
@@ -767,7 +800,7 @@ void tnfs_ai_respawn_0007e2ee(tnfs_car_data *car, int flag) {
 		car->target_center_line = (track_data[node].num_lanes & 0xf) * (track_data[node].roadRightMargin >> 2) * 0x100;
 	}
 	car->target_center_line = car->target_center_line + car->lane_slack;
-	//tnfs_ai_respawn_racer_0007df87(car, &node);
+	tnfs_ai_respawn_racer_0007df87(car, &node);
 	tnfs_ai_respawn_do(car, node, direction, car->target_center_line, flag);
 }
 

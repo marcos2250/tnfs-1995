@@ -2930,13 +2930,12 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 
 	tnfs_camera_init();
 
-	// replay buffers (DOS tnfs_car_init_Mobile_InitCarData 0x6f28e), then the state after tnfs_sim_start
+	// replay buffers (DOS tnfs_car_init_Mobile_InitCarData 0x6f28e), then the start of the simulation
 	tnfs_replay_init();
-	g_is_playing = 1;
-	replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, 0);
 	for (i = 0; i < 8; i++) {
 		g_control_word[i] = 0x7a0;
 	}
+	tnfs_sim_start();
 }
 
 
@@ -3055,7 +3054,9 @@ void tnfs_update() {
  * Starts the race simulation after the setup (DOS tnfs_game_InitSim 0x40da4 "Starting Engine", Win95 SE 0x455a5c):
  * clock 0, all flags on, three game loop ticks without a replay mode (control words neutral) and without
  * advancing the clock, then recording (mode 1) with a keyframe on the first control step.
- * tnfs_init_sim leaves the sim in the state after this block, without the three ticks.
+ * The first tick places the AI cars, which start with track_slice_lap 0 (tnfs_ai_init): racers on their grid slots,
+ * with their road vectors, before the first recorded tick (race times count in mode 1 only). tnfs_init_sim ends with
+ * it; a front end that sets the cars up again after tnfs_init_sim (tnfs_ai_init) calls it again afterwards.
  */
 void tnfs_sim_start() {
 	iSimTimeClock = 0;

@@ -17,13 +17,15 @@ tnfs_surface_type road_surface_type_array[3];
 tnfs_track_speed g_track_speed[600];
 
 tnfs_car_specs car_specs;
-tnfs_car_data g_car_array[8];
-tnfs_car_data *g_car_ptr_array[8]; // 00153ba0/00153bec 8010c720/800f7e60
+// 9 car slots (head-to-head: 2 racers, 1 cop, 6 traffic): DOS g_car_ptr_array 0x153ba0 (9 entries up to 0x153bc4),
+// Win95 SE 0x509e1c (up to 0x509e40)
+tnfs_car_data g_car_array[9];
+tnfs_car_data *g_car_ptr_array[9]; // 00153ba0/00153bec 8010c720/800f7e60
 tnfs_car_data *player_car_ptr;
 tnfs_car_data *g_cop_car_ptr = 0; // (DOS DAT_001651a8 is g_ai_skill_cfg.number_of_traffic_cars, not this)
 tnfs_ai_skill_cfg g_ai_skill_cfg;
-tnfs_ai_opp_data g_ai_opp_data[8];
-tnfs_stats_data g_stats_data[8];
+tnfs_ai_opp_data g_ai_opp_data[9]; // DOS pointers 0x165150 (up to 0x165174), SE 0x52b49c (up to 0x52b4c0)
+tnfs_stats_data g_stats_data[9]; // DOS 0x165344, SE 0x51cc5c: 9 records (the .RPL stats block)
 char * g_pbs_file = 0;
 
 int g_total_cars_in_scene = 7;
@@ -81,7 +83,7 @@ static const unsigned int g_torque_table[120] = {
 		5000, 560, 5200, 550, 5400, 550, 5600, 530, 5800, 510, 6000, 500, 6200, 490, 6400, 480, 6600, 470, 6800, 460
 };
 
-int DAT_800eb6a4 = 0; //800eb6a4
+int DAT_800eb6a4 = 0x28; //800eb6a4 (gp: 0x800db6a4), DOS 0xfdbd8, Win95 SE 0x4c5d20
 int DAT_8010d310 = 0; //8010d310
 
 int g_collision_bump_ref = 0x6666; //DAT_000f99f0 800eae58
@@ -1366,7 +1368,7 @@ int g_replay_clip_cut = 0; // a crashed car was put back on the road (cuts a hig
 int g_replay_highlights_only = 0; // leave after the last highlight clip instead of looping (DOS 0x15c598, SE 0x5137e4)
 extern int general_flags;
 // AI globals of the keyframes (tnfs_ai.c)
-extern int g_some_car_array2[8];
+extern int g_some_car_array2[9];
 extern tnfs_random_struct g_random_struct[2];
 extern int g_cop_park_position;
 extern int g_random_direction[2];
@@ -1884,7 +1886,7 @@ static void tnfs_replay_car_keyframe_restore(int is_player, int k, int index) {
 	} else {
 		r = g_replay.recording + REPLAY_OTHER_FRAMES + k * (8 * 0x172) + index * 0x172;
 		if ((replay_get32(r + 8) >> 24) >= g_total_cars_in_scene) {
-			// the port has 8 car slots, SE 9 (a head-to-head with a cop and 6 traffic cars): not restored
+			// port check: a car the race doesn't have is not restored
 			return;
 		}
 		car = g_car_ptr_array[replay_get32(r + 8) >> 24];
@@ -2433,7 +2435,7 @@ void tnfs_replay_stats_save() {
 	unsigned char *r;
 
 	memset(g_replay.stats, 0, sizeof(g_replay.stats));
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 9; i++) {
 		r = g_replay.stats[i];
 		for (j = 0; j < 17; j++) {
 			replay_put32(r + j * 4, g_stats_data[i].lap_timer[j]);
@@ -2458,7 +2460,7 @@ void tnfs_replay_stats_load() {
 	int j;
 	unsigned char *r;
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 9; i++) {
 		r = g_replay.stats[i];
 		for (j = 0; j < 17; j++) {
 			g_stats_data[i].lap_timer[j] = replay_get32(r + j * 4);
@@ -2839,7 +2841,7 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	//init track
 	tnfs_init_track(trifile);
 
-	// AI skill constants
+	// AI skill constants (DOS tnfs_ai_init_constants 0x712a2, PSX 0x8004c4fc, SE 0x456410)
 	g_ai_skill_cfg.opp_desired_ahead = 0x140000;
 	g_ai_skill_cfg.cop_warning_time = 400;
 	g_ai_skill_cfg.max_player_runways = 2;
@@ -2847,15 +2849,15 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	g_ai_skill_cfg.traffic_density = 0x1f4;
 	g_ai_skill_cfg.number_of_traffic_cars = 4;
 	g_ai_skill_cfg.traffic_speed_factors[0] = 0x10000;
-	g_ai_skill_cfg.traffic_speed_factors[1] = 0xe665;
+	g_ai_skill_cfg.traffic_speed_factors[1] = 0xe666;
 	g_ai_skill_cfg.traffic_speed_factors[2] = 0xb333;
-	g_ai_skill_cfg.traffic_speed_factors[3] = 0x9999;
+	g_ai_skill_cfg.traffic_speed_factors[3] = 0xcccc;
 	g_ai_skill_cfg.opp_desired_speed_c = math_mul(0x960000, 0x471c); //0x29aa68;
 	g_ai_skill_cfg.traffic_base_speed = 0xDE38D;
-	g_ai_skill_cfg.lane_slack[0] = 0x10000;
-	g_ai_skill_cfg.lane_slack[1] = -0x10000;
-	g_ai_skill_cfg.lane_slack[2] = 0x8000;
-	g_ai_skill_cfg.lane_slack[3] = 0xCCCC;
+	g_ai_skill_cfg.lane_slack[0] = 0;
+	g_ai_skill_cfg.lane_slack[1] = 0;
+	g_ai_skill_cfg.lane_slack[2] = 0;
+	g_ai_skill_cfg.lane_slack[3] = 0;
 
 	g_ai_skill_cfg.opponent_glue_0[0] = 0x20000;
 	g_ai_skill_cfg.opponent_glue_0[1] = 0x20000;

@@ -652,13 +652,13 @@ extern char g_sign_status[2000];
 extern struct tnfs_track_speed g_track_speed[600]; // 000FDB8C road speed limit array
 
 extern struct tnfs_car_specs car_specs;
-extern struct tnfs_car_data g_car_array[8];
-extern tnfs_car_data *g_car_ptr_array[8];
+extern struct tnfs_car_data g_car_array[9];
+extern tnfs_car_data *g_car_ptr_array[9];
 extern tnfs_car_data *player_car_ptr;
 extern tnfs_car_data *g_cop_car_ptr;
 extern tnfs_ai_skill_cfg g_ai_skill_cfg;
-extern tnfs_ai_opp_data g_ai_opp_data[8];
-extern tnfs_stats_data g_stats_data[8];
+extern tnfs_ai_opp_data g_ai_opp_data[9];
+extern tnfs_stats_data g_stats_data[9];
 
 extern int g_total_cars_in_scene;
 extern int g_racer_cars_in_scene;

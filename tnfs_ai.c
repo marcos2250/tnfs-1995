@@ -26,7 +26,7 @@ int DAT_000fdbe8[4] = { 0x20, 0x40, 0x60, 0x80 };
 int g_cop_park_position = 0; //000fdbf8
 int g_tri_lap_chunks = 0x208;
 int g_number_of_hidden_cars = 0;
-int g_some_car_array2[8]; //00153bc8 car ids sorted by track_slice_lap, the last one leads
+int g_some_car_array2[9]; //00153bc8 (up to 0x153bec, SE 0x509e44) car ids sorted by track_slice_lap, the last one leads
 int DAT_00165324 = 0;
 int DAT_00165328 = 0;
 int DAT_00165330 = 0;
@@ -2621,7 +2621,9 @@ void tnfs_ai_block_opponent_behind(tnfs_car_data *car, int lane, tnfs_vec3 *dire
 	}
 }
 
-int DAT_000fdbb8[8] = { 3, 3, 4, 5, 4, 5, 4, 3 };
+// PSX 0x800c1794 == SE 0x4c5d00 (DOS 0xfdbb8 differs). SE reads model ids 8..11 past the table from the globals that
+// follow (0x4c5d20 = DAT_800eb6a4, 0x4c5d24, 0x4c5d28 = cheat_crashing_cars, 0x4c5d2c): the Warrior (11) gets 0
+int DAT_000fdbb8[12] = { 3, 3, 4, 5, 4, 5, 4, 3, 0x28, 0x4b0, 0, 0 };
 
 void tnfs_ai_opp_engine_and_cornering(tnfs_car_data *car, int lane, tnfs_vec3 *direction) {
 	int node;

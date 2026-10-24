@@ -1370,7 +1370,7 @@ extern int g_some_car_array2[8];
 extern tnfs_random_struct g_random_struct[2];
 extern int g_cop_park_position;
 extern int g_random_direction[2];
-extern int DAT_0016532c;
+extern int g_number_of_hidden_cars;
 
 // world block: header
 #define REPLAY_WORLD_END_CLOCK 0x04 // last recorded clock (DOS g_min_iSimTimeClock 0x15af4c, SE 0x5120c8)
@@ -1936,7 +1936,7 @@ static void tnfs_replay_world_save(int k, int other_cars) {
 	replay_put32(r + 0x80, g_cop_park_position);
 	replay_put32(r + 0x84, g_random_direction[0]);
 	replay_put32(r + 0x88, g_random_direction[1]);
-	replay_put32(r + 0x8c, DAT_0016532c);
+	replay_put32(r + 0x8c, g_number_of_hidden_cars);
 	replay_put32(r + 0x90, 0); // DOS DAT_00153b94 / SE DAT_00509e10, read by nothing else
 	// 0x94: never written
 	r[0x98] = 0; // DOS DAT_000f9e4c / SE DAT_004b9624 (bit 0 restored), read by nothing else
@@ -1979,7 +1979,7 @@ void tnfs_replay_reinstate(int tick, int param_2) {
 	g_cop_park_position = replay_get32(r + 0x80);
 	g_random_direction[0] = replay_get32(r + 0x84);
 	g_random_direction[1] = replay_get32(r + 0x88);
-	DAT_0016532c = replay_get32(r + 0x8c);
+	g_number_of_hidden_cars = replay_get32(r + 0x8c);
 	// r + 0x90, r[0x98]: globals read by nothing else
 	for (i = 0; i < 2; i++) {
 		g_random_struct[i].id = (short) (r[0x5c + i * 12 + 0] | r[0x5c + i * 12 + 1] << 8);

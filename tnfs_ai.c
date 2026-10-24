@@ -2717,6 +2717,8 @@ void tnfs_ai_opp_engine_and_cornering(tnfs_car_data *car, int lane, tnfs_vec3 *d
 
 void tnfs_ai_lane_change() {
 	int local_c0;
+	int new_lane;
+	int lane_width;
 	tnfs_vec3 car_speed_b;
 	tnfs_vec3 car_speed_a;
 	unsigned int local_118;
@@ -2923,13 +2925,11 @@ void tnfs_ai_lane_change() {
 							&& (track_data[car->track_slice].num_lanes & 0xF) + 4 > lane //
 							&& !(car->ai_state & 0x404)) //
 							|| (car->ai_state & 0x20000)) {
-						/*
-						car->target_center_line = ((lane - 4)
-								* DAT_00164FDC[(track_data[car->track_slice].roadRightMargin >> 3) + ((track_data[car->track_slice].num_lanes & 0xf) >> 4)] * 0x100)
-								+ ((DAT_00164FDC[(track_data[car->track_slice].roadRightMargin >> 3) + ((track_data[car->track_slice].num_lanes & 0xf) >> 4)] * 0x100) >> 1);
-						*/
-						//3do version
-						car->target_center_line = lane * 0x50000 - 0x118000;
+						// the middle of the lane, from the lane table of the right side (DOS 0x7aa3f..)
+						lane_width = tnfs_ai_lane_table(track_data[car->track_slice & g_slice_mask].num_lanes & 0xf,
+								track_data[car->track_slice & g_slice_mask].roadRightMargin >> 3);
+						car->target_center_line = (lane - 4) * lane_width * 0x100 + (lane_width * 0x100) / 2; // PC version
+						// 3DO version: car->target_center_line = lane * 0x50000 - 0x118000;
 					} else {
 						if (g_opponent_skill == 1) {
 							if (car->ai_state & 0x1000) {
@@ -3038,23 +3038,21 @@ void tnfs_ai_lane_change() {
 							}
 						}
 
-						// change target lane
+						// change target lane (DOS 0x7b496: the best of the lanes left, current, right)
+						new_lane = lane;
 						local_c0 = change_lane_vector.y;
 						if (change_lane_vector.x > change_lane_vector.y) {
-							lane = lane - 1;
+							new_lane = lane - 1;
 							local_c0 = change_lane_vector.x;
 						}
 						if (change_lane_vector.z > local_c0)
-							lane = lane + 1;
+							new_lane = lane + 1;
 
-						/*
-						car->target_center_line = ((lane - 4)
-								* DAT_00164FDC[(track_data[car->track_slice].roadRightMargin >> 3) + ((track_data[car->track_slice].num_lanes & 0xf) >> 4)] * 0x100)
-								+ ((DAT_00164FDC[(track_data[car->track_slice].roadRightMargin >> 3) + ((track_data[car->track_slice].num_lanes & 0xf) >> 4)] * 0x100)
-										>> 1);
-						*/
-						//3do version
-						car->target_center_line = lane * 0x50000 - 0x118000;
+						// the middle of the new lane, from the lane table of the right side
+						lane_width = tnfs_ai_lane_table(track_data[car->track_slice & g_slice_mask].num_lanes & 0xf,
+								track_data[car->track_slice & g_slice_mask].roadRightMargin >> 3);
+						car->target_center_line = (new_lane - 4) * lane_width * 0x100 + (lane_width * 0x100) / 2; // PC version
+						// 3DO version: car->target_center_line = new_lane * 0x50000 - 0x118000;
 
 						// limit center line
 						iVar3 = track_data[car->track_slice].roadRightFence * 0x2000 - (car->collision_data.size).x;
@@ -3071,8 +3069,9 @@ void tnfs_ai_lane_change() {
 						else
 							car->target_center_line -= car->lane_slack;
 
-						if ((DAT_00165148 != 0) && (local_c0 != lane)) {
-							FUN_00077a05(car, others, lane, local_c0, &car_speed_a);
+						// DOS 0x7b6ea: EBX the current lane, ECX the new one
+						if ((DAT_00165148 != 0) && (new_lane != lane)) {
+							FUN_00077a05(car, others, new_lane, lane, &car_speed_a);
 						}
 						if (((car->ai_state & 4) != 0) && (car->track_slice_lap < 65)) {
 							car->speed_target = math_mul(car->speed_target, (65 - car->track_slice_lap) * 0x1f80 + 0x10000);

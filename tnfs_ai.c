@@ -2621,8 +2621,8 @@ void tnfs_ai_block_opponent_behind(tnfs_car_data *car, int lane, tnfs_vec3 *dire
 	}
 }
 
-// PSX 0x800c1794 == SE 0x4c5d00 (DOS 0xfdbb8 differs). SE reads model ids 8..11 past the table from the globals that
-// follow (0x4c5d20 = DAT_800eb6a4, 0x4c5d24, 0x4c5d28 = cheat_crashing_cars, 0x4c5d2c): the Warrior (11) gets 0
+// PSX 0x800c1794 == SE 0x4c5d00 (DOS 0xfdbb8: 4, 3, 3, 3, 4, 5, 5, 4, then the same 0x28, 0x4b0, 0, 0). SE reads
+// model ids 8..11 past the table from the globals that follow (0x4c5d20 = DAT_800eb6a4, 0x4c5d24, 0x4c5d28 = cheat_crashing_cars, 0x4c5d2c): the Warrior (11) gets 0
 int DAT_000fdbb8[12] = { 3, 3, 4, 5, 4, 5, 4, 3, 0x28, 0x4b0, 0, 0 };
 
 void tnfs_ai_opp_engine_and_cornering(tnfs_car_data *car, int lane, tnfs_vec3 *direction) {
@@ -2772,56 +2772,61 @@ void tnfs_ai_lane_change() {
 
 				// left side
 				distance = car->center_line_distance - car->side_width + 0x8000;
-				/*
-				 DAT_00165340 = g_random_direction[(track_data[car->track_slice].roadRightMargin >> 3) + ((track_data[car->track_slice].num_lanes & 0xf) >> 4)];
-				 DAT_00165340 = (track_data[car->track_slice].roadRightMargin >> 3) * 0x10000;
-
-				if (distance >= 3 * DAT_00165340) {
-					lane_left = 7;
-				} else if (distance >= 2 * DAT_00165340) {
-					lane_left = 6;
-				} else if (distance >= DAT_00165340) {
-					lane_left = 5;
-				} else if (distance >= 0) {
+				// PC version (DOS 0x79f3b == SE 0x46c490): lanes as wide as the lane table entry
+				lane_width = tnfs_ai_lane_table(track_data[car->track_slice & g_slice_mask].num_lanes & 0xf,
+						track_data[car->track_slice & g_slice_mask].roadRightMargin >> 3);
+				if (distance < 0) {
+					if (lane_width * -0x100 < distance) {
+						lane_left = 3;
+					} else if (lane_width * -0x200 < distance) {
+						lane_left = 2;
+					} else if (lane_width * -0x300 < distance) {
+						lane_left = 1;
+					} else {
+						lane_left = 0;
+					}
+				} else if (distance < lane_width * 0x100) {
 					lane_left = 4;
-				} else if (distance >= -DAT_00165340) {
-					lane_left = 3;
-				} else if (distance >= -2 * DAT_00165340) {
-					lane_left = 2;
+				} else if (distance < lane_width * 0x200) {
+					lane_left = 5;
+				} else if (distance < lane_width * 0x300) {
+					lane_left = 6;
 				} else {
-					lane_left = 1;
+					lane_left = 7;
 				}
-				*/
-				//3do version
-				lane_left = (((distance >> 8) * 0x33) >> 0x10) + 4;
-				if (lane_left < 0) lane_left = 0;
-				if (lane_left > 7) lane_left = 7;
+				// 3DO version:
+				// lane_left = (((distance >> 8) * 0x33) >> 0x10) + 4;
+				// if (lane_left < 0) lane_left = 0;
+				// if (lane_left > 7) lane_left = 7;
 
 				// right side
 				distance = car->side_width + car->center_line_distance - 0x8000;
-				/*
-				 //DAT_00165340 = DAT_00164FDC[(track_data[car->track_slice].roadRightMargin >> 3) + ((track_data[car->track_slice].num_lanes & 0xf) >> 4)];
-				 DAT_00165340 = (track_data[car->track_slice].roadRightMargin >> 3) * 0x10000;
-				if (distance >= 3 * DAT_00165340) {
-					lane_right = 7;
-				} else if (distance >= 2 * DAT_00165340) {
-					lane_right = 6;
-				} else if (distance >= DAT_00165340) {
-					lane_right = 5;
-				} else if (distance >= 0) {
+				// PC version
+				lane_width = tnfs_ai_lane_table(track_data[car->track_slice & g_slice_mask].num_lanes & 0xf,
+						track_data[car->track_slice & g_slice_mask].roadRightMargin >> 3);
+				if (distance < 0) {
+					if (lane_width * -0x100 < distance) {
+						lane_right = 3;
+					} else if (lane_width * -0x200 < distance) {
+						lane_right = 2;
+					} else if (lane_width * -0x300 < distance) {
+						lane_right = 1;
+					} else {
+						lane_right = 0;
+					}
+				} else if (distance < lane_width * 0x100) {
 					lane_right = 4;
-				} else if (distance >= -DAT_00165340) {
-					lane_right = 3;
-				} else if (distance >= -2 * DAT_00165340) {
-					lane_right = 2;
+				} else if (distance < lane_width * 0x200) {
+					lane_right = 5;
+				} else if (distance < lane_width * 0x300) {
+					lane_right = 6;
 				} else {
-					lane_right = 1;
+					lane_right = 7;
 				}
-				*/
-				//3do version
-				lane_right = (((distance >> 8) * 0x33) >> 0x10) + 4;
-				if (lane_right < 0) lane_right = 0;
-				if (lane_right > 7) lane_right = 7;
+				// 3DO version:
+				// lane_right = (((distance >> 8) * 0x33) >> 0x10) + 4;
+				// if (lane_right < 0) lane_right = 0;
+				// if (lane_right > 7) lane_right = 7;
 
 				// each bit represents a blocked lane (8 bits = 8 lanes)
 				if (lane_right == lane_left) {
@@ -2840,8 +2845,9 @@ void tnfs_ai_lane_change() {
 			}
 		}
 
-		//player_car_ptr->ai_state &= 0xF700; //???
-		//player_car_ptr->ai_state &= 0xFB00;
+		// DOS 0x7a390 (byte +0x175 & 0xf7, & 0xfb), SE 0x46c735 (& 0xf3)
+		player_car_ptr->ai_state &= 0xfffff7ff;
+		player_car_ptr->ai_state &= 0xfffffbff;
 
 		// do lane changes
 		for (i = 0; i < g_total_cars_in_scene; i++) {
@@ -2856,30 +2862,32 @@ void tnfs_ai_lane_change() {
 						&& (car->car_id < 0 || car->car_id >= g_number_of_players) //
 						&& (car->crash_state != 4)) {
 
-					/*
-					 // current lane
-					 //DAT_00165340 = DAT_000164FDC[(track_data[car->track_slice].roadRightMargin >> 3) + ((track_data[car->track_slice].num_lanes & 0xf) >> 4)] * 0x100;
-					 DAT_00165340 = (track_data[car->track_slice].roadRightMargin >> 3) * 0x10000;
-						if (car->center_line_distance >= 3 * DAT_00165340) {
-							lane = 7;
-						} else if (car->center_line_distance >= 2 * DAT_00165340) {
-							lane = 6;
-						} else if (car->center_line_distance >= DAT_00165340) {
-							lane = 5;
-						} else if (car->center_line_distance >= 0) {
-							lane = 4;
-						} else if (car->center_line_distance >= -DAT_00165340) {
+					// current lane, PC version
+					lane_width = tnfs_ai_lane_table(track_data[car->track_slice & g_slice_mask].num_lanes & 0xf,
+							track_data[car->track_slice & g_slice_mask].roadRightMargin >> 3);
+					if (car->center_line_distance < 0) {
+						if (lane_width * -0x100 < car->center_line_distance) {
 							lane = 3;
-						} else if (car->center_line_distance >= -2 * DAT_00165340) {
+						} else if (lane_width * -0x200 < car->center_line_distance) {
 							lane = 2;
-						} else {
+						} else if (lane_width * -0x300 < car->center_line_distance) {
 							lane = 1;
+						} else {
+							lane = 0;
 						}
-						*/
-					//3do version
-					lane = (((car->center_line_distance >> 8) * 0x33) >> 0x10) + 4;
-					if (lane < 0) lane = 0;
-					if (lane > 7) lane = 7;
+					} else if (car->center_line_distance < lane_width * 0x100) {
+						lane = 4;
+					} else if (car->center_line_distance < lane_width * 0x200) {
+						lane = 5;
+					} else if (car->center_line_distance < lane_width * 0x300) {
+						lane = 6;
+					} else {
+						lane = 7;
+					}
+					// 3DO version:
+					// lane = (((car->center_line_distance >> 8) * 0x33) >> 0x10) + 4;
+					// if (lane < 0) lane = 0;
+					// if (lane > 7) lane = 7;
 
 					if (car->ai_state & 0x1000) {
 						change_lane_vector.x = 0x10000;
@@ -2890,11 +2898,13 @@ void tnfs_ai_lane_change() {
 						change_lane_vector.y = 0;
 						change_lane_vector.z = 0;
 
-						if ((g_opponent_skill > 1) && (car->track_slice_lap < 100)) {
-							if (((g_race_positions[car->car_id2] * 5 + 100) <= car->track_slice_lap) //
-								&& ((3 - ((track_data[car->track_slice].num_lanes >> 4) & 0xF) != lane) //
-								&& (track_data[car->track_slice].num_lanes & 0xF) + 4 != lane)) {
-								change_lane_vector.y = 0x460000;
+						// Win95 SE 0x46c8a2 == PSX 0x800560c0; DOS 0x7a651: track_slice_lap < 100,
+						// track_slice_lap < position * 5 + 0x20, change_lane_vector.y = 0x460000
+						if ((g_opponent_skill > 1) && (car->track_slice_lap < 200)
+								&& (car->track_slice_lap < g_race_positions[car->car_id2] * 5 + 100)) {
+							if ((3 - ((track_data[car->track_slice].num_lanes >> 4) & 0xF) != lane) //
+								&& (track_data[car->track_slice].num_lanes & 0xF) + 4 != lane) {
+								change_lane_vector.y = 0x1b580000;
 							}
 						} else if ((g_opponent_skill == 1) && (car->ai_state & 4) && (car->track_slice < 60)) {
 							if ((abs(car->track_slice - g_car_ptr_array[0]->track_slice) < 5) //

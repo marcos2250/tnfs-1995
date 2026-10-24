@@ -42,7 +42,7 @@ int tnfs_ai_lane_table(int lanes, int margin) {
 	}
 	return (margin * 0x100) / lanes;
 }
-tnfs_random_struct g_random_struct[2]; //DAT_0016511E-00165134;
+tnfs_random_struct g_random_struct[2]; //DAT_00165120-00165137 (Ghidra label g_random_struct DOS 0x16511e, SE 0x52b476: 2 bytes early)
 
 int g_ai_opp_speed_factors[8] = { 0xf5c2, 0x10000, 0xfae1, 0xfae1, 0x10000, 0xfae1, 0xf333, 0xf333 };
 
@@ -130,6 +130,8 @@ int tnfs_ai_opp_profile_row() {
 	return 0; // uninitialized in the binaries (rows 0-4 are the same)
 }
 
+void tnfs_ai_random_generator();
+
 void tnfs_ai_init() {
 	int i, j;
     tnfs_car_data *car;
@@ -162,17 +164,14 @@ void tnfs_ai_init() {
 		// ai states
 		if (i < g_racer_cars_in_scene) {
 			g_car_array[i].ai_state = 0x1e4; //opponents
-			g_car_array[i].field_158 = 0;
 			g_car_array[i].field_4e9 = 7;
 		} else if (i < g_racer_cars_in_scene + g_number_of_cops) {
 			g_car_array[i].ai_state = 0x1e8; //cop
 			g_cop_car_ptr = g_car_ptr_array[i];
-			g_car_array[i].field_158 = 1;
 			g_car_array[i].field_4e9 = 0;
 			g_car_array[i].collision_data.field_084 = 1;
 		} else {
 			g_car_array[i].ai_state = 0x1e0; //traffic
-			g_car_array[i].field_158 = 1;
 			g_car_array[i].field_4e9 = 0;
 			g_car_array[i].collision_data.field_084 = 1;
 		}
@@ -191,24 +190,30 @@ void tnfs_ai_init() {
 		g_ai_opp_data[i] = g_ai_opp_profiles[g_ai_opp_profile_map[j][g_race_positions[i]] - 'A'];
 	}
 
-	// init random generator
-	g_random_struct[0].id = 1;
-	g_random_struct[1].id = 0;
-
-	for (i = 0; i < 2; i++) {
-		j = g_car_array[i].track_slice_lap;
-		g_random_struct[i].c = j;
-		g_random_struct[i].d = j + 0x2b;
-		g_random_struct[i].e = j - 0xc;
-		g_random_struct[i].a = g_random_struct[i].d + 11;
-		g_random_struct[i].b = g_random_struct[i].e - 8;
-	}
-
-	// race order, DOS tnfs_car_init_carObj 0x6466b and tnfs_ai_init_traffic_logic 0x7fffb
+	// race order, DOS tnfs_car_init_carObj 0x6466b
 	for (i = 0; i < g_total_cars_in_scene; i++) {
 		g_some_car_array2[i] = i;
 	}
+
+	// traffic groups (DOS FUN_00077656 from tnfs_ai_init_traffic_logic 0x7fffb): group i led by the car in slot i,
+	// every other car in group 0, then the windows
+	for (i = 0; i < 2; i++) {
+		g_random_struct[i].id = i;
+	}
+	for (i = 0; i < g_total_cars_in_scene; i++) {
+		if (i < 2) {
+			g_car_ptr_array[i]->field_158 = i;
+		} else {
+			g_car_ptr_array[i]->field_158 = 0;
+		}
+	}
+	tnfs_ai_random_generator();
+
+	// DOS tnfs_ai_init_traffic_logic 0x7fffb
+	g_random_direction[0] = 0;
+	g_random_direction[1] = g_number_of_traffic_cars; // shorts [2], [3] = the int at 0x1670bb
 	DAT_0016532c = 0;
+	g_cop_park_position = 0;
 	FUN_00064e46();
 }
 

@@ -303,7 +303,7 @@ typedef struct tnfs_car_data {
 	int brake; //0x3B9
 	int is_shifting_gears; //0x3BD
 	short rpm_engine; //0x3C1
-	short rpm_vehicle; //0x3C2
+	short rpm_vehicle; //0x3C5
 	short rpm_redline; //0x3C2
 	int road_grip_increment; //0x3C9
 	int tire_grip_rear; //0x3CD
@@ -591,8 +591,8 @@ typedef struct tnfs_stats_data {
 	// ...
 	int best_accel_time_1; //0x198
 	int best_accel_time_2; //0x19c
-	int best_brake_time_1; //0x1a0
-	int best_brake_time_2; //0x1a4
+	int best_brake_time_1; //0x1a4 60-0 (DOS 0x5bdcb)
+	int best_brake_time_2; //0x1a0 80-0
 	int quarter_mile_speed; //0x1a8
 	int quarter_mile_time; //0x1ac
 	int penalty_count; //0x1b0
@@ -778,7 +778,7 @@ typedef struct tnfs_replay_highlights {
 	int play_to; //0x98c clock where the playback ends
 	int seek_target; //0x990 clock the cueing (mode 3) simulates to
 	int camera_restart; //0x994 the first played tick sets the camera (and return_clock)
-	int reinstating; //0x998 set by tnfs_replay_seek (only silences a debug check in DOS; the port: tnfs_replay_seek_restore)
+	int reinstating; //0x998 set by tnfs_replay_seek, cleared by tnfs_replay_reinstate (only silences a debug check in DOS)
 	int panel_state; //0x99c replay panel button state (front end)
 	int sound_restart; //0x9a0 restart the looped sounds on the next reinstate (front end)
 } tnfs_replay_highlights;

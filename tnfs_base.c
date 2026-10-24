@@ -20,7 +20,7 @@ tnfs_car_specs car_specs;
 tnfs_car_data g_car_array[8];
 tnfs_car_data *g_car_ptr_array[8]; // 00153ba0/00153bec 8010c720/800f7e60
 tnfs_car_data *player_car_ptr;
-tnfs_car_data *g_cop_car_ptr = 0; //DAT_001651a8
+tnfs_car_data *g_cop_car_ptr = 0; // (DOS DAT_001651a8 is g_ai_skill_cfg.number_of_traffic_cars, not this)
 tnfs_ai_skill_cfg g_ai_skill_cfg;
 tnfs_ai_opp_data g_ai_opp_data[8];
 tnfs_stats_data g_stats_data[8];
@@ -1100,7 +1100,8 @@ void tnfs_control_pedals_digital(tnfs_car_data *car, int input) {
  * the mirror mode, with right winning over left), from the front end's input state (g_control_*):
  * bits 0-5 steering: keyboard 0 left / 0x20 / 0x3c right (both keys held: 0x20), joystick g_control_steer_axis + 0x20;
  * bits 6-11 pedals: keyboard 0x1e / throttle 5 / brake 0x3c (brake wins), joystick g_control_pedal_axis + 0x1e;
- * bits 12-15 buttons: 1 shift up, 2 shift down (up wins), 4 horn, 8 handbrake. Neutral word 0x7a0.
+ * bits 12-15 buttons: 1 shift up, 2 shift down (SE: up wins; DOS sets both and the pedal functions let down win), 4 horn,
+ * 8 handbrake. Neutral word 0x7a0.
  * The device per control is g_control_analog_steering / g_control_analog_pedals (SE g_control_steer_device /
  * g_control_pedal_device of the player: 0 keyboard, 1 joystick); shifting is always on the keyboard here.
  * Not ported: mouse and joystick-button devices, SE mirror mode (flips the steering), the disconnected network
@@ -1505,7 +1506,6 @@ void tnfs_replay_init() {
 	}
 	g_replay.highlights.tv_camera = 0;
 	g_replay_highlights_only = 0;
-	g_replay_clip_cut = 0;
 }
 
 /*
@@ -1608,8 +1608,9 @@ void tnfs_replay_highlights_select() {
 		if (min <= hl->best_seconds[i] - 2) {
 			hl->clips[cc][0] = (hl->best_seconds[i] - 2) * 0x3c;
 			hl->clips[cc][1] = (hl->best_seconds[i] + 5) * 0x3c;
-			// the original indexes the seconds by the absolute second, which is past the array after 8 minutes
-			// (it then reads the following globals); here the read stays inside the highlights block
+			// the original indexes the seconds by the absolute second, which is past the array after 8 minutes: up to
+			// second 488 it reads the following highlights fields (as here), from 489 on SE globals the port doesn't
+			// have (0 here); coolness only picks the camera and slow motion (front end) and the merged maximum
 			value = hl->best_seconds[i];
 			if (value >= 0 && value < 480 + 9) {
 				hl->clips[cc][2] = ((int *) hl->seconds)[value] & 0xff;
@@ -1913,26 +1914,21 @@ static void tnfs_replay_world_save(int k, int other_cars) {
 	replay_put32(r + 0x50, other_cars);
 	replay_put32(r + 0x54, g_ai_frame_counter);
 	replay_put32(r + 0x58, g_police_on_chase);
-	// 0x5c, 0x68: 12 bytes from g_random_struct[i] + 2 (a..e and the next 2 bytes: g_random_struct[1].id after [0])
+	// 0x5c, 0x68: g_random_struct[0], [1] (12 bytes each: id, a, b, c, d, e; DOS 0x165120, SE 0x52b478, the Ghidra
+	// labels g_random_struct DOS 0x16511e / SE DAT_0052b476 are 2 bytes before the array)
 	for (i = 0; i < 2; i++) {
-		r[0x5c + i * 12 + 0] = (unsigned char) g_random_struct[i].a;
-		r[0x5c + i * 12 + 1] = (unsigned char) (g_random_struct[i].a >> 8);
-		r[0x5c + i * 12 + 2] = (unsigned char) g_random_struct[i].b;
-		r[0x5c + i * 12 + 3] = (unsigned char) (g_random_struct[i].b >> 8);
-		r[0x5c + i * 12 + 4] = (unsigned char) g_random_struct[i].c;
-		r[0x5c + i * 12 + 5] = (unsigned char) (g_random_struct[i].c >> 8);
-		r[0x5c + i * 12 + 6] = (unsigned char) g_random_struct[i].d;
-		r[0x5c + i * 12 + 7] = (unsigned char) (g_random_struct[i].d >> 8);
-		r[0x5c + i * 12 + 8] = (unsigned char) g_random_struct[i].e;
-		r[0x5c + i * 12 + 9] = (unsigned char) (g_random_struct[i].e >> 8);
-		if (i == 0) {
-			r[0x5c + 10] = (unsigned char) g_random_struct[1].id;
-			r[0x5c + 11] = (unsigned char) (g_random_struct[1].id >> 8);
-		} else {
-			// 2 bytes after the array (DOS 0x165136)
-			r[0x68 + 10] = 0;
-			r[0x68 + 11] = 0;
-		}
+		r[0x5c + i * 12 + 0] = (unsigned char) g_random_struct[i].id;
+		r[0x5c + i * 12 + 1] = (unsigned char) (g_random_struct[i].id >> 8);
+		r[0x5c + i * 12 + 2] = (unsigned char) g_random_struct[i].a;
+		r[0x5c + i * 12 + 3] = (unsigned char) (g_random_struct[i].a >> 8);
+		r[0x5c + i * 12 + 4] = (unsigned char) g_random_struct[i].b;
+		r[0x5c + i * 12 + 5] = (unsigned char) (g_random_struct[i].b >> 8);
+		r[0x5c + i * 12 + 6] = (unsigned char) g_random_struct[i].c;
+		r[0x5c + i * 12 + 7] = (unsigned char) (g_random_struct[i].c >> 8);
+		r[0x5c + i * 12 + 8] = (unsigned char) g_random_struct[i].d;
+		r[0x5c + i * 12 + 9] = (unsigned char) (g_random_struct[i].d >> 8);
+		r[0x5c + i * 12 + 10] = (unsigned char) g_random_struct[i].e;
+		r[0x5c + i * 12 + 11] = (unsigned char) (g_random_struct[i].e >> 8);
 	}
 	replay_put32(r + 0x74, g_police_chase_time);
 	replay_put32(r + 0x78, 0); // siren sound state (DOS DAT_000fdcf4, SE DAT_004c5fa0), sound code
@@ -1947,41 +1943,6 @@ static void tnfs_replay_world_save(int k, int other_cars) {
 	r[0x99] = (unsigned char) g_police_speeding_ticket;
 	replay_put32(r + 0x9a, 0); // split time checkpoint of the player (DOS DAT_001664fc, SE DAT_0051c970), HUD
 	replay_put32(r + 0x9e, 0); // split time checkpoint of the opponent (DOS DAT_00166500, SE DAT_0051c974), HUD
-}
-
-/*
- * Port extra, not in any binary: the first reinstate after a seek also sets two pieces of engine state that the
- * keyframes don't hold. They are continuous in play-through, so a replay played from its start is exact, but after a
- * seek they keep the values from wherever playback was before, and the AI racers, the cop and the traffic (through
- * them the player too) leave the race's line until the next keyframe. The original's seeks diverge the same way.
- * - g_random_struct[0].id, the racer leading traffic group 0 (FUN_000771b8 from the race order, FUN_00077283): the
- *   keyframe copies g_random_struct + 2 (12 bytes per group), which holds [1].id but not [0].id. With up to 2 racers
- *   (tnfs_ai_random_generator) the two ids are always the racers 0 and 1, and g_random_struct[car->field_158].id ==
- *   car->car_id for both, so they follow from the player's group (field_158 is in the keyframe). With more racers
- *   the groups never change after tnfs_ai_init.
- * - road_ground_position of every car, the crash body's road reference: the game loop sets it last for every active
- *   car each tick from its track slice. Not done on play-through keyframes: a car respawned in the tick before the
- *   keyframe keeps its previous value there.
- */
-static void tnfs_replay_seek_restore() {
-	tnfs_car_data *car;
-	int g;
-	int i;
-
-	if (g_racer_cars_in_scene <= 2) {
-		g = g_car_ptr_array[0]->field_158;
-		if (g == 0 || g == 1) {
-			g_random_struct[g].id = 0;
-			g_random_struct[1 - g].id = 1;
-		}
-	}
-	for (i = 0; i < g_total_cars_in_scene; i++) {
-		car = g_car_ptr_array[i];
-		// disabled cars and hidden traffic are skipped by the game loop
-		if ((car->field_4e9 & 4) != 0 && car->crash_state != 6) {
-			car->road_ground_position = track_data[car->track_slice].pos;
-		}
-	}
 }
 
 /*
@@ -2021,13 +1982,13 @@ void tnfs_replay_reinstate(int tick, int param_2) {
 	DAT_0016532c = replay_get32(r + 0x8c);
 	// r + 0x90, r[0x98]: globals read by nothing else
 	for (i = 0; i < 2; i++) {
-		g_random_struct[i].a = (short) (r[0x5c + i * 12 + 0] | r[0x5c + i * 12 + 1] << 8);
-		g_random_struct[i].b = (short) (r[0x5c + i * 12 + 2] | r[0x5c + i * 12 + 3] << 8);
-		g_random_struct[i].c = (short) (r[0x5c + i * 12 + 4] | r[0x5c + i * 12 + 5] << 8);
-		g_random_struct[i].d = (short) (r[0x5c + i * 12 + 6] | r[0x5c + i * 12 + 7] << 8);
-		g_random_struct[i].e = (short) (r[0x5c + i * 12 + 8] | r[0x5c + i * 12 + 9] << 8);
+		g_random_struct[i].id = (short) (r[0x5c + i * 12 + 0] | r[0x5c + i * 12 + 1] << 8);
+		g_random_struct[i].a = (short) (r[0x5c + i * 12 + 2] | r[0x5c + i * 12 + 3] << 8);
+		g_random_struct[i].b = (short) (r[0x5c + i * 12 + 4] | r[0x5c + i * 12 + 5] << 8);
+		g_random_struct[i].c = (short) (r[0x5c + i * 12 + 6] | r[0x5c + i * 12 + 7] << 8);
+		g_random_struct[i].d = (short) (r[0x5c + i * 12 + 8] | r[0x5c + i * 12 + 9] << 8);
+		g_random_struct[i].e = (short) (r[0x5c + i * 12 + 10] | r[0x5c + i * 12 + 11] << 8);
 	}
-	g_random_struct[1].id = (short) (r[0x5c + 10] | r[0x5c + 11] << 8);
 	for (i = 0; i < g_total_cars_in_scene; i++) {
 		g_car_ptr_array[i]->road_object_index = 0;
 		g_car_ptr_array[i]->road_object_slice = 0;
@@ -2036,14 +1997,13 @@ void tnfs_replay_reinstate(int tick, int param_2) {
 	// r + 0x9a, r + 0x9e: split time checkpoints (HUD)
 
 	for (i = 0; i < g_number_of_players && i < 2; i++) {
+		if (param_2 >= 0) {
+			g_replay.highlights.reinstating = 1;
+		}
 		tnfs_replay_car_keyframe_restore(1, k, i);
 	}
 	for (i = 0; i < other_cars; i++) {
 		tnfs_replay_car_keyframe_restore(0, k, i);
-	}
-	// first reinstate after tnfs_replay_seek (port extra)
-	if (g_replay.highlights.reinstating != 0) {
-		tnfs_replay_seek_restore();
 	}
 	g_replay.highlights.reinstating = 0;
 
@@ -2480,8 +2440,8 @@ void tnfs_replay_stats_save() {
 		}
 		replay_put32(r + 0x198, g_stats_data[i].best_accel_time_1);
 		replay_put32(r + 0x19c, g_stats_data[i].best_accel_time_2);
-		replay_put32(r + 0x1a0, g_stats_data[i].best_brake_time_1);
-		replay_put32(r + 0x1a4, g_stats_data[i].best_brake_time_2);
+		replay_put32(r + 0x1a0, g_stats_data[i].best_brake_time_2);
+		replay_put32(r + 0x1a4, g_stats_data[i].best_brake_time_1);
 		replay_put32(r + 0x1a8, g_stats_data[i].quarter_mile_speed);
 		replay_put32(r + 0x1ac, g_stats_data[i].quarter_mile_time);
 		replay_put32(r + 0x1b0, g_stats_data[i].penalty_count);
@@ -2505,8 +2465,8 @@ void tnfs_replay_stats_load() {
 		}
 		g_stats_data[i].best_accel_time_1 = replay_get32(r + 0x198);
 		g_stats_data[i].best_accel_time_2 = replay_get32(r + 0x19c);
-		g_stats_data[i].best_brake_time_1 = replay_get32(r + 0x1a0);
-		g_stats_data[i].best_brake_time_2 = replay_get32(r + 0x1a4);
+		g_stats_data[i].best_brake_time_2 = replay_get32(r + 0x1a0);
+		g_stats_data[i].best_brake_time_1 = replay_get32(r + 0x1a4);
 		g_stats_data[i].quarter_mile_speed = replay_get32(r + 0x1a8);
 		g_stats_data[i].quarter_mile_time = replay_get32(r + 0x1ac);
 		g_stats_data[i].penalty_count = replay_get32(r + 0x1b0);
@@ -2593,6 +2553,9 @@ int tnfs_racer_finish_distance(tnfs_car_data *car) {
 	return 0;
 }
 
+extern int g_opponent_skill;
+extern int DAT_800f62c0;
+
 void tnfs_racer_clock_lap_time(tnfs_car_data *car) {
 	int iVar1;
 	int iVar2;
@@ -2601,15 +2564,17 @@ void tnfs_racer_clock_lap_time(tnfs_car_data *car) {
 	if (g_stats_data[iVar1].lap_time == 0) {
 		iVar2 = tnfs_racer_crossed_finish_line(car);
 		if (iVar2 != 0) {
-			if ((iVar2 == 1) && (iVar1 < g_racer_cars_in_scene)) {
-				iVar2 = car->lap_number; //* 2 + 1;
-				g_stats_data[iVar1].lap_timer[iVar2] = -999;
-				g_stats_data[iVar1].lap_time = g_stats_data[iVar1].lap_timer[iVar2];
+			// start line: human racers only (DOS g_num_of_racers_00153b38, tnfs_game_reset_stats 0x637d8: 1 in time
+			// trial, else g_number_of_players)
+			if ((iVar2 == 1) && (iVar1 < (g_opponent_skill == 0 ? 1 : g_number_of_players))) {
+				iVar2 = car->lap_number;
+				g_stats_data[iVar1].lap_timer[iVar2 + 1] = -999;
+				g_stats_data[iVar1].lap_time = g_stats_data[iVar1].lap_timer[iVar2 + 1];
 				printf("car %d crossed Start Line at %d\n", iVar1, g_stats_data[iVar1].lap_time);
 			} else if (iVar2 == 2) {
-				iVar2 = car->lap_number; //* 2;
-				g_stats_data[iVar1].lap_timer[iVar2] = iSimTimeClock + -300;
-				g_stats_data[iVar1].lap_time = g_stats_data[iVar1].lap_timer[iVar2];
+				iVar2 = car->lap_number;
+				g_stats_data[iVar1].lap_timer[iVar2 - 1] = iSimTimeClock + -300;
+				g_stats_data[iVar1].lap_time = g_stats_data[iVar1].lap_timer[iVar2 - 1];
 				printf("car %d crossed Finish Line at %d\n", iVar1, g_stats_data[iVar1].lap_time);
 			}
 		}
@@ -2863,6 +2828,7 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	g_pbs_file = pbsfile;
 
 	iSimTimeClock = 0; // DOS InitSim 0x40da4
+	g_is_playing = 0;
 	cheat_crashing_cars = 0;
 	g_game_settings = 0;
 	sound_flag = 0;
@@ -2979,6 +2945,8 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	g_ai_skill_cfg.opponent_glue_3[19] = 0x90000;
 	g_ai_skill_cfg.opponent_glue_3[20] = 0x90000;
 
+	// "player first moves" highlight done (DOS _DAT_00153b18, cleared in tnfs_game_reset_stats 0x637d8)
+	DAT_800f62c0 = 0;
 	for (i = 0; i < 8; i++) {
 		g_stats_data[i].best_accel_time_1 = 99999;
 		g_stats_data[i].best_accel_time_2 = 99999;
@@ -3026,9 +2994,6 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 
 	// replay buffers (DOS tnfs_car_init_Mobile_InitCarData 0x6f28e), then the start of the simulation
 	tnfs_replay_init();
-	for (i = 0; i < 8; i++) {
-		g_control_word[i] = 0x7a0;
-	}
 	tnfs_sim_start();
 }
 
@@ -3070,9 +3035,10 @@ void tnfs_game_loop() {
 
 	player_car_ptr->car_road_speed = tnfs_car_road_speed(player_car_ptr);
 
-	// race times, while racing only (DOS tnfs_ai_finish_line_cross 0x64c8e for every racer)
+	// race times, while racing only (DOS tnfs_ai_finish_line_cross 0x64c8e), for the first g_num_of_racers_00153b34
+	// cars (DOS 0x153b34 from tnfs_game_reset_stats 0x637d8: 1 in time trial, 2 head-to-head, else all racers)
 	if (g_is_playing == 1) {
-		for (i = 0; i < g_racer_cars_in_scene; i++) {
+		for (i = 0; i < (g_opponent_skill == 0 ? 1 : (g_opponent_skill == 1 ? 2 : g_racer_cars_in_scene)); i++) {
 			car = g_car_ptr_array[i];
 			if ((car->field_4e9 & 4) != 0) {
 				tnfs_racer_clock_lap_time(car);
@@ -3113,9 +3079,6 @@ void tnfs_game_loop() {
 		}
 
 		tnfs_car_update_center_line(car);
-
-		// set ground point for the collision engine
-		car->road_ground_position = track_data[car->track_slice].pos;
 	}
 
 	// DOS order: race order, collisions between the cars, race order again

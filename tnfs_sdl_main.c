@@ -464,9 +464,9 @@ void replayUpdate() {
 		tnfs_replay_scrub(replay_scrub, replay_scrub_repeat++);
 	}
 
-	// slow motion: one simulation tick every 2, 4, 8 frames
+	// slow motion: one simulation tick, then g_replay_speed_skip frames without (SE tnfs_game_InitSim 0x4560a6)
 	replay_frame++;
-	if (g_is_playing == 2 && g_replay_speed > 0 && (replay_frame % (1 << (4 - g_replay_speed))) != 0) {
+	if (g_is_playing == 2 && g_replay_speed > 0 && (replay_frame % (g_replay_speed_skip + 1)) != 0) {
 		return;
 	}
 	tnfs_update();

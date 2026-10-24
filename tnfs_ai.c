@@ -2733,7 +2733,10 @@ void tnfs_ai_lane_change() {
 	int distance;
 	int lane_left;
 	int local_6c;
-	int lane_grid[8];
+	// DOS 0x79f3b: lane bits per car slot (EBP-0x50, 9 ints) and car count per lane (EBP-0x2c, 8 ints), SE 0x46c490
+	// ESP+0 / ESP+0x24. The binaries leave the masks of wrecked cars (crash_state 6) uncleared: zeroed here
+	int lane_grid[9] = { 0 };
+	int lane_cars[8];
 	int i;
 	tnfs_car_data *car;
 	int iVar3;
@@ -2759,7 +2762,7 @@ void tnfs_ai_lane_change() {
 		/* Populate the "lane_grid" array for all cars */
 
 		for (i = 0; i < 8; i++) {
-			lane_grid[i] = 0;
+			lane_cars[i] = 0;
 		}
 		for (i = 0; i < g_total_cars_in_scene; i++) {
 			car = g_car_ptr_array[i];
@@ -2823,15 +2826,15 @@ void tnfs_ai_lane_change() {
 				// each bit represents a blocked lane (8 bits = 8 lanes)
 				if (lane_right == lane_left) {
 					lane_grid[i] = 1 << lane_left;
-					lane_grid[lane_right]++;
+					lane_cars[lane_right]++;
 				} else if (lane_left + 1 == lane_right) {
-					lane_grid[lane_right]++;
-					lane_grid[lane_left]++;
+					lane_cars[lane_right]++;
+					lane_cars[lane_left]++;
 					lane_grid[i] = 3 << lane_left;
 				} else {
-					lane_grid[lane_right]++;
-					lane_grid[lane_left]++;
-					lane_grid[lane_left + 1]++;
+					lane_cars[lane_right]++;
+					lane_cars[lane_left]++;
+					lane_cars[lane_left + 1]++;
 					lane_grid[i] = 7 << lane_left;
 				}
 			}
@@ -2921,7 +2924,7 @@ void tnfs_ai_lane_change() {
 					// lane; a parked cop (0x20000) keeps it too (it never scores lane changes)
 					if (((others[1] == 0) //
 							&& ((track_data[car->track_slice].num_lanes & 0xF) == (track_data[(car->track_slice + 11)].num_lanes & 0xF)) //
-							&& lane_grid[lane] == 1 //
+							&& lane_cars[lane] == 1 //
 							&& (((car->ai_state & 0x1000) && lane < 4) || (((car->ai_state & 0x1000) == 0) && lane >= 4)) //
 							&& (3 - ((track_data[car->track_slice].num_lanes >> 4) & 0xF) < lane) //
 							&& (track_data[car->track_slice].num_lanes & 0xF) + 4 > lane //

@@ -619,7 +619,8 @@ void FUN_0007db5a(tnfs_car_data *car, int side) {
 		car->car_road_speed = FUN_00077c58(car);
 		car->car_road_speed = -car->car_road_speed;
 		car->speed_target = car->car_road_speed;
-		car->ai_state = (car->ai_state & 0xfef) | 0x1000;
+		// DOS works on the low bytes of ai_state here (byte 0x174 &= 0xef, byte 0x175 |= 0x10): the other bits stay
+		car->ai_state = (car->ai_state & ~0x10) | 0x1000;
 	} else {
 		car->speed_target = (g_ai_skill_cfg.opp_desired_speed_c >> 1) //
 				+ (g_car_array[g_random_struct[car->field_158].id].speed >> 1);
@@ -635,7 +636,9 @@ void FUN_0007db5a(tnfs_car_data *car, int side) {
 		} else {
 			car->car_road_speed = 0;
 		}
-		car->ai_state = car->ai_state & 0xefef;
+		// ushort operation in DOS: the bits above 0xffff stay, among them the cop's reinit counter 0x700000 (clearing
+		// it gave a chasing cop endless reinits behind the player, tnfs_ai_respawn_0007702c allows one)
+		car->ai_state = car->ai_state & ~0x1010;
 	}
 }
 
@@ -768,6 +771,8 @@ void tnfs_ai_respawn_racer_0007df87(tnfs_car_data *car, int *node) {
 void tnfs_ai_respawn_0007e2ee(tnfs_car_data *car, int flag) {
 	int direction;
 	int node;
+	int lane;
+	int lane_width;
 
 	if (car->ai_state & 8) {
 		g_cop_car_ptr->field_158 = player_car_ptr->field_158;
@@ -782,28 +787,19 @@ void tnfs_ai_respawn_0007e2ee(tnfs_car_data *car, int flag) {
 
 	tnfs_ai_respawn_location(car, &direction, &node);
 
+	// a random lane of the car's side of the road, at the lane's middle (DOS 0x7e2ee): the lane width from the lane
+	// table of the right side, the lane count of the car's side
+	lane_width = tnfs_ai_lane_table(track_data[node & g_slice_mask].num_lanes & 0xf, track_data[node & g_slice_mask].roadRightMargin >> 3);
 	if ((direction == 0) && ((car->ai_state & 4) == 0)) {
 		g_lcg_random_nbr = g_lcg_random_mod * g_lcg_random_seed;
 		g_lcg_random_mod = g_lcg_random_nbr & 0xffff;
-		/*
-		car->target_center_line = ((((DAT_001039d8 & 0xffff00) >> 8) * (track_data[node & DAT_0014dccc].num_lanes >> 4) >> 0x10) + 1)
-				* ((&DAT_00164FDC + ((track_data[node & DAT_0014dccc].roadRightMargin << 0xd) >> 0x10) * 2
-						+ (track_data[node & DAT_0014dccc].num_lanes & 0xf) * 0x50 + 2) >> 0x10) * -0x100
-				+ (((&DAT_00164FDC + ((track_data[node & DAT_0014dccc].roadRightMargin << 0xd) >> 0x10) * 2
-						+ (track_data[node & DAT_0014dccc].num_lanes & 0xf) * 0x50 + 2) >> 0x10) * 0x100) / 2;
-		 */
-		car->target_center_line = (track_data[node].num_lanes >> 4) * (track_data[node].roadLeftMargin >> 2) * -0x100;
+		lane = ((((g_lcg_random_nbr & 0xffff00) >> 8) * (track_data[node & g_slice_mask].num_lanes >> 4)) >> 16) + 1;
+		car->target_center_line = lane * lane_width * -0x100 + (lane_width * 0x100) / 2;
 	} else {
 		g_lcg_random_nbr = g_lcg_random_mod * g_lcg_random_seed;
 		g_lcg_random_mod = g_lcg_random_nbr & 0xffff;
-		/*
-		car->target_center_line = (((track_data[node & DAT_0014dccc].num_lanes & 0xf) * ((DAT_001039d8 & 0xffff00) >> 8) >> 0x10) + 1)
-				* ((&DAT_00164FDC + ((track_data[node & DAT_0014dccc].roadRightMargin << 0xd) >> 0x10) * 2
-						+ (track_data[node & DAT_0014dccc].num_lanes & 0xf) * 0x50 + 2) >> 0x10) * 0x100
-				- (((&DAT_00164FDC + ((track_data[node & DAT_0014dccc].roadRightMargin << 0xd) >> 0x10) * 2
-						+ (track_data[node & DAT_0014dccc].num_lanes & 0xf) * 0x50 + 2) >> 0x10) * 0x100) / 2;
-		*/
-		car->target_center_line = (track_data[node].num_lanes & 0xf) * (track_data[node].roadRightMargin >> 2) * 0x100;
+		lane = ((((g_lcg_random_nbr & 0xffff00) >> 8) * (track_data[node & g_slice_mask].num_lanes & 0xf)) >> 16) + 1;
+		car->target_center_line = lane * lane_width * 0x100 - (lane_width * 0x100) / 2;
 	}
 	car->target_center_line = car->target_center_line + car->lane_slack;
 	tnfs_ai_respawn_racer_0007df87(car, &node);
@@ -2916,16 +2912,17 @@ void tnfs_ai_lane_change() {
 						tnfs_ai_opp_engine_and_cornering(car, lane, &change_lane_vector);
 					}
 
-					if ((car != others[1]) //
+					// DOS 0x79f3b: a cop or traffic car on a lane of its side of the road (not the verge lanes, 3 - left
+					// lanes and right lanes + 4), alone there, where the lane count does not change ahead, keeps its
+					// lane; a parked cop (0x20000) keeps it too (it never scores lane changes)
+					if (((others[1] == 0) //
 							&& ((track_data[car->track_slice].num_lanes & 0xF) == (track_data[(car->track_slice + 11)].num_lanes & 0xF)) //
 							&& lane_grid[lane] == 1 //
-							&& (((car->ai_state & 0x1000) && lane < 4) || (((car->ai_state & 0x1000) != 0) && lane >= 4)) //
-							&& (3 - ((track_data[car->track_slice].num_lanes >> 4) & 0xF) >= lane) //
-							&& (3 - ((track_data[car->track_slice].num_lanes >> 4) & 0xF) <= lane) //
-							&& (track_data[car->track_slice].num_lanes & 0xF) + 4 <= lane //
-							&& (track_data[car->track_slice].num_lanes & 0xF) + 4 >= lane //
-							&& (!(car->ai_state & 0x404) || (car->ai_state & 0x20000)) //
-							) {
+							&& (((car->ai_state & 0x1000) && lane < 4) || (((car->ai_state & 0x1000) == 0) && lane >= 4)) //
+							&& (3 - ((track_data[car->track_slice].num_lanes >> 4) & 0xF) < lane) //
+							&& (track_data[car->track_slice].num_lanes & 0xF) + 4 > lane //
+							&& !(car->ai_state & 0x404)) //
+							|| (car->ai_state & 0x20000)) {
 						/*
 						car->target_center_line = ((lane - 4)
 								* DAT_00164FDC[(track_data[car->track_slice].roadRightMargin >> 3) + ((track_data[car->track_slice].num_lanes & 0xf) >> 4)] * 0x100)

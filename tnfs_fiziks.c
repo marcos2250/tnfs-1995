@@ -441,7 +441,7 @@ void tnfs_road_surface_modifier(tnfs_car_data *car_data) {
 	if (car_data->tire_grip_rear < 0)
 		car_data->tire_grip_rear = 0;
 
-	// not exists on 3DO and PC demo
+	// PC (Win95) / PSX version, not in DOS (0x5bbe6), 3DO and the PC demo
 	grip = car_data->speed_local_lon >> 16;
 	if (0 < car_data->speed_local_lon) {
 		grip = grip * grip;
@@ -1078,7 +1078,7 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	// body rotation torque
 	angular_accel = math_mul(car_data->rear_yaw_factor, ftire_lat_rear) - math_mul(car_data->front_yaw_factor, ftire_lat_front);
 
-	// Rally Mode on PC (Win95) / PSX version, makes the car drift longer (SE 0x431780, PSX 0x800319dc): the yaw follows a
+	// Rally Mode on PC (Win95) / PSX version, makes the car drift longer (SE 0x431725, PSX 0x800319dc): the yaw follows a
 	// target instead of the tyre torque, none while airborne
 	if (g_game_settings & 0x20) {
 		angular_accel = 0;
@@ -1420,7 +1420,8 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 		tnfs_height_get_surface_inclination(car, &angleX, &angleZ);
 
 		// vertical ramp speed
-		car->speed_y = -fixmul(car->speed_local_lat, math_sin_3(angleZ)) - fixmul(car->speed_local_lon, math_sin_3(angleX));
+		// the original's sine table has 1024 steps per turn (DOS 0x58890, SE 0x428bd8)
+		car->speed_y = -fixmul(car->speed_local_lat, math_sin_3((angleZ >> 14) << 14)) - fixmul(car->speed_local_lon, math_sin_3((angleX >> 14) << 14));
 
 		if (car->time_off_ground > 20) {
 			if (g_game_settings & 0x20)
@@ -1477,7 +1478,8 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 		}
 	}
 
-	car->slope_force_lon = (math_sin_3(car->angle.x) >> 8) * 0x9cf;
+	// the original's sine table has 1024 steps per turn
+	car->slope_force_lon = (math_sin_3((car->angle.x >> 14) << 14) >> 8) * 0x9cf;
 	car->unknown_flag_3DD = 0;
 	car->slope_force_lat = 0;
 

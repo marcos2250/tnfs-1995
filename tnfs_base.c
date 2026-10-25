@@ -293,7 +293,9 @@ void tnfs_init_surface_constants() {
 	road_surface_type_array[0].surface_drag = 0x3333;
 	road_surface_type_array[0].is_unpaved = 0;
 
-	// rally mode surface constants
+	// rally mode surface constants, PC (Win95) / PSX version (SE 0x42f734, PSX 0x80030008): all tracks
+	// DOS version (0x5a0c5): only on tracks 1, 2, 3 and 5, roadFriction 0x100
+	//if ((g_game_settings & 0x20) && selected_track > 0 && selected_track < 6 && selected_track != 4) {
 	if (g_game_settings & 0x20) {
 		for (i = 0; i < 3; i++) {
 			road_surface_type_array[i].roadFriction = 0x180;
@@ -704,7 +706,7 @@ void tnfs_init_car() {
 /* basic game controls */
 
 /*
- * steering with digital controls (Win95 0x438954 == PSX 0x800334a4; DOS 0x5e050 has no ">> autoRampDivShift_AS2" branch)
+ * steering with digital controls (Win95 0x438954 == PSX 0x800334a4 without its rally block; DOS 0x5e050 has no ">> autoRampDivShift_AS2" branch)
  */
 void tnfs_control_steering_a(tnfs_car_data *car, int input, int auto_steer) {
 	tnfs_car_specs *specs;

@@ -47,6 +47,7 @@ int sound_flag = 0;
 int g_selected_cheat = 0;
 int cheat_crashing_cars = 0;
 int g_game_settings = 0;
+int g_track_segment = 0; // segment of an open road track, 0..2 (DOS 0x16708d, SE 0x4fb7be)
 char g_control_throttle;
 char g_control_brake;
 signed char g_control_steer;
@@ -248,22 +249,49 @@ void tnfs_init_track(char *tri_file) {
 void tnfs_init_surface_constants() {
 	int i;
 
-	// Road Traction sections (surface constants)
+	// Road Traction sections (surface constants), the shoulders by track (DOS 0x5a0c5, SE 0x42f734, PSX 0x80030008)
+	if (selected_track == 2 && g_track_segment == 2) {
+		// Alpine's last segment, snow; the second shoulder's is_unpaved stays as it was
+		road_surface_type_array[1].roadFriction = 0x4c;
+		road_surface_type_array[1].velocity_drag = 0x100;
+		road_surface_type_array[1].surface_drag = 0x1999;
+		road_surface_type_array[2].roadFriction = 0x4c;
+		road_surface_type_array[2].velocity_drag = 0x100;
+		road_surface_type_array[2].surface_drag = 0x1999;
+	} else if (selected_track < 4 && selected_track != 3) {
+		// open road tracks
+		road_surface_type_array[1].roadFriction = 0xcc;
+		road_surface_type_array[1].velocity_drag = 0xf00;
+		road_surface_type_array[1].surface_drag = 0x5999;
+		road_surface_type_array[2].roadFriction = 0xcc;
+		road_surface_type_array[2].velocity_drag = 0xf00;
+		road_surface_type_array[2].surface_drag = 0x5999;
+		road_surface_type_array[2].is_unpaved = 1;
+	} else if (selected_track == 3) {
+		// Rusty Springs
+		road_surface_type_array[1].roadFriction = 0x100;
+		road_surface_type_array[1].velocity_drag = 0x1400;
+		road_surface_type_array[1].surface_drag = 0x3333;
+		road_surface_type_array[2].roadFriction = 0x100;
+		road_surface_type_array[2].velocity_drag = 0x1400;
+		road_surface_type_array[2].surface_drag = 0x3333;
+		road_surface_type_array[2].is_unpaved = 1;
+	} else {
+		// the other closed tracks
+		road_surface_type_array[1].roadFriction = 0x133;
+		road_surface_type_array[1].velocity_drag = 0x100;
+		road_surface_type_array[1].surface_drag = 0x3333;
+		road_surface_type_array[2].roadFriction = 0x133;
+		road_surface_type_array[2].velocity_drag = 0x100;
+		road_surface_type_array[2].surface_drag = 0x3333;
+		road_surface_type_array[2].is_unpaved = 1;
+	}
+	road_surface_type_array[1].is_unpaved = 1;
 	// Tarmac
 	road_surface_type_array[0].roadFriction = 0x100;
 	road_surface_type_array[0].velocity_drag = 0x100;
 	road_surface_type_array[0].surface_drag = 0x3333;
 	road_surface_type_array[0].is_unpaved = 0;
-	// Shoulder
-	road_surface_type_array[1].roadFriction = 0x100;
-	road_surface_type_array[1].velocity_drag = 0x1400;
-	road_surface_type_array[1].surface_drag = 0x3333;
-	road_surface_type_array[1].is_unpaved = 1;
-	// Shoulder2
-	road_surface_type_array[2].roadFriction = 0x100;
-	road_surface_type_array[2].velocity_drag = 0x1400;
-	road_surface_type_array[2].surface_drag = 0x3333;
-	road_surface_type_array[2].is_unpaved = 1;
 
 	// rally mode surface constants
 	if (g_game_settings & 0x20) {
@@ -711,11 +739,11 @@ void tnfs_control_steering_a(tnfs_car_data *car, int input, int auto_steer) {
 		attenuation = 0x18000;
 	}
 
-	// PSX version, rally mode
-	if ((g_game_settings & 0x20) != 0) {
-		attenuation = 0;
-		auto_steer = target;
-	}
+	// PSX version, rally mode (not in DOS 0x5e050 and Win95 0x438954)
+	//if ((g_game_settings & 0x20) != 0) {
+	//	attenuation = 0;
+	//	auto_steer = target;
+	//}
 
 	rate = specs->velRamp_AS2 - attenuation;
 	if (rate > 0x19999) {

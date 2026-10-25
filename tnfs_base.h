@@ -674,6 +674,7 @@ extern int g_road_finish_node;
 extern int sound_flag;
 extern int cheat_crashing_cars;
 extern int g_game_settings;
+extern int g_track_segment;
 extern int selected_track;
 extern char g_control_throttle;
 extern char g_control_brake;

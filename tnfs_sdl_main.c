@@ -21,6 +21,15 @@ const int SCREEN_HEIGHT = 600;
 GLfloat matrix[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 vector3f cam_orientation = { 0, 0, 0 };
 
+/*
+ * replay player (debug): F6 last 10 s, F7 whole recording, F8 highlights, F9 back to the race;
+ * while playing: P pause / frame step, 1-4 speed (full, half, quarter, eighth),
+ * [ / ] held rewind / fast forward, Home / End start / end of the recording
+ */
+static int replay_scrub = 0; // tnfs_replay_scrub command of the held key, 0 none
+static int replay_scrub_repeat = 0;
+static int replay_frame = 0;
+
 void sys_sdl_exit() {
 	SDL_GL_DeleteContext(glContext);
 	SDL_DestroyWindow(window);
@@ -49,7 +58,7 @@ void handleKeys() {
 			g_control_brake = 1;
 			break;
 		case SDLK_SPACE:
-			g_car_array[0].handbrake = 1;
+			g_control_handbrake = 1;
 			break;
 		}
 	}
@@ -85,6 +94,58 @@ void handleKeys() {
 		case SDLK_F5:
 			tnfs_cheat_mode();
 			break;
+		case SDLK_F6:
+			tnfs_replay_start(1);
+			break;
+		case SDLK_F7:
+			tnfs_replay_start(3);
+			break;
+		case SDLK_F8:
+			tnfs_replay_start(2);
+			break;
+		case SDLK_F9:
+			if (g_is_playing != 1) {
+				tnfs_replay_return_to_race();
+			}
+			break;
+		case SDLK_p:
+			tnfs_replay_speed_command(5, 0);
+			break;
+		case SDLK_1:
+		case SDLK_2:
+		case SDLK_3:
+		case SDLK_4:
+			tnfs_replay_speed_command(6 + event.key.keysym.sym - SDLK_1, 0);
+			break;
+		case SDLK_HOME:
+			replay_scrub = 1;
+			break;
+		case SDLK_END:
+			replay_scrub = 2;
+			break;
+		case SDLK_LEFTBRACKET:
+			replay_scrub = 3;
+			break;
+		case SDLK_RIGHTBRACKET:
+			replay_scrub = 4;
+			break;
+		default:
+			break;
+		}
+	}
+	if (event.type == SDL_KEYUP && replay_scrub != 0) {
+		switch (event.key.keysym.sym) {
+		case SDLK_HOME:
+		case SDLK_END:
+		case SDLK_LEFTBRACKET:
+		case SDLK_RIGHTBRACKET:
+			// released: play from the shown clock
+			replay_scrub = 0;
+			replay_scrub_repeat = 0;
+			if (g_is_playing == 4) {
+				tnfs_replay_speed_command(6, 0);
+			}
+			break;
 		default:
 			break;
 		}
@@ -104,7 +165,7 @@ void handleKeys() {
 			g_control_steer = 0;
 			break;
 		case SDLK_SPACE:
-			g_car_array[0].handbrake = 0;
+			g_control_handbrake = 0;
 			break;
 		default:
 			break;
@@ -140,12 +201,12 @@ void handleGamepadEvents() {
 			tnfs_change_gear_down();
 			break;
 		case SDL_CONTROLLER_BUTTON_A:
-			g_car_array[0].handbrake = 1;
+			g_control_handbrake = 1;
 			break;
 		}
 	}
 	if (event.type == SDL_CONTROLLERBUTTONUP && event.cbutton.button == SDL_CONTROLLER_BUTTON_A) {
-		g_car_array[0].handbrake = 0;
+		g_control_handbrake = 0;
 	}
 }
 
@@ -206,19 +267,35 @@ void readGamepadAxes() {
  * angle X+ pitch down Y+ yaw clockwise Z+ roll left
  */
 void drawVehicle(tnfs_car_data * car) {
+	tnfs_vec9 *m = &car->matrix;
+	tnfs_vec9 drawn;
+	tnfs_vec9 rot;
+
+	// the original draws a car that is not crashed from its angles plus the body lean, not from car->matrix:
+	// Rz(angle.z + 3/4 body_roll) * Rx(angle.x + body_pitch) * Ry(angle.y) (DOS gfx_draw_car 0x74d73, PSX 0x80050584);
+	// the port's AI does not keep its angles, so only the players' cars are drawn this way
+	if (car->car_id >= 0 && car->car_id < g_number_of_players && car->is_crashed == 0) {
+		math_matrix_set_rot_Z(&drawn, car->angle.z + car->body_roll - car->body_roll / 4);
+		math_matrix_set_rot_X(&rot, car->angle.x + car->body_pitch);
+		math_matrix_multiply(&drawn, &drawn, &rot);
+		math_matrix_set_rot_Y(&rot, car->angle.y);
+		math_matrix_multiply(&drawn, &drawn, &rot);
+		m = &drawn;
+	}
+
 	// TNFS uses LHS, convert to OpenGL's RHS
 	glMatrixMode(GL_MODELVIEW);
-	matrix[0] = (float) car->matrix.ax / 0x10000;
-	matrix[1] = (float) car->matrix.ay / 0x10000;
-	matrix[2] = (float) -car->matrix.az / 0x10000;
+	matrix[0] = (float) m->ax / 0x10000;
+	matrix[1] = (float) m->ay / 0x10000;
+	matrix[2] = (float) -m->az / 0x10000;
 	matrix[3] = 0;
-	matrix[4] = (float) car->matrix.bx / 0x10000;
-	matrix[5] = (float) car->matrix.by / 0x10000;
-	matrix[6] = (float) -car->matrix.bz / 0x10000;
+	matrix[4] = (float) m->bx / 0x10000;
+	matrix[5] = (float) m->by / 0x10000;
+	matrix[6] = (float) -m->bz / 0x10000;
 	matrix[7] = 0;
-	matrix[8] = (float) car->matrix.cx / 0x10000;
-	matrix[9] = (float) car->matrix.cy / 0x10000;
-	matrix[10] = (float) -car->matrix.cz / 0x10000;
+	matrix[8] = (float) m->cx / 0x10000;
+	matrix[9] = (float) m->cy / 0x10000;
+	matrix[10] = (float) -m->cz / 0x10000;
 	matrix[11] = 0;
 	matrix[12] = ((float) car->position.x) / 0x10000;
 	matrix[13] = ((float) car->position.y) / 0x10000;
@@ -379,6 +456,38 @@ void gfx_update() {
 	drawTach();
 }
 
+void replayUpdate() {
+	static char shown[100];
+	char title[100];
+
+	if (replay_scrub != 0 && g_is_playing != 1) {
+		tnfs_replay_scrub(replay_scrub, replay_scrub_repeat++);
+	}
+
+	// slow motion: one simulation tick, then g_replay_speed_skip frames without (SE tnfs_game_InitSim 0x4560a6)
+	replay_frame++;
+	if (g_is_playing == 2 && g_replay_speed > 0 && (replay_frame % (g_replay_speed_skip + 1)) != 0) {
+		return;
+	}
+	tnfs_update();
+	// cueing: simulate to the seek target without drawing
+	while (g_is_playing == 3) {
+		tnfs_update();
+	}
+
+	if (g_is_playing == 1) {
+		snprintf(title, sizeof(title), "TNFS race, %d s", iSimTimeClock / 60);
+	} else {
+		snprintf(title, sizeof(title), "TNFS replay %s x%d, %d s / %d s", //
+				g_is_playing == 4 ? "scrubbing" : (g_replay_speed == 0 ? "paused" : "playing"), //
+				g_replay_speed, iSimTimeClock / 60, tnfs_replay_end_clock() / 60);
+	}
+	if (strcmp(title, shown) != 0) {
+		strcpy(shown, title);
+		SDL_SetWindowTitle(window, title);
+	}
+}
+
 int main(int argc, char **argv) {
 	char quit = 0;
 	char * trifile = 0;
@@ -439,7 +548,7 @@ int main(int argc, char **argv) {
 		}
 		readGamepadAxes();
 
-		tnfs_update();
+		replayUpdate();
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		gfx_update();

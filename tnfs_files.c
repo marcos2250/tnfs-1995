@@ -79,6 +79,7 @@ int read_tri_file(char * file) {
 		track_data[i].slope = readSigned16(buffer, 20);
 		track_data[i].slant = readSigned16(buffer, 22);
 		track_data[i].heading = readSigned16(buffer, 24);
+		track_data[i].police_spot = readSigned16(buffer, 26);
 
 		// 16-bit side normal: signed -32768 to +32768
 		track_data[i].side_normal_x = readSigned16(buffer, 28);

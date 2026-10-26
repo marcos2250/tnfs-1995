@@ -1120,8 +1120,8 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 		tnfs_track_item_mode_flags(car_data);
 	}
 
-	// replay recording
-	if ((general_flags & 4) && is_recording_replay == 1) {
+	// replay highlights, on control steps while racing (DOS 0x5bdcb: g_is_playing == 1)
+	if ((general_flags & 4) && g_is_playing == 1) {
 		if (car_data->speed_local_lon / 2 <= 0)
 			local_speed_lon = car_data->speed_local_lon / -2;
 		else

@@ -303,7 +303,7 @@ typedef struct tnfs_car_data {
 	int brake; //0x3B9
 	int is_shifting_gears; //0x3BD
 	short rpm_engine; //0x3C1
-	short rpm_vehicle; //0x3C2
+	short rpm_vehicle; //0x3C5
 	short rpm_redline; //0x3C2
 	int road_grip_increment; //0x3C9
 	int tire_grip_rear; //0x3CD
@@ -372,6 +372,7 @@ typedef struct tnfs_car_data {
 	// ...
 	int tcs_on; //0x4AD
 	int abs_on; //0x4B1
+	int horn; //0x4B5 horn button, control word bit 14 (DOS 0x5e9c9, SE +0x4ba); read by the sound code (and SE's horn cheat)
 	int road_object_slice; //0x4B9 slice of the road object at road_object_index (PSX 0x4f8)
 	int road_object_index; //0x4BD cursor into g_road_objects (PSX 0x4fc)
 	// ...
@@ -425,7 +426,9 @@ typedef struct tnfs_track_data {
 	short slope; // 20
 	short slant; // 22
 	short heading; // 24
-	// blank
+	// police parking spot (DOS 0x78f5d, PSX 0x80055014, Win95 SE 0x46b950 tnfs_ai_police_parked_respawn): 1 spot,
+	// 2 left side (else right), 4 not parked, 0x18 index into the chance table DAT_000fdbe8
+	short police_spot; // 26
 	short side_normal_x; // 28
 	short side_normal_y; // 30
 	short side_normal_z; // 32
@@ -588,8 +591,8 @@ typedef struct tnfs_stats_data {
 	// ...
 	int best_accel_time_1; //0x198
 	int best_accel_time_2; //0x19c
-	int best_brake_time_1; //0x1a0
-	int best_brake_time_2; //0x1a4
+	int best_brake_time_1; //0x1a4 60-0 (DOS 0x5bdcb)
+	int best_brake_time_2; //0x1a0 80-0
 	int quarter_mile_speed; //0x1a8
 	int quarter_mile_time; //0x1ac
 	int penalty_count; //0x1b0
@@ -680,6 +683,9 @@ extern char g_control_analog_steering;
 extern char g_control_analog_pedals;
 extern signed char g_control_steer_axis;
 extern signed char g_control_pedal_axis;
+extern char g_control_handbrake;
+extern char g_control_horn;
+extern int g_control_word[8];
 extern int g_number_of_players;
 extern int g_selected_cheat;
 extern int selected_camera;
@@ -716,7 +722,7 @@ extern int g_race_positions[8];
 
 // common functions
 void tnfs_init_sim(char * trifile, char * pbsfile);
-void tnfs_replay_highlight_record(char a);
+void tnfs_replay_highlight_record(int score);
 void tnfs_camera_set(tnfs_camera * camera, int id);
 void tnfs_reset_car(tnfs_car_data *car);
 void tnfs_update();
@@ -742,5 +748,74 @@ void tnfs_ai_get_speed_factor(tnfs_car_data *car);
 void tnfs_ai_get_lane_slack(tnfs_car_data *car);
 void tnfs_initial_position(tnfs_car_data *car);
 int tnfs_racer_crossed_finish_line(tnfs_car_data *car);
+
+/*
+ * Replay file (*.RPL), Win95 SE layout (SE FUN_0044d420 writes the five blocks with fwrite, no header): the race setup,
+ * the highlights, the recording buffer, the replay state ("world") and the stats of 9 cars. 100374 bytes.
+ * DOS (tnfs_replay_0006ce7f): 0x185, 0xb84, 150000, 0x15a4, 9 x 0x1d0 (keyframe every 0x4b0, 30 keyframes, 9000 samples).
+ */
+#define TNFS_REPLAY_FILE_SIZE 100374
+#define TNFS_REPLAY_TICKS 0x7080 // clock units the buffer holds (8 min at 60 per second), DOS 36000
+#define TNFS_REPLAY_KEYFRAME 0x708 // clock units between keyframes (30 s), DOS 0x4b0
+#define TNFS_REPLAY_KEYFRAMES 16 // DOS 30
+#define TNFS_REPLAY_SAMPLES 7200 // control samples per player (one per 4 clock units), DOS 9000
+
+/*
+ * Highlights block, 0x9a4 bytes (SE 0x512d94, DOS 0x15a3bc with 600 seconds). The original saves the live globals.
+ */
+typedef struct tnfs_replay_highlights {
+	int clips[30][3]; //0x000 start clock, end clock, coolness
+	int best_seconds[30]; //0x168 second numbers picked by tnfs_replay_highlights_select
+	int clip_count; //0x1e0
+	int clip; //0x1e4 clip being played: -2 none, -1 a replay from a time (no clips), >= 0 a highlight clip
+	int return_pending; //0x1e8 set when a replay starts, the first played tick stores the clock in return_clock[0]
+	int saved_camera; //0x1ec camera mode of the race when the highlights were started from it (SE DAT_004f8020)
+	int return_clock[4]; //0x1f0 where a looping replay starts again ([0]; the others are unused)
+	int seconds[480]; //0x200 per second of the (wrapped) buffer: absolute second << 8 | best score (+ 0x80 until picked)
+	int current_second; //0x980 replay tick / 60 at the last tnfs_replay_highlight_record
+	int play_count; //0x984 played control steps
+	int tv_camera; //0x988 change the camera every 256 clock units (full replay)
+	int play_to; //0x98c clock where the playback ends
+	int seek_target; //0x990 clock the cueing (mode 3) simulates to
+	int camera_restart; //0x994 the first played tick sets the camera (and return_clock)
+	int reinstating; //0x998 set by tnfs_replay_seek, cleared by tnfs_replay_reinstate (only silences a debug check in DOS)
+	int panel_state; //0x99c replay panel button state (front end)
+	int sound_restart; //0x9a0 restart the looped sounds on the next reinstate (front end)
+} tnfs_replay_highlights;
+
+typedef struct tnfs_replay_file {
+	unsigned char setup[0x348]; // race settings, filled by the front end (SE 0x4fb7bc); random_seed at 0x38
+	tnfs_replay_highlights highlights;
+	unsigned char recording[0x15e00]; // control samples and car keyframes
+	unsigned char world[0xcc8]; // replay state: header and per keyframe globals (see tnfs_replay_world_save)
+	unsigned char stats[9][0x1d2];
+} tnfs_replay_file;
+
+extern tnfs_replay_file g_replay;
+extern int g_is_playing; // replay mode, see tnfs_base.c (DOS 0xfd8e0, SE DAT_004c5390)
+extern int g_replay_tick;
+extern int g_replay_speed;
+extern int g_replay_frame_step;
+extern int g_replay_speed_skip;
+extern int g_replay_return_mode;
+extern int g_replay_clip_cut;
+extern int g_replay_highlights_only;
+
+void tnfs_random_seed(unsigned int seed);
+int tnfs_control_word_get();
+void tnfs_sim_start();
+void tnfs_replay_init();
+void tnfs_replay_update();
+void tnfs_replay_reinstate(int tick, int param_2);
+void tnfs_replay_seek(int clock, int play_to);
+void tnfs_replay_play_tick();
+void tnfs_replay_highlights_select();
+void tnfs_replay_start(int type);
+void tnfs_replay_return_to_race();
+void tnfs_replay_scrub(int command, int repeat);
+void tnfs_replay_speed_command(int command, int repeat);
+void tnfs_replay_stats_save();
+void tnfs_replay_stats_load();
+int tnfs_replay_end_clock();
 
 #endif /* TNFS_BASE_H_ */

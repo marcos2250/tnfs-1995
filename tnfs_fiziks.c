@@ -1265,6 +1265,12 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 		}
 	}
 
+	// PC (SE 0x430cb0) / PSX version: the wall and landing shake counters run down
+	if (car_data->collision_a > 1)
+		car_data->collision_a -= 2;
+	if (car_data->collision_b != 0)
+		car_data->collision_b--;
+
 	debug_sum = car_data->position.z + car_data->position.y + car_data->position.x;
 }
 
@@ -1344,8 +1350,9 @@ void tnfs_height_car_inclination(tnfs_car_data *car, int rX, int rZ) {
 	int dx;
 	int aux;
 
-	angle_x = math_atan2(car->car_length, rX - car->front_edge.y);
-	angle_z = math_atan2(car->car_width,  -rZ - car->side_edge.y);
+	// the original's arctangent has 1024 steps per turn (DOS 0x586f2, SE 0x428aec)
+	angle_x = (int) ((unsigned int) math_atan_1024(car->car_length, rX - car->front_edge.y) << 14);
+	angle_z = (int) ((unsigned int) math_atan_1024(car->car_width,  -rZ - car->side_edge.y) << 14);
 
 	// track slice inclination transition
 	dx = abs(fix2(angle_x - car->angle.x));
@@ -1369,8 +1376,9 @@ void tnfs_height_car_inclination(tnfs_car_data *car, int rX, int rZ) {
 }
 
 void tnfs_height_get_surface_inclination(tnfs_car_data *car, int *x, int *z) {
-	*x = math_atan2(car->car_length, -car->front_edge.y);
-	*z = math_atan2(car->car_width, -car->side_edge.y);
+	// 1024 steps per turn (inlined in SE tnfs_height_position 0x428bd8, calls at 0x428d3c / 0x428d57)
+	*x = (int) ((unsigned int) math_atan_1024(car->car_length, -car->front_edge.y) << 14);
+	*z = (int) ((unsigned int) math_atan_1024(car->car_width, -car->side_edge.y) << 14);
 }
 
 int DAT_00145380 = 0;
@@ -1394,10 +1402,10 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 	/* apply gravity */
 	car->speed_y -= ((car->delta_time >> 2) * 0x9cf5c) >> 14;
 
-	if ((g_game_settings & 0x20) == 0) {
-		aux = ((car->delta_time >> 2) * 0x9cf5c);
-		car->speed_y -= ((aux >> 14) - (aux >> 0x1f)) >> 1;
-	}
+	// 1.5 g: SE (0x428bd8) skips the extra half for g_game_settings bit 0x20, which its front end never sets (only 4
+	// and 8); DOS (0x58890) always applies it
+	aux = ((car->delta_time >> 2) * 0x9cf5c);
+	car->speed_y -= ((aux >> 14) - (aux >> 0x1f)) >> 1;
 
 	// next frame falling height
 	nextHeight = (car->delta_time >> 4) * ((fix2(car->speed_y) + car->speed_y) >> 0xc) + car->position.y;
@@ -1424,11 +1432,9 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 		car->speed_y = -fixmul(car->speed_local_lat, math_sin_3((angleZ >> 14) << 14)) - fixmul(car->speed_local_lon, math_sin_3((angleX >> 14) << 14));
 
 		if (car->time_off_ground > 20) {
-			if (g_game_settings & 0x20)
-				//bounce = fix2(car_data->time_off_ground / 6) * (((car_data->delta_time >> 2) * 0x9cf5c) >> 14); //PSX
-				bounce = (((car->delta_time >> 2) * 0x9cf5c) >> 14) * (((car->time_off_ground >> 0x1f) - car->time_off_ground) >> 1);
-			else
-				bounce = (((car->delta_time >> 2) * 0x9cf5c) >> 14) * fix2(car->time_off_ground);
+			// PC version (SE 0x428bd8; time_off_ground / 6 with the never set bit 0x20, except on tr6)
+			// DOS version (0x58890): rally mode (bit 0x20) time_off_ground / 2
+			bounce = (((car->delta_time >> 2) * 0x9cf5c) >> 14) * fix2(car->time_off_ground);
 
 			car->speed_y += bounce;
 			printf("Boink %d %d\n", car->speed_y >> 16, 0);
@@ -1439,8 +1445,14 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 			car->time_off_ground = -2;
 			car->angle.x = angleX;
 			car->angle.z = angleZ;
-			if (car->car_id2 == 0)
+			if (car->car_id2 == g_player_id)
 				DAT_8010c478 = 5;
+			// PC version (SE 0x428bd8): the landing shakes the body (pitch), not in DOS
+			aux = car->time_off_ground - 7;
+			if (aux > 7)
+				aux = 7;
+			car->collision_b = 0x1d;
+			car->collision_y = aux * -0x10000;
 		}
 
 		if (car->time_off_ground < 0)
@@ -1448,8 +1460,8 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 		else
 			car->time_off_ground = 0;
 
-		if (car->time_off_ground == -1 && car->car_id2 == 0) {
-			tnfs_sfx_play(-1, 4, 1, abs(car->speed_y), 1, 0x50000);
+		if (car->time_off_ground == -1 && car->car_id2 == g_player_id) {
+			tnfs_sfx_play(-1, 4, 1, abs(car->speed_y), 1, 0);
 		}
 
 		if (!car->wheels_on_ground && car->gear_selected != -1)
@@ -1544,7 +1556,7 @@ void tnfs_driving_checkpoint_flick(tnfs_car_data *car) {
 		car->speed_local_lon = 0;
 		if (car->speed_local_lat < 1) {
 			if (car->field_4d1 < 0x190000) {
-				car->field_4d3 += 3;
+				car->field_4d1 += 0x30000;
 			}
 		} else {
 			if (car->field_4d1 > -0x190000) {
@@ -1558,8 +1570,9 @@ void tnfs_driving_checkpoint_flick(tnfs_car_data *car) {
 			car->field_4c9 = 0;
 			car->field_4d1 = 0;
 
-			iVar5 = math_sin_2(iVar4);
-			iVar6 = math_cos_2(iVar4);
+			// 2-byte angles (SE 0x401180: heading >> 8)
+			iVar5 = math_sin_2(iVar4 >> 8);
+			iVar6 = math_cos_2(iVar4 >> 8);
 			iVar4 = track_data[car->track_slice & g_slice_mask].pos.x;
 			iVar7 = track_data[car->track_slice & g_slice_mask].pos.z;
 
@@ -1595,8 +1608,7 @@ void tnfs_driving_checkpoint_flick(tnfs_car_data *car) {
 	}
 
 	car->field_4c9++;
-	//iVar7 = car->speed_local_lat >> 0x1f;
-	//car->speed_local_lat = car->speed_local_lat - (((car->speed_local_lat + iVar7 * -8) - (iVar7 << 2 < 0)) >> 3);
-	//iVar7 = car->speed_local_lon >> 0x1f;
-	//car->speed_local_lon -= -(((car->speed_local_lon + iVar7 * -8) - (iVar7 << 2 < 0)) >> 3);
+	// DOS 0x41b02, SE 0x4013c5
+	car->speed_local_lat -= car->speed_local_lat / 8;
+	car->speed_local_lon -= car->speed_local_lon / 8;
 }

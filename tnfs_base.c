@@ -39,6 +39,8 @@ char is_drifting;
 int iSimTimeClock = 0;
 int g_road_node_count = 0;
 int g_tri_num_chunks = 0;
+// sections of a lap, 0x8000 on an open road (InitRoad: DOS g_tri_num_chunks 0x14dcd0, SE g_track_num_chunks 0x50420c)
+int g_track_num_chunks = 0;
 tnfs_road_object g_road_objects[1000];
 int g_road_object_count = 0;
 char g_sign_status[2000];
@@ -137,6 +139,7 @@ void auto_generate_track() {
 
 	g_road_node_count = 2395;
 	g_tri_num_chunks = 598;
+	g_track_num_chunks = 0x8000;
 	g_road_finish_node = g_road_node_count - 0xb5;
 
 	for (i = 0; i < 2400; i++) {
@@ -497,8 +500,9 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->world_position = car->position;
 	car->road_ground_position = car->position;
 
-	car->rpm_vehicle = car_specs.rpm_idle;
-	car->rpm_engine = car_specs.rpm_idle;
+	// car reset (DOS 0x639cc, SE 0x43fd00): 1 rpm, the engine then rises to idle
+	car->rpm_vehicle = 1;
+	car->rpm_engine = 1;
 	car->rpm_redline = car_specs.rpm_redline;
 
 	car->road_fence_normal.x = 0x10000;
@@ -565,6 +569,12 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->field_4cd = 0;
 	car->field_4d1 = 0;
 	car->field_4d3 = 0;
+
+	// the wall and landing shake (SE 0x43fd00: +0x427..+0x42d)
+	car->collision_a = 0;
+	car->collision_b = 0;
+	car->collision_x = 0;
+	car->collision_y = 0;
 
 	if (car == player_car_ptr) {
 		// player car
@@ -638,8 +648,11 @@ void tnfs_Fiziks_InitCar(tnfs_car_data *car) {
 	car->collision_data.edge_length = math_vec3_length(&car->collision_data.size);
 }
 
+static int replay_get32(const unsigned char *p);
+
 void tnfs_init_car() {
 	int i;
+	unsigned char *entry;
 
 	tnfs_car_data *car = &g_car_array[0];
 	g_car_array[0].car_data_ptr = &g_car_array[0];
@@ -686,14 +699,18 @@ void tnfs_init_car() {
 		}
 	}
 
-	// net wheel torque values; tnfs_reset_car starts the car with the automatic gearbox
-	tnfs_load_torque_table(&car_specs, 1);
+	// the front-end options of the car's entry in the race setup (SE Fiziks_PreInitCar 0x4400f4: entry 0x4b bytes at
+	// setup + 0x3c by the car's car_id, SE +0x516: +0xf automatic gearbox, +0x13 TCS, +0x17 ABS), filled by the front end
+	// before init
+	entry = g_replay.setup + 0x3c + car->car_id * 0x4b;
+
+	// net wheel torque values
+	tnfs_load_torque_table(&car_specs, replay_get32(entry + 0xf));
 
 	car->car_length = car_specs.body_length;
 	car->car_width = car_specs.body_width;
-	// the front-end ABS/TCS options are taken as on
-	car->abs_enabled = car_specs.abs_equipped > 0;
-	car->tcs_enabled = car_specs.tcs_equipped > 0;
+	car->abs_enabled = replay_get32(entry + 0x17) > 0 && car_specs.abs_equipped > 0;
+	car->tcs_enabled = replay_get32(entry + 0x13) > 0 && car_specs.tcs_equipped > 0;
 	car->gear_auto_selected = 0;
 	car->drag_const_0x4a8 = 0;
 	car->drag_const_0x4aa = 0;
@@ -701,6 +718,8 @@ void tnfs_init_car() {
 	tnfs_Fiziks_InitCar(car);
 
 	tnfs_reset_car(car);
+	// SE: 2 (neutral) with the automatic gearbox, else 0 (manual)
+	car->gear_auto_selected = replay_get32(entry + 0xf) != 0 ? 2 : 0;
 }
 
 /* basic game controls */
@@ -1398,6 +1417,7 @@ int g_replay_clip_cut = 0; // a crashed car was put back on the road (cuts a hig
 int g_replay_highlights_only = 0; // leave after the last highlight clip instead of looping (DOS 0x15c598, SE 0x5137e4)
 extern int general_flags;
 // AI globals of the keyframes (tnfs_ai.c)
+extern int g_some_car_array1[9];
 extern int g_some_car_array2[9];
 extern tnfs_random_struct g_random_struct[2];
 extern int g_cop_park_position;
@@ -1818,7 +1838,7 @@ static void tnfs_replay_car_restore(tnfs_car_data *car, const unsigned char *r) 
 	car->is_wrecked = replay_get32(r + 0x164);
 	car->slide_front = 0;
 	car->slide_rear = 0;
-	car->track_slice_lap = (car->lap_number - 1) * g_tri_num_chunks * 4 + car->track_slice;
+	car->track_slice_lap = (car->lap_number - 1) * g_track_num_chunks * 4 + car->track_slice;
 }
 
 /*
@@ -1937,8 +1957,8 @@ static void tnfs_replay_world_save(int k, int other_cars) {
 	int i;
 
 	for (i = 0; i < g_total_cars_in_scene; i++) {
-		// 0x00 handler order (DOS g_some_car_array1 0x153bec, SE 0x509e68): the port runs the cars in index order
-		replay_put32(r + i * 4, i);
+		// 0x00 road order (g_some_car_array1, DOS 0x153bec, SE 0x509e68)
+		replay_put32(r + i * 4, g_some_car_array1[i]);
 		// 0x24 race order (g_some_car_array2)
 		replay_put32(r + 0x24 + i * 4, g_some_car_array2[i]);
 	}
@@ -1999,7 +2019,7 @@ void tnfs_replay_reinstate(int tick, int param_2) {
 
 	r = g_replay.world + REPLAY_WORLD_KEYFRAMES + k * 0xa2;
 	for (i = 0; i < g_total_cars_in_scene; i++) {
-		// handler order (r + i * 4): the port runs the cars in index order
+		g_some_car_array1[i] = replay_get32(r + i * 4);
 		g_some_car_array2[i] = replay_get32(r + 0x24 + i * 4);
 	}
 	other_cars = replay_get32(r + 0x50);
@@ -2732,7 +2752,7 @@ int tnfs_track_node_update(tnfs_car_data *car) {
 				printf("UN-LAP %d\n", car->lap_number);
 			}
 		}
-		car->track_slice_lap = (car->lap_number - 1) * g_tri_num_chunks * 4 + car->track_slice;
+		car->track_slice_lap = (car->lap_number - 1) * g_track_num_chunks * 4 + car->track_slice;
 	}
 
 	return changed;
@@ -2923,7 +2943,7 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	g_ai_skill_cfg.opponent_glue_1[9] = 0x10000;
 	g_ai_skill_cfg.opponent_glue_1[10] = 0x10000;
 	g_ai_skill_cfg.opponent_glue_1[11] = 0x10000;
-	g_ai_skill_cfg.opponent_glue_1[12] = 0xe666;
+	g_ai_skill_cfg.opponent_glue_1[12] = 0xf333; // PC version (SE 0x456410); DOS (0x712a2) 0xe666
 	g_ai_skill_cfg.opponent_glue_1[13] = 0xe666;
 	g_ai_skill_cfg.opponent_glue_1[14] = 0xd999;
 	g_ai_skill_cfg.opponent_glue_1[15] = 0xcccc;
@@ -2967,7 +2987,7 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	g_ai_skill_cfg.opponent_glue_3[9] = 0x10000;
 	g_ai_skill_cfg.opponent_glue_3[10] = 0x10000;
 	g_ai_skill_cfg.opponent_glue_3[11] = 0x10000;
-	g_ai_skill_cfg.opponent_glue_3[12] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_3[12] = 0x50000; // PC version (SE 0x456410); DOS (0x712a2) 0x10000
 	g_ai_skill_cfg.opponent_glue_3[13] = 0x90000;
 	g_ai_skill_cfg.opponent_glue_3[14] = 0x90000;
 	g_ai_skill_cfg.opponent_glue_3[15] = 0x90000;
@@ -3051,10 +3071,10 @@ void tnfs_game_loop() {
 		return;
 	}
 
-	// control step: the control handlers of the cars (players: tnfs_controls_update; AI: empty)
+	// control step: the control handlers of the cars (players: tnfs_controls_update; AI: empty), in road order
 	if (general_flags & 4) {
 		for (i = 0; i < g_total_cars_in_scene; i++) {
-			car = g_car_ptr_array[i];
+			car = g_car_ptr_array[g_some_car_array1[i]];
 			if ((car->field_4e9 & 4) != 0 && car->car_id < g_number_of_players) {
 				tnfs_controls_update(car);
 			}
@@ -3065,7 +3085,8 @@ void tnfs_game_loop() {
 		return;
 	}
 
-	player_car_ptr->car_road_speed = tnfs_car_road_speed(player_car_ptr);
+	// the player's car_road_speed is updated on the 4th-step AI update only (DOS: tnfs_car_road_speed's one caller is
+	// tnfs_ai_update_speed_targets 0x781a5)
 
 	// race times, while racing only (DOS tnfs_ai_finish_line_cross 0x64c8e), for the first g_num_of_racers_00153b34
 	// cars (DOS 0x153b34 from tnfs_game_reset_stats 0x637d8: 1 in time trial, 2 head-to-head, else all racers)
@@ -3078,9 +3099,9 @@ void tnfs_game_loop() {
 		}
 	}
 
-	// for each car
+	// for each car, in road order (DOS 0x650cb)
 	for (i = 0; i < g_total_cars_in_scene; i++) {
-		car = g_car_ptr_array[i];
+		car = g_car_ptr_array[g_some_car_array1[i]];
 
 		if ((car->field_4e9 & 4) == 0) {
 			//disabled car
@@ -3090,15 +3111,13 @@ void tnfs_game_loop() {
 		if (car->crash_state == 6) {
 			//hidden traffic car
 			tnfs_ai_hidden_traffic_main(car);
-			continue;
-		}
-
-		if (car->crash_state == 1) {
+		} else if (car->crash_state == 1) {
 			tnfs_car_wait_after_busted(car);
 		} else if (car->crash_state == 5) {
 			tnfs_ai_wrecked_wait(car);
 		} else if (car->crash_state != 4) {
-			if (i < g_number_of_players) {
+			// handler by crash_state (DOS table 0x153ae0): 2 driving, 3 AI
+			if (car->crash_state == 2) {
 				// no matrix here: a driving player's matrix is the bare angles, rebuilt every 4th tick by
 				// tnfs_ai_update_speed_targets (DOS 0x77d1c, PSX 0x80053d98, SE 0x46aba4); the body lean is added
 				// only when drawing (DOS gfx_draw_car 0x74d73, PSX 0x80050584, SE 0x4591d4)

@@ -670,6 +670,7 @@ extern char is_drifting;
 extern int iSimTimeClock;
 extern int g_road_node_count;
 extern int g_tri_num_chunks;
+extern int g_track_num_chunks;
 extern int g_road_finish_node;
 extern int sound_flag;
 extern int cheat_crashing_cars;

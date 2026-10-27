@@ -145,6 +145,7 @@ int math_sin_3(int input);
 int math_cos_3(int input);
 int math_tan_3(int input);
 int math_atan2(int x, int y);
+int math_atan_1024(int x, int y);
 void math_rotate_2d(int x1, int y1, int angle, int *x2, int *y2);
 void math_rotate_vector_xz(tnfs_vec3 *v0, tnfs_vec3 *v1, int angle);
 int math_angle_wrap(int a);

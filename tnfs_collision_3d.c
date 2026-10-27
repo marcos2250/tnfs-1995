@@ -181,7 +181,7 @@ void tnfs_collision_rebound(tnfs_collision_data *body, tnfs_vec3 *l_edge, tnfs_v
 	iY = fixmul(l_edge->x, aux) - fixmul(l_edge->z, iX);
 	iZ = fixmul(l_edge->y, iX) - fixmul(l_edge->x, iY);
 
-	aux = math_mul(dampen, body->linear_acc_factor);
+	aux = math_mul(dampen, body->angular_acc_factor);
 	accel_edge.x = math_mul(aux, iX);
 	accel_edge.y = math_mul(aux, iY);
 	accel_edge.z = math_mul(aux, iZ);
@@ -372,25 +372,25 @@ void tnfs_collision_update_vectors(tnfs_collision_data *body) {
 	/* apply gravity */
 	body->speed.y -= 0x53b6;
 
-	// check angular speed
-	if (body->angular_speed.x > 0xf0000) {
-		body->angular_speed.x = 0xf0000;
-	}
-	if (body->angular_speed.y > 0xf0000) {
-		body->angular_speed.y = 0xf0000;
-	}
-	if (body->angular_speed.z > 0xf0000) {
-		body->angular_speed.z = 0xf0000;
-	}
-	if (body->angular_speed.x < -0xf0000) {
-		body->angular_speed.x = -0xf0000;
-	}
-	if (body->angular_speed.y < -0xf0000) {
-		body->angular_speed.y = -0xf0000;
-	}
-	if (body->angular_speed.z < -0xf0000) {
-		body->angular_speed.z = -0xf0000;
-	}
+	// PSX version (0x80026710) clamps the angular speed to +-0xf0000 here; PC version (DOS 0x4faa8, SE 0x41daa0): no clamp
+	//if (body->angular_speed.x > 0xf0000) {
+	//	body->angular_speed.x = 0xf0000;
+	//}
+	//if (body->angular_speed.y > 0xf0000) {
+	//	body->angular_speed.y = 0xf0000;
+	//}
+	//if (body->angular_speed.z > 0xf0000) {
+	//	body->angular_speed.z = 0xf0000;
+	//}
+	//if (body->angular_speed.x < -0xf0000) {
+	//	body->angular_speed.x = -0xf0000;
+	//}
+	//if (body->angular_speed.y < -0xf0000) {
+	//	body->angular_speed.y = -0xf0000;
+	//}
+	//if (body->angular_speed.z < -0xf0000) {
+	//	body->angular_speed.z = -0xf0000;
+	//}
 
 	// update matrix
 	aux = math_vec3_length(&body->angular_speed);
@@ -524,13 +524,9 @@ void tnfs_collision_main(tnfs_car_data *car) {
 	car->is_crashed = 1;
 	collision_data = &car->collision_data;
 
-	//if (car == (tnfs_car_data*) 0x0) {
-	if (car == &g_car_array[0]) {
-		aux = -car->rpm_engine + 1500;
-		if (aux < 0) {
-			aux += 1507;
-		}
-		car->rpm_engine += (aux >> 3);
+	// the car in slot 1 (DOS 0x153bc4, SE 0x509e40): its rpm eases to 1500
+	if (car->car_data_ptr == g_car_ptr_array[1]) {
+		car->rpm_engine += fix3(1500 - car->rpm_engine);
 	}
 
 	if (tnfs_track_node_update(car)) {
@@ -564,24 +560,25 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		if ((track_data[car->track_slice & g_slice_mask].fence_flag >> 4 != 0) && (track_data[car->track_slice & g_slice_mask].item_mode != 5)) {
 			aux = DAT_000f99e8;
 		}
-		roadWidth = (track_data[car->track_slice & g_slice_mask].roadLeftFence * -0x2000 - aux) >> 16;
+		// fence distance in 8.8 bits (DOS 0x453bc, SE 0x40e050, PSX 0x8001cb1c)
+		roadWidth = (track_data[car->track_slice & g_slice_mask].roadLeftFence * -0x2000 - aux) >> 8;
 
-		fencePosition.y = roadWidth * fenceNormal.y + roadPosition.y;
-		fencePosition.x = roadWidth * fenceNormal.x + roadPosition.x;
-		fencePosition.z = roadWidth * fenceNormal.z + roadPosition.z;
+		fencePosition.y = roadWidth * (fenceNormal.y >> 8) + roadPosition.y;
+		fencePosition.x = roadWidth * (fenceNormal.x >> 8) + roadPosition.x;
+		fencePosition.z = roadWidth * (fenceNormal.z >> 8) + roadPosition.z;
 	} else {
 		aux = DAT_000f99e4;
 		if (((track_data[car->track_slice & g_slice_mask].fence_flag  & 0xf) != 0) && (track_data[car->track_slice & g_slice_mask].item_mode != 5)) {
 			aux = DAT_000f99e8;
 		}
-		roadWidth = (track_data[car->track_slice & g_slice_mask].roadRightFence * -0x2000 - aux) >> 16;
+		roadWidth = (track_data[car->track_slice & g_slice_mask].roadRightFence * 0x2000 + aux) >> 8;
 
+		fencePosition.y = roadWidth * (fenceNormal.y >> 8) + roadPosition.y;
+		fencePosition.x = roadWidth * (fenceNormal.x >> 8) + roadPosition.x;
+		fencePosition.z = roadWidth * (fenceNormal.z >> 8) + roadPosition.z;
 		fenceNormal.x = -fenceNormal.x;
 		fenceNormal.z = -fenceNormal.z;
 		fenceNormal.y = -fenceNormal.y;
-		fencePosition.y = roadWidth * fenceNormal.y + roadPosition.y;
-		fencePosition.x = roadWidth * fenceNormal.x + roadPosition.x;
-		fencePosition.z = roadWidth * fenceNormal.z + roadPosition.z;
 	}
 
 	/* car colliding to track fence */
@@ -717,8 +714,8 @@ void tnfs_collision_main(tnfs_car_data *car) {
 		}
 		local_ec = abs(collision_data->speed.x) + abs(collision_data->speed.y) + abs(collision_data->speed.z);
 		if ((car->ai_state & 0x200) == 0) {
-			// DOS version; PSX 0x8001d3d8 and Win95 SE 0x40e811 compare with 0x80000
-			if (car->is_wrecked != 0 && local_ec < 0x40000) {
+			// PC (Win95 SE 0x40e811) / PSX (0x8001d3d8) version; DOS version: local_ec < 0x40000
+			if (car->is_wrecked != 0 && local_ec < 0x80000) {
 				car->ai_state |= 0x200; // smoke on
 				tnfs_smoke_particles_emit(&g_smoke_particles, car, 0x5555);
 			}
@@ -838,16 +835,16 @@ void tnfs_collision_main(tnfs_car_data *car) {
 					collision_data->state_timer--;
 					local_134 = fixmul(collision_data->matrix.bx, roadNormal.x) + fixmul(collision_data->matrix.by, roadNormal.y) + fixmul(collision_data->matrix.bz, roadNormal.z);
 					if (local_134 > 0xf70a || local_134 < -0xf70a || (local_134 < 0x8f5 && -0x8f5 < local_134)) {
-						// PC version
-						if (local_134 < 0xf70b) {
+						// PC (SE 0x40e050) / PSX version: the car must also face along the road
+						if (local_134 < 0xf70b || -(fixmul(collision_data->matrix.cx, car->road_heading.x) + fixmul(collision_data->matrix.cy, car->road_heading.y) + fixmul(collision_data->matrix.cz, -car->road_heading.z)) < 0xb334) {
 							if (collision_data->state_timer != 0) {
 								collision_data->state_timer--;
 							}
 						} else {
 							tnfs_collision_recover_car(car);
 						}
-						// PSX version also checks that the car faces along the road
-						//if (local_134 < 0xf70b || -(fixmul(collision_data->matrix.cx, car->road_heading.x) + fixmul(collision_data->matrix.cy, car->road_heading.y) + fixmul(collision_data->matrix.cz, -car->road_heading.z)) < 0xb334) {
+						// DOS version (0x453bc): upright is enough
+						//if (local_134 < 0xf70b) {
 						//	if (collision_data->state_timer != 0) collision_data->state_timer--;
 						//} else {
 						//	tnfs_collision_recover_car(car);

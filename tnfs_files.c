@@ -30,6 +30,8 @@ int read_tri_file(char * file) {
 	FILE *ptr;
 	int i;
 	int c;
+	int node0_slope;
+	int node0_heading;
 
 	ptr = fopen(file,"rb");
 	if (!ptr) {
@@ -46,6 +48,11 @@ int read_tri_file(char * file) {
 
 	g_is_closed_track = readFixed16(buffer, 4) != 0;
 	g_tri_num_chunks = readFixed32(buffer, 6);
+	// InitRoad (DOS 0x61e00, SE 0x43e4e0): the lap's sections of a circuit, 0x8000 on an open road
+	g_track_num_chunks = g_is_closed_track ? readFixed16(buffer, 4) : 0x8000;
+	// InitRoad (DOS 0x61e00, SE 0x43e4e0): node 0 takes its slope and heading from these header words
+	node0_slope = readSigned16(buffer, 0x18);
+	node0_heading = readSigned16(buffer, 0x20);
 	g_road_node_count = g_tri_num_chunks * 4;
 
 	if (g_is_closed_track) {
@@ -86,6 +93,9 @@ int read_tri_file(char * file) {
 		track_data[i].side_normal_y = readSigned16(buffer, 30);
 		track_data[i].side_normal_z = readSigned16(buffer, 32);
 	}
+
+	track_data[0].slope = node0_slope;
+	track_data[0].heading = node0_heading;
 
 	// 0x15B0C block: Track node AI speed reference
 	for (i = 0; i < 600; i++) {

@@ -37,7 +37,10 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int lon_speed, in
 	if (rotAngle > 0x1000000)
 		rotAngle -= 0x1000000;
 
-	if (lon_speed >= 0x100000 && car_data->speed > 0x300000) {
+	// PC (SE 0x4302a4) / PSX version (0x80030d70); DOS version (0x5b05b): lon_speed >= 0x100000 && speed > 0x300000
+	// in all modes, the rollover roll is also x3/4 and a glance also sets the angular speed to +-0xa0000
+	if (((g_game_settings & 0x20) == 0 && lon_speed >= 0x180000 && car_data->speed > 0x230000) //
+			|| ((g_game_settings & 0x20) != 0 && lon_speed >= 0x220000 && car_data->speed > 0x2d0000)) {
 		crash_speed_a = lon_speed - 0x60000;
 		if (rotAngle >= 0x800000)
 			rotSide = 0x1000000 - fix3(0x1000000 - rotAngle);
@@ -67,19 +70,17 @@ void tnfs_collision_rotate(tnfs_car_data *car_data, int angle, int lon_speed, in
 			crash_pitch = fix6(crash_speed_a * (collisionAngle >> 16));
 		}
 		if (crash_yaw != 0) {
-			tnfs_collision_rollover_start(car_data, fix2(crash_yaw), fix2(3 * crash_roll), fix2(3 * crash_pitch));
+			tnfs_collision_rollover_start(car_data, fix2(crash_yaw), crash_roll, fix2(3 * crash_pitch));
 		}
 	} else {
 		if (abs(collisionAngle) < 0x130000 && car_data->speed_local_lon > 0) {
 			if (fence_side <= 0) {
 				if (rotAngle < 0x130000) {
 					car_data->angle.y += rotAngle;
-					car_data->angular_speed = 0x9FFFC + 4;
 				}
 			} else {
-				if (rotAngle > 0xed0001) {
+				if (rotAngle > 0xed0000) {
 					car_data->angle.y += rotAngle;
-					car_data->angular_speed -= 0x9FFFC + 4;
 				}
 			}
 		}
@@ -92,7 +93,7 @@ int tnfs_collision_car_size(tnfs_car_data *car_data, int fence_angle) {
 
 	// fast cosine
 	x = abs(fence_angle - car_data->angle.y) >> 0x10;
-	if (x > 0xc1) {
+	if (x > 0xc0) {
 		x = 0x100 - x;
 	} else if (x > 0x80) {
 		x = x - 0x80;
@@ -175,7 +176,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 		aux = roadLeftFence * -0x2000 + tnfs_collision_car_size(car_data, fence_angle);
 		if (distance < aux) {
 			fenceSide = -0x100;
-			rebound_speed_x = aux - distance - 0x4ccc;
+			rebound_speed_x = aux + 0x4ccc - distance;
 			fence_flag = track_data[car_data->track_slice & g_slice_mask].fence_flag >> 4;
 		}
 
@@ -201,7 +202,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	car_data->position.z = car_data->position.z + rebound_z;
 
 	// rotate speed vector to fence reference
-	math_rotate_2d(-car_data->speed_x, car_data->speed_z, fence_angle, &rebound_speed_x, &rebound_speed_z);
+	math_rotate_2d(car_data->speed_x, car_data->speed_z, -fence_angle, &rebound_speed_x, &rebound_speed_z);
 
 	// play collision sound
 	abs_speed = abs(rebound_speed_x);
@@ -233,8 +234,8 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 		}
 	}
 
-	// dampen collision rebound speed
-	if (abs_speed > 0x180000) {
+	// dampen the speed across the fence (it keeps its direction)
+	if (abs_speed < 0x180000) {
 		if (rebound_speed_x > +0x20000)
 			rebound_speed_x = +0x20000;
 		if (rebound_speed_x < -0x20000)
@@ -284,7 +285,7 @@ void tnfs_track_fence_collision(tnfs_car_data *car_data) {
 	car_data->collision_a = 0x1e;
 	car_data->collision_b = 0x1e;
 
-	// reflect car speeds 180deg
+	// back to the world frame, turned 0x20000 (2.8 degrees) off the fence
 	math_rotate_2d(rebound_speed_x, rebound_speed_z, fence_angle, &car_data->speed_x, &car_data->speed_z);
 
 	// ???

@@ -536,6 +536,11 @@ int main(int argc, char **argv) {
 		pbsfile = 0;
 	}
 
+	// the front-end options of player 1's race setup entry (setup + 0x3c), read by the car init: automatic
+	// gearbox (+0xf), TCS (+0x13), ABS (+0x17)
+	g_replay.setup[0x3c + 0xf] = 1;
+	g_replay.setup[0x3c + 0x13] = 1;
+	g_replay.setup[0x3c + 0x17] = 1;
 	tnfs_init_sim(trifile, pbsfile);
 
 	while (!quit) {

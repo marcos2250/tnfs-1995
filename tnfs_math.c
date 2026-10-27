@@ -30,6 +30,57 @@ int math_div(int x, int y) {
 }
 
 /*
+ * arctangent, an eighth of a turn in 16-bit angles (0x2000) by the ratio small / large, 256 steps + 1
+ * (SE 0x4f4074, read by FUN_004890f0)
+ */
+static int g_atan_table[257] = { //
+		0x0, 0x29, 0x51, 0x7a, 0xa3, 0xcc, 0xf4, 0x11d, 0x146, 0x16f, 0x197, 0x1c0, //
+		0x1e9, 0x211, 0x23a, 0x262, 0x28b, 0x2b4, 0x2dc, 0x305, 0x32d, 0x356, 0x37e, 0x3a7, //
+		0x3cf, 0x3f7, 0x420, 0x448, 0x470, 0x499, 0x4c1, 0x4e9, 0x511, 0x539, 0x561, 0x589, //
+		0x5b1, 0x5d9, 0x601, 0x629, 0x651, 0x678, 0x6a0, 0x6c8, 0x6ef, 0x717, 0x73e, 0x766, //
+		0x78d, 0x7b5, 0x7dc, 0x803, 0x82a, 0x851, 0x878, 0x89f, 0x8c6, 0x8ed, 0x914, 0x93b, //
+		0x961, 0x988, 0x9ae, 0x9d5, 0x9fb, 0xa22, 0xa48, 0xa6e, 0xa94, 0xaba, 0xae0, 0xb06, //
+		0xb2c, 0xb51, 0xb77, 0xb9d, 0xbc2, 0xbe7, 0xc0d, 0xc32, 0xc57, 0xc7c, 0xca1, 0xcc6, //
+		0xceb, 0xd10, 0xd34, 0xd59, 0xd7d, 0xda2, 0xdc6, 0xdea, 0xe0f, 0xe33, 0xe56, 0xe7a, //
+		0xe9e, 0xec2, 0xee5, 0xf09, 0xf2c, 0xf50, 0xf73, 0xf96, 0xfb9, 0xfdc, 0xfff, 0x1021, //
+		0x1044, 0x1067, 0x1089, 0x10ab, 0x10ce, 0x10f0, 0x1112, 0x1134, 0x1156, 0x1177, 0x1199, 0x11bb, //
+		0x11dc, 0x11fd, 0x121f, 0x1240, 0x1261, 0x1282, 0x12a3, 0x12c3, 0x12e4, 0x1305, 0x1325, 0x1345, //
+		0x1366, 0x1386, 0x13a6, 0x13c6, 0x13e6, 0x1405, 0x1425, 0x1444, 0x1464, 0x1483, 0x14a2, 0x14c1, //
+		0x14e0, 0x14ff, 0x151e, 0x153d, 0x155b, 0x157a, 0x1598, 0x15b7, 0x15d5, 0x15f3, 0x1611, 0x162f, //
+		0x164c, 0x166a, 0x1688, 0x16a5, 0x16c2, 0x16e0, 0x16fd, 0x171a, 0x1737, 0x1754, 0x1770, 0x178d, //
+		0x17aa, 0x17c6, 0x17e2, 0x17fe, 0x181b, 0x1837, 0x1853, 0x186e, 0x188a, 0x18a6, 0x18c1, 0x18dd, //
+		0x18f8, 0x1913, 0x192e, 0x1949, 0x1964, 0x197f, 0x199a, 0x19b4, 0x19cf, 0x19e9, 0x1a04, 0x1a1e, //
+		0x1a38, 0x1a52, 0x1a6c, 0x1a86, 0x1a9f, 0x1ab9, 0x1ad3, 0x1aec, 0x1b05, 0x1b1f, 0x1b38, 0x1b51, //
+		0x1b6a, 0x1b83, 0x1b9c, 0x1bb4, 0x1bcd, 0x1be5, 0x1bfe, 0x1c16, 0x1c2e, 0x1c46, 0x1c5e, 0x1c76, //
+		0x1c8e, 0x1ca6, 0x1cbe, 0x1cd5, 0x1ced, 0x1d04, 0x1d1b, 0x1d33, 0x1d4a, 0x1d61, 0x1d78, 0x1d8e, //
+		0x1da5, 0x1dbc, 0x1dd3, 0x1de9, 0x1dff, 0x1e16, 0x1e2c, 0x1e42, 0x1e58, 0x1e6e, 0x1e84, 0x1e9a, //
+		0x1eb0, 0x1ec5, 0x1edb, 0x1ef0, 0x1f06, 0x1f1b, 0x1f30, 0x1f45, 0x1f5a, 0x1f6f, 0x1f84, 0x1f99, //
+		0x1fae, 0x1fc3, 0x1fd7, 0x1fec, 0x2000 };
+
+/*
+ * arctangent in 1024 steps per turn (0x80 an eighth) by the ratio small / large, 256 steps + 1
+ * (SE 0x4f3e9c, read by math_sin 0x484294, which is an arctangent)
+ */
+static unsigned char g_atan_1024_table[257] = { //
+		0x00, 0x01, 0x01, 0x02, 0x03, 0x03, 0x04, 0x04, 0x05, 0x06, 0x06, 0x07, 0x08, 0x08, 0x09, 0x0a, //
+		0x0a, 0x0b, 0x0b, 0x0c, 0x0d, 0x0d, 0x0e, 0x0f, 0x0f, 0x10, 0x10, 0x11, 0x12, 0x12, 0x13, 0x14, //
+		0x14, 0x15, 0x16, 0x16, 0x17, 0x17, 0x18, 0x19, 0x19, 0x1a, 0x1b, 0x1b, 0x1c, 0x1c, 0x1d, 0x1e, //
+		0x1e, 0x1f, 0x1f, 0x20, 0x21, 0x21, 0x22, 0x22, 0x23, 0x24, 0x24, 0x25, 0x26, 0x26, 0x27, 0x27, //
+		0x28, 0x29, 0x29, 0x2a, 0x2a, 0x2b, 0x2c, 0x2c, 0x2d, 0x2d, 0x2e, 0x2e, 0x2f, 0x30, 0x30, 0x31, //
+		0x31, 0x32, 0x33, 0x33, 0x34, 0x34, 0x35, 0x35, 0x36, 0x37, 0x37, 0x38, 0x38, 0x39, 0x39, 0x3a, //
+		0x3a, 0x3b, 0x3c, 0x3c, 0x3d, 0x3d, 0x3e, 0x3e, 0x3f, 0x3f, 0x40, 0x41, 0x41, 0x42, 0x42, 0x43, //
+		0x43, 0x44, 0x44, 0x45, 0x45, 0x46, 0x46, 0x47, 0x47, 0x48, 0x48, 0x49, 0x4a, 0x4a, 0x4b, 0x4b, //
+		0x4c, 0x4c, 0x4d, 0x4d, 0x4e, 0x4e, 0x4f, 0x4f, 0x50, 0x50, 0x51, 0x51, 0x52, 0x52, 0x53, 0x53, //
+		0x54, 0x54, 0x54, 0x55, 0x55, 0x56, 0x56, 0x57, 0x57, 0x58, 0x58, 0x59, 0x59, 0x5a, 0x5a, 0x5b, //
+		0x5b, 0x5b, 0x5c, 0x5c, 0x5d, 0x5d, 0x5e, 0x5e, 0x5f, 0x5f, 0x60, 0x60, 0x60, 0x61, 0x61, 0x62, //
+		0x62, 0x63, 0x63, 0x63, 0x64, 0x64, 0x65, 0x65, 0x66, 0x66, 0x66, 0x67, 0x67, 0x68, 0x68, 0x68, //
+		0x69, 0x69, 0x6a, 0x6a, 0x6a, 0x6b, 0x6b, 0x6c, 0x6c, 0x6c, 0x6d, 0x6d, 0x6e, 0x6e, 0x6e, 0x6f, //
+		0x6f, 0x70, 0x70, 0x70, 0x71, 0x71, 0x71, 0x72, 0x72, 0x73, 0x73, 0x73, 0x74, 0x74, 0x74, 0x75, //
+		0x75, 0x76, 0x76, 0x76, 0x77, 0x77, 0x77, 0x78, 0x78, 0x78, 0x79, 0x79, 0x79, 0x7a, 0x7a, 0x7a, //
+		0x7b, 0x7b, 0x7b, 0x7c, 0x7c, 0x7c, 0x7d, 0x7d, 0x7d, 0x7e, 0x7e, 0x7e, 0x7f, 0x7f, 0x7f, 0x80, //
+		0x80 };
+
+/*
  * quarter sine wave, 256 steps + 1 (1024 per turn), PC version (DOS 0x106408, SE 0x4c6b84)
  */
 int g_sine_quarter_table[257] = { //
@@ -103,8 +154,113 @@ int math_tan_3(int input) {
 	return tan(a) * 0xFFFF;
 }
 
+/*
+ * arctangent of y / x in 3-byte angles (SE math_atan2 0x42ebbc: FUN_004890f0(y, x) << 8; ReNFS ea_atan2): the smaller
+ * over the larger as a 32-bit fraction, the table of an eighth of a turn with a linear step between its entries, then
+ * the octant
+ */
 int math_atan2(int x, int y) {
-	return atan2(y, x) * 2670178;
+	unsigned int ax, ay, small, large, ratio, i;
+	int octant, a;
+
+	octant = 0;
+	ax = x;
+	ay = y;
+	if (x < 0) {
+		octant = 2;
+		ax = -(unsigned int) x;
+	}
+	if (y < 0) {
+		ay = -(unsigned int) y;
+		octant |= 4;
+	}
+	if (ay == ax) {
+		a = 0x2000;
+	} else {
+		small = ay;
+		large = ax;
+		if ((int) ax < (int) ay) {
+			octant |= 1;
+			small = ax;
+			large = ay;
+		}
+		ratio = (unsigned int) (((unsigned long long) small << 32) / large);
+		i = ratio >> 24;
+		a = g_atan_table[i] + ((unsigned int) ((g_atan_table[i + 1] - g_atan_table[i]) * ((ratio >> 8) & 0xffff)) >> 16);
+	}
+	switch (octant) {
+	case 1:
+		a = 0x4000 - a;
+		break;
+	case 2:
+		a = 0x8000 - a;
+		break;
+	case 3:
+		a = a + 0x4000;
+		break;
+	case 4:
+		a = -a;
+		break;
+	case 5:
+		a = a - 0x4000;
+		break;
+	case 6:
+		a = a - 0x8000;
+		break;
+	case 7:
+		a = -a - 0x4000;
+		break;
+	}
+	return (int) ((unsigned int) a << 8);
+}
+
+/*
+ * arctangent of y / x in 1024 steps per turn, nearest table entry (SE 0x484294, named math_sin in Ghidra, called with
+ * (y, x); ReNFS ea_atan_1024). The car tilt (tnfs_height_*) uses it, shifted to 3-byte angles by << 14.
+ */
+int math_atan_1024(int x, int y) {
+	unsigned int ratio, w;
+	int flags, t;
+
+	flags = 0;
+	if (x < 0) {
+		flags = 8;
+		x = (int) -(unsigned int) x;
+	}
+	if (y < 0) {
+		flags |= 0x10;
+		y = (int) -(unsigned int) y;
+	}
+	if (y >= x) {
+		if (y == x) {
+			t = 0x80;
+			goto octant;
+		}
+		w = y;
+		y = x;
+		x = w;
+		flags |= 4;
+	}
+	ratio = (unsigned int) (((unsigned long long) (unsigned int) y << 32) / (unsigned int) x);
+	t = g_atan_1024_table[(ratio >> 24) + ((ratio >> 23) & 1)];
+octant:
+	switch (flags) {
+	case 4:
+		return 0x100 - t;
+	case 8:
+		return 0x200 - t;
+	case 0xc:
+		return t + 0x100;
+	case 0x10:
+		return -t;
+	case 0x14:
+		return t - 0x100;
+	case 0x18:
+		return t - 0x200;
+	case 0x1c:
+		return -t - 0x100;
+	}
+	return t;
 }
 
 int math_angle14_32(short input) {
@@ -142,9 +298,9 @@ int math_angle_wrap(int a) {
 }
 
 void math_matrix_set_rot_Z(tnfs_vec9 *param_1, int angle) {
-	double a = (double) angle / 2670178;
-	int s = sin(a) * 0x10000;
-	int c = cos(a) * 0x10000;
+	// SE 0x41d83c: the table sine of angle >> 8
+	int s = math_sin_2(angle >> 8);
+	int c = math_cos_2(angle >> 8);
 
 	param_1->ax = c;
 	param_1->bx = -s;
@@ -158,9 +314,9 @@ void math_matrix_set_rot_Z(tnfs_vec9 *param_1, int angle) {
 }
 
 void math_matrix_set_rot_Y(tnfs_vec9 *param_1, int angle) {
-	double a = (double) angle / 2670178;
-	int s = sin(a) * 0x10000;
-	int c = cos(a) * 0x10000;
+	// SE 0x41d8a4: the table sine of angle >> 8
+	int s = math_sin_2(angle >> 8);
+	int c = math_cos_2(angle >> 8);
 
 	param_1->ax = c;
 	param_1->bx = 0;
@@ -174,9 +330,9 @@ void math_matrix_set_rot_Y(tnfs_vec9 *param_1, int angle) {
 }
 
 void math_matrix_set_rot_X(tnfs_vec9 *param_1, int angle) {
-	double a = (double) angle / 2670178;
-	int s = sin(a) * 0x10000;
-	int c = cos(a) * 0x10000;
+	// SE 0x41d90c: the table sine of angle >> 8
+	int s = math_sin_2(angle >> 8);
+	int c = math_cos_2(angle >> 8);
 
 	param_1->ax = 0x10000;
 	param_1->bx = 0;
@@ -242,50 +398,130 @@ int math_inverse_value(int v) {
 }
 
 /*
- * square root with 8 bit precision
+ * square root of a 16.16 value (SE 0x42eb54, DOS 0x8676a; ReNFS fix_sqrt): Newton steps from the value itself until a
+ * step changes the root by less than 1 >> 8, as every caller asks (8 bits, guess = the value)
  */
 int math_sqrt(int param_1) {
-	return sqrt(param_1) * 0xFF;
+	int x;
+	unsigned int old;
+
+	if (param_1 == 0)
+		return 0;
+	x = param_1;
+	do {
+		old = x;
+		x = (unsigned int) (x + (((unsigned int) (param_1 / x) << 16) + (int) ((((long long) (param_1 % x)) * 0x10000) / x))) >> 1;
+	} while ((old - x) >> 8);
+	return x;
 }
 
 /*
  * vector3 length squared
  */
 int math_vec3_length_squared(tnfs_vec3 *vector) {
-	int x, y, z;
-	x = math_mul(vector->x, vector->x);
-	y = math_mul(vector->y, vector->y);
-	z = math_mul(vector->z, vector->z);
-	return x + y + z;
+	// SE 0x41d570: halved until each part is <= 256.0 and the squares fit, then scaled back
+	int x, y, z, n;
+	unsigned int x2, y2, z2;
+	x = vector->x;
+	y = vector->y;
+	z = vector->z;
+	n = 0;
+	while (abs(x) > 0x1000000 || abs(y) > 0x1000000 || abs(z) > 0x1000000) {
+		x >>= 1;
+		y >>= 1;
+		z >>= 1;
+		n++;
+	}
+	x2 = math_mul(x, x);
+	while (1) {
+		y2 = math_mul(y, y);
+		z2 = math_mul(z, z);
+		if ((z2 >> 2) + (x2 >> 2) + (y2 >> 2) <= 0x40000000)
+			break;
+		x >>= 1;
+		y >>= 1;
+		z >>= 1;
+		x2 = math_mul(x, x);
+		n++;
+	}
+	x2 = x2 + y2 + z2;
+	for (; n != 0; n--)
+		x2 <<= 2;
+	return x2;
 }
 
 /*
  * vector3 length
  */
 int math_vec3_length(tnfs_vec3 *vector) {
-	int x, y, z;
-	x = math_mul(vector->x, vector->x);
-	y = math_mul(vector->y, vector->y);
-	z = math_mul(vector->z, vector->z);
-	return sqrt(x + y + z) * 0xFF;
+	// SE 0x41d3b8: halved until each part is <= 256.0 and the squares fit, then scaled back
+	int x, y, z, n;
+	unsigned int x2, y2, z2, l;
+	x = vector->x;
+	y = vector->y;
+	z = vector->z;
+	n = 0;
+	while (abs(x) > 0x1000000 || abs(y) > 0x1000000 || abs(z) > 0x1000000) {
+		x >>= 1;
+		y >>= 1;
+		z >>= 1;
+		n++;
+	}
+	x2 = math_mul(x, x);
+	while (1) {
+		y2 = math_mul(y, y);
+		z2 = math_mul(z, z);
+		if ((z2 >> 2) + (x2 >> 2) + (y2 >> 2) <= 0x40000000)
+			break;
+		x >>= 1;
+		y >>= 1;
+		z >>= 1;
+		x2 = math_mul(x, x);
+		n++;
+	}
+	l = math_sqrt(x2 + y2 + z2);
+	for (; n != 0; n--)
+		l *= 2;
+	return l;
 }
 
 int math_vec3_length_XYZ(int px, int py, int pz) {
-	int x, y, z;
-	x = math_mul(px, px);
-	y = math_mul(py, py);
-	z = math_mul(pz, pz);
-	return sqrt(x + y + z) * 0xFF;
+	tnfs_vec3 v;
+	v.x = px;
+	v.y = py;
+	v.z = pz;
+	return math_vec3_length(&v);
 }
 
 /*
  * vector3 length of X & Z values
  */
 int math_vec3_length_XZ(tnfs_vec3 *vector) {
-	int x, z;
-	x = math_mul(vector->x, vector->x);
-	z = math_mul(vector->z, vector->z);
-	return sqrt(x + z) * 0xFF;
+	// SE 0x41d4b8: halved until each part is <= 256.0 and the squares fit, then scaled back
+	int x, z, n;
+	unsigned int x2, z2, l;
+	x = vector->x;
+	z = vector->z;
+	n = 0;
+	while (abs(x) > 0x1000000 || abs(z) > 0x1000000) {
+		x >>= 1;
+		z >>= 1;
+		n++;
+	}
+	x2 = math_mul(x, x);
+	while (1) {
+		z2 = math_mul(z, z);
+		if ((z2 >> 2) + (x2 >> 2) <= 0x40000000)
+			break;
+		x >>= 1;
+		z >>= 1;
+		x2 = math_mul(x, x);
+		n++;
+	}
+	l = math_sqrt(z2 + x2);
+	for (; n != 0; n--)
+		l *= 2;
+	return l;
 }
 
 int math_vec3_distance_XZ(tnfs_vec3 *v1, tnfs_vec3 *v2) {
@@ -321,7 +557,35 @@ void math_vec3_normalize(tnfs_vec3 *v) {
 }
 
 void math_vec3_normalize_2(tnfs_vec3 *input) {
-	math_vec3_normalize(input);
+	// SE 0x41d07c (DOS SE 0x2bf9c): halved until each part is <= 256.0 and the squares fit, each part divided by the
+	// length (math_vec3_normalize multiplies by its inverse instead)
+	int x, y, z, len;
+	unsigned int x2, y2, z2;
+	x = input->x;
+	y = input->y;
+	z = input->z;
+	while (abs(x) > 0x1000000 || abs(y) > 0x1000000 || abs(z) > 0x1000000) {
+		x >>= 1;
+		y >>= 1;
+		z >>= 1;
+	}
+	x2 = math_mul(x, x);
+	while (1) {
+		y2 = math_mul(y, y);
+		z2 = math_mul(z, z);
+		if ((z2 >> 2) + (y2 >> 2) + (x2 >> 2) <= 0x40000000)
+			break;
+		x >>= 1;
+		y >>= 1;
+		x2 = math_mul(x, x);
+		z >>= 1;
+	}
+	len = math_sqrt(x2 + y2 + z2);
+	if (len != 0) {
+		input->x = math_div(x, len);
+		input->y = math_div(y, len);
+		input->z = math_div(z, len);
+	}
 }
 
 void math_vec3_normalize_fast(tnfs_vec3 *v) {

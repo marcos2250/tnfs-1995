@@ -1427,11 +1427,11 @@ extern int g_number_of_hidden_cars;
 // world block: header
 #define REPLAY_WORLD_END_CLOCK 0x04 // last recorded clock (DOS g_min_iSimTimeClock 0x15af4c, SE 0x5120c8)
 #define REPLAY_WORLD_COUNTDOWN 0x10 // control steps until the next keyframe (DOS 0x15af58: 300, SE 0x5120d4: 0x1c2)
-#define REPLAY_WORLD_KEYFRAMES 0x14 // keyframe records of 0xa2 bytes (room for 20 in SE, 16 used)
+#define REPLAY_WORLD_KEYFRAMES 0x14 // keyframe records of 0xa2 bytes (room for TNFS_REPLAY_KEYFRAMES + 4: SE 20, DOS 34)
 // recording block
 #define REPLAY_CONTROLS_HIGH (2 * TNFS_REPLAY_SAMPLES) // low bytes of player 0, 1, then high bytes of player 0, 1
-#define REPLAY_PLAYER_FRAMES (4 * TNFS_REPLAY_SAMPLES) // 0x7080 [player][keyframe] 0x1a4 bytes (DOS 36000)
-#define REPLAY_OTHER_FRAMES (REPLAY_PLAYER_FRAMES + 2 * TNFS_REPLAY_KEYFRAMES * 0x1a4) // 0xa500 [keyframe][slot] 0x172
+#define REPLAY_PLAYER_FRAMES (4 * TNFS_REPLAY_SAMPLES) // SE 0x7080 [player][keyframe] 0x1a4 bytes (DOS 36000)
+#define REPLAY_OTHER_FRAMES (REPLAY_PLAYER_FRAMES + 2 * TNFS_REPLAY_KEYFRAMES * 0x1a4) // SE 0xa500 [keyframe][slot] 0x172
 
 static void replay_put32(unsigned char *p, int v) {
 	p[0] = (unsigned char) v;
@@ -1543,7 +1543,7 @@ void tnfs_sign_status_replay_rewind(int keyframe) {
  */
 void tnfs_replay_init() {
 	int i;
-	replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, 0x1c2);
+	replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, TNFS_REPLAY_KEYFRAME / 4);
 	g_replay.highlights.clip = -2;
 	replay_put32(g_replay.world, 0);
 	replay_put32(g_replay.world + REPLAY_WORLD_END_CLOCK, 0);
@@ -1553,7 +1553,7 @@ void tnfs_replay_init() {
 	g_replay.highlights.current_second = 0;
 	g_replay.highlights.play_count = 1;
 	g_replay.highlights.panel_state = 6;
-	for (i = 0; i < 480; i++) {
+	for (i = 0; i < TNFS_REPLAY_SECONDS; i++) {
 		g_replay.highlights.seconds[i] = 0;
 	}
 	g_replay.highlights.tv_camera = 0;
@@ -1582,9 +1582,9 @@ void tnfs_replay_highlight_record(int score) {
 }
 
 /*
- * Highlight clips (Win95 SE FUN_0044d7d8, DOS 0x6d221 with 600 seconds and + 0x28): up to 30 seconds with the best
- * marked scores, oldest first, each becomes the clip second - 2 .. second + 5 (clock rounded down to 4), overlapping
- * clips are merged (the higher coolness is kept). No highlight: one clip of the whole race, coolness 200.
+ * Highlight clips (Win95 SE FUN_0044d7d8, DOS 0x6d221 with 600 seconds): up to 30 seconds with the best marked
+ * scores, oldest first, each becomes the clip second - 2 .. second + 5 (clock rounded down to 4), overlapping clips are
+ * merged (the higher coolness is kept). No highlight: one clip of the whole race, coolness 200.
  */
 void tnfs_replay_highlights_select() {
 	tnfs_replay_highlights *hl = &g_replay.highlights;
@@ -1604,14 +1604,14 @@ void tnfs_replay_highlights_select() {
 
 	end = tnfs_replay_end_clock();
 	count = end / 0x3c;
-	if (count > 480) {
-		count = 480;
+	if (count > TNFS_REPLAY_SECONDS) {
+		count = TNFS_REPLAY_SECONDS;
 	}
 	min = (end - TNFS_REPLAY_TICKS) / 0x3c;
 	if (min < -2) {
 		min = -2;
 	} else {
-		min = min + 0x3c;
+		min = min + 2 * TNFS_REPLAY_KEYFRAME / 0x3c; // SE 0x3c, DOS 0x28
 	}
 
 	best_i = 0;
@@ -1660,11 +1660,12 @@ void tnfs_replay_highlights_select() {
 		if (min <= hl->best_seconds[i] - 2) {
 			hl->clips[cc][0] = (hl->best_seconds[i] - 2) * 0x3c;
 			hl->clips[cc][1] = (hl->best_seconds[i] + 5) * 0x3c;
-			// the original indexes the seconds by the absolute second, which is past the array after 8 minutes: up to
-			// second 488 it reads the following highlights fields (as here), from 489 on SE globals the port doesn't
-			// have (0 here); coolness only picks the camera and slow motion (front end) and the merged maximum
+			// the original indexes the seconds by the absolute second, which is past the array once the race is longer
+			// than the buffer: up to 9 seconds past it, it reads the following highlights fields (as here), then SE
+			// globals the port doesn't have (0 here); coolness only picks the camera and slow motion (front end) and the
+			// merged maximum
 			value = hl->best_seconds[i];
-			if (value >= 0 && value < 480 + 9) {
+			if (value >= 0 && value < TNFS_REPLAY_SECONDS + 9) {
 				hl->clips[cc][2] = ((int *) hl->seconds)[value] & 0xff;
 			} else {
 				hl->clips[cc][2] = 0;
@@ -1999,7 +2000,8 @@ static void tnfs_replay_world_save(int k, int other_cars) {
 
 /*
  * Restores keyframe k (Win95 SE tnfs_replay_reinstate 0x44e354, DOS 0x6e53b). k = tick / TNFS_REPLAY_KEYFRAME, or
- * param_2 + 16 (DOS + 30) for param_2 >= 0, which nothing calls. Camera and sound restarts are left out.
+ * param_2 + TNFS_REPLAY_KEYFRAMES (SE + 16, DOS + 30) for param_2 >= 0, which nothing calls. Camera and sound restarts
+ * are left out.
  */
 void tnfs_replay_reinstate(int tick, int param_2) {
 	unsigned char *r;
@@ -2010,7 +2012,7 @@ void tnfs_replay_reinstate(int tick, int param_2) {
 	if (param_2 >= 0) {
 		iSimTimeClock = g_replay.highlights.return_clock[param_2];
 		replay_set_flags();
-		k = param_2 + 0x10;
+		k = param_2 + TNFS_REPLAY_KEYFRAMES;
 	} else {
 		k = tick / TNFS_REPLAY_KEYFRAME;
 	}
@@ -2072,7 +2074,8 @@ void tnfs_replay_reinstate(int tick, int param_2) {
 /*
  * Recording, once per control step in mode 1 (Win95 SE FUN_0044e8f8, DOS tnfs_control_0006ec66): latches the
  * control words (neutral before clock 0x78), then either stores a sample or, every TNFS_REPLAY_KEYFRAME clock units
- * (countdown of 0x1c2 control steps), saves a keyframe (sign status, race globals, sample, cars) and reinstates it.
+ * (countdown of TNFS_REPLAY_KEYFRAME / 4 control steps, SE 0x1c2), saves a keyframe (sign status, race globals, sample,
+ * cars) and reinstates it.
  * Only the local player's word is read here (SE FUN_004397f4 pops every player's word from the input / network
  * queues); the words of other players are whatever the caller put in g_control_word.
  */
@@ -2095,7 +2098,7 @@ static void tnfs_replay_record() {
 	countdown = replay_get32(g_replay.world + REPLAY_WORLD_COUNTDOWN);
 	if (countdown == 0) {
 		tnfs_sign_status_save();
-		replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, 0x1c2);
+		replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, TNFS_REPLAY_KEYFRAME / 4);
 		other_cars = 0;
 		tnfs_replay_store_controls();
 		for (i = 0; i < g_total_cars_in_scene; i++) {
@@ -2318,8 +2321,8 @@ void tnfs_replay_update() {
 
 /*
  * Starts a replay (Win95 SE FUN_0044f188, DOS 0x6f763): 2 the highlights (from the race: the camera mode is kept to
- * return to), 3 the whole buffer (the last 27000 clock units, TV cameras), else the last 600 clock units (10 s).
- * 3 and others loop (return mode 4).
+ * return to), 3 the whole buffer (all but its oldest keyframe interval: SE 27000 clock units, DOS 0x87f0; TV cameras),
+ * else the last 600 clock units (10 s). 3 and others loop (return mode 4).
  */
 void tnfs_replay_start(int type) {
 	tnfs_replay_highlights *hl = &g_replay.highlights;
@@ -2343,7 +2346,7 @@ void tnfs_replay_start(int type) {
 	g_replay_speed = 4;
 	g_replay_speed_skip = 0;
 	if (type == 3) {
-		clock = end - 27000;
+		clock = end - (TNFS_REPLAY_TICKS - TNFS_REPLAY_KEYFRAME);
 	} else {
 		clock = end - 600;
 	}

@@ -29,7 +29,13 @@ int DAT_800f62c0 = 0;
 int is_performance_test_off = 0; //DAT_00146483
 
 // PSX rally mode data
-int DAT_800eb204, DAT_800eb208, DAT_800eb210, DAT_800eb20c;
+int DAT_800eb208, DAT_800eb210, DAT_800eb20c;
+
+// tnfs_physics_update, PC/PSX version: shift of the pull along the road by speed (abs(lat) + abs(lon)) >> 19, the
+// normal table (SE 0x4badd8, PSX 0x800bd458) and the rally table (SE 0x4bae24) after it, as in memory
+int g_road_pull_shift[38] = { //
+		16, 10, 6, 4, 4, 4, 3, 3, 3, 3, 3, 2, 1, 1, 1, 1, 1, 1, 1, //
+		16, 16, 8, 4, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 
 // per gear (index gear_selected + 2): wheel spin speed decay in tnfs_engine_thrust (DOS 0xf9e74, PSX 0x800bd3b0)
 int g_gear_spin_decay[8] = { 0x43, 0x43, 0x43, 0x77, 0xa4, 0xd4, 0x107, 0x155 };
@@ -349,7 +355,7 @@ int tnfs_drag_force(tnfs_car_data *car, signed int speed, char longitudinal) {
 	if (incl_angle > 0x800000)
 		incl_angle -= 0x1000000;
 
-	if (selected_track > 2 && abs(incl_angle) > 0x9FFFF)
+	if (selected_track > 2 && abs(incl_angle) > 0xa0000)
 		drag = fix3(drag);
 
 	max = abs(speed * car->fps);
@@ -416,7 +422,8 @@ void tnfs_road_surface_modifier(tnfs_car_data *car_data) {
 	if (slope_1 > 0x800000)
 		slope_1 -= 0x1000000;
 
-	slope_r = math_mul(math_sin_3((slope_1 - slope_0) >> 14), car_data->speed_local_lon) * 4;
+	// the original's sine table has 1024 steps per turn (DOS 0x5bbe6, SE 0x430aec, PSX 0x80031800)
+	slope_r = math_mul(math_sin_3(((slope_1 - slope_0) >> 14) << 14), car_data->speed_local_lon) * 4;
 	if (slope_r > 0)
 		slope_r += slope_r >> 1;
 
@@ -434,7 +441,7 @@ void tnfs_road_surface_modifier(tnfs_car_data *car_data) {
 	if (car_data->tire_grip_rear < 0)
 		car_data->tire_grip_rear = 0;
 
-	// not exists on 3DO and PC demo
+	// PC (Win95) / PSX version, not in DOS (0x5bbe6), 3DO and the PC demo
 	grip = car_data->speed_local_lon >> 16;
 	if (0 < car_data->speed_local_lon) {
 		grip = grip * grip;
@@ -568,7 +575,7 @@ void tnfs_tire_forces(tnfs_car_data *car, //
 	int slip_angle_grip;
 
 	skid_amount = 0;
-	if (car->time_off_ground > 0) {
+	if (car->wheels_on_ground == 0) {
 		*_result_Lon = 0;
 		*_result_Lat = 0;
 	} else {
@@ -595,8 +602,10 @@ void tnfs_tire_forces(tnfs_car_data *car, //
 			*skid |= 1;
 		}
 
-		if ( fix2(5 * max_grip) < abs(braking_force) //
-			&& (car->abs_enabled == 0 || car->handbrake != 0)) {
+		// PC (Win95) / PSX version: full brake without ABS locks the wheels (SE 0x42fb88); DOS version: only the second test
+		if ((car->brake > 245 && car->abs_enabled == 0) //
+			|| (fix2(5 * max_grip) < abs(braking_force) //
+			&& (car->abs_enabled == 0 || car->handbrake != 0))) {
 
 			// locked wheels: hard braking or handbrake
 			if (abs(force_lon_local) > max_grip)
@@ -645,7 +654,8 @@ void tnfs_tire_forces(tnfs_car_data *car, //
 				if (f_lat_loc_abs2 + f_lon_loc_abs2 > max_grip) {
 					*skid = 2;
 					if (f_lon_loc_abs2 > max_grip && is_drifting && !car->tcs_enabled) {
-						force_lat_local = fix4(force_lat_local);
+						// PC (Win95) / PSX version; DOS version: fix4
+						force_lat_local = fix3(force_lat_local);
 					}
 					tnfs_tire_limit_max_grip(car, &force_lat_local, &force_lon_local, max_grip, slide);
 				} else {
@@ -737,6 +747,12 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	tnfs_car_specs *car_specs;
 	int body_roll_sine;
 	int aux;
+	int road_heading;
+	int move_lat;
+	int move_lon;
+	int move_x;
+	int move_z;
+	int pull_shift;
 
 	stats_data_ptr = &g_stats_data[car_data->car_id2];
 
@@ -750,6 +766,12 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 		car_data->speed = (abs_speed_x >> 2) + abs_speed_y;
 	else
 		car_data->speed = (abs_speed_y >> 2) + abs_speed_x;
+
+	// PC (Win95) / PSX version, rally mode: the handbrake brakes (SE 0x430d14, PSX 0x800319dc; not in DOS)
+	if (car_data->handbrake == 1 && (g_game_settings & 0x20)) {
+		car_data->handbrake = 0;
+		car_data->brake = 0xfa;
+	}
 
 	// framerate fixed values
 	car_data->delta_time = 2184;
@@ -844,7 +866,7 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 		car_data->tcs_on = 0;
 	} else {
 		if (car_data->tcs_on != 0) {
-			if (0x70000 <= abs(thrust_force) && car_data->throttle > 83)
+			if (0x70000 < abs(thrust_force) && car_data->throttle > 83)
 				car_data->throttle -= 12;
 		}
 	}
@@ -908,7 +930,12 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 
 	// adjust steer sensitivity
 	steer = car_data->steer_angle;
-	if (car_data->brake > 200) {
+	if (car_data->speed < 0xc0000) {
+		// PC (Win95) / PSX version, below 12 m/s (SE 0x430cb0, PSX 0x800319dc); DOS version: no low speed case
+		steering = steer;
+		if (car_data->brake < 10)
+			steering = steer + steer / 2;
+	} else if (car_data->brake > 200) {
 		steering = steer / 2;
 	} else {
 		steering = steer - fix15(fix8(car_data->speed_local_lon) * steer);
@@ -1001,6 +1028,12 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 		// car moving
 		car_data->speed_local_lat += math_mul((drag_lat + accel_lat + car_data->slope_force_lat), car_data->delta_time);
 		car_data->speed_local_lon += math_mul((drag_lon + accel_lon + car_data->slope_force_lon), car_data->delta_time);
+
+		// PC (Win95) / PSX version: rolling slowly without throttle or out of gear (not in DOS)
+		if (abs(car_data->speed_local_lon) < 0xa0000 && (car_data->gear_selected == -1 || car_data->throttle == 0)) {
+			car_data->speed_local_lon -= fix6(car_data->speed_local_lon);
+			car_data->speed_local_lat -= fix6(car_data->speed_local_lat);
+		}
 	}
 
 	// rotate back to global frame of reference
@@ -1011,8 +1044,27 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	//car_data->position.z += math_mul(car_data->speed_z, car_data->delta_time);
 	//car_data->position.x -= math_mul(car_data->speed_x, car_data->delta_time);
 	// PC/PSX version, cars are sped up 25% !!!
-	car_data->position.z += math_mul(fix2(car_data->speed_z) + car_data->speed_z, car_data->delta_time);
-	car_data->position.x -= math_mul(fix2(car_data->speed_x) + car_data->speed_x, car_data->delta_time);
+	// DOS version: moves by the speed, without the pull along the road below
+	//car_data->position.z += math_mul(fix2(car_data->speed_z) + car_data->speed_z, car_data->delta_time);
+	//car_data->position.x -= math_mul(fix2(car_data->speed_x) + car_data->speed_x, car_data->delta_time);
+	// PC (Win95) / PSX version (SE 0x431502, PSX 0x800319dc): the move (not the speed) across the road is pulled along
+	// the road, more the faster the car goes
+	road_heading = track_data[car_data->track_slice & g_slice_mask].heading * 0x400;
+	math_rotate_2d(car_data->speed_x, car_data->speed_z, -road_heading, &move_lat, &move_lon);
+	pull_shift = (abs(move_lat) + abs(move_lon)) >> 19;
+	if (g_game_settings & 0x20)
+		pull_shift += 19;
+	// past the rally table the original reads other globals (abs(lat) + abs(lon) over 152 m/s)
+	if (pull_shift > 37)
+		pull_shift = 37;
+	pull_shift = g_road_pull_shift[pull_shift];
+	if (move_lon > 0) {
+		move_lon += abs(move_lat) >> pull_shift;
+		move_lat -= move_lat >> pull_shift;
+	}
+	math_rotate_2d(move_lat, move_lon, road_heading, &move_x, &move_z);
+	car_data->position.z += math_mul(fix2(move_z) + move_z, car_data->delta_time);
+	car_data->position.x -= math_mul(fix2(move_x) + move_x, car_data->delta_time);
 
 	// suspension body roll
 	if (car_data->speed_local_lat + car_data->speed_local_lon > 6553) {
@@ -1026,7 +1078,11 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 	// body rotation torque
 	angular_accel = math_mul(car_data->rear_yaw_factor, ftire_lat_rear) - math_mul(car_data->front_yaw_factor, ftire_lat_front);
 
-	// Rally Mode on PSX version, makes the car drift longer
+	// Rally Mode on PC (Win95) / PSX version, makes the car drift longer (SE 0x431725, PSX 0x800319dc): the yaw follows a
+	// target instead of the tyre torque, none while airborne
+	if (g_game_settings & 0x20) {
+		angular_accel = 0;
+	}
 	if ((g_game_settings & 0x20) && car_data->wheels_on_ground) {
 		DAT_800eb20c = car_data->speed_local_lon;
 		if (DAT_800eb20c > 0x10000) {
@@ -1035,10 +1091,10 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 		if (DAT_800eb20c < -0x10000) {
 			DAT_800eb20c = -0x10000;
 		}
-		if ((DAT_800eb20c < 0x8000) && (car_data->rpm_engine > 3000) && (car_data->gear_selected > 0)) {
+		if ((DAT_800eb20c < 0x8000) && (DAT_800eb20c > 0) && (car_data->rpm_engine > 3000) && (car_data->gear_selected > 0)) {
 			DAT_800eb20c = 0x8000;
 		}
-		DAT_800eb208 = fix2(car_data->steer_angle) + steering;
+		DAT_800eb208 = fix2(car_data->steer_angle) + car_data->steer_angle;
 		if (abs(car_data->speed_local_lon) < abs(car_data->speed_local_lat)) {
 			if (car_data->throttle < 10) {
 				aux = car_data->angular_speed / 2;
@@ -1047,20 +1103,12 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 			}
 			DAT_800eb208 = aux + DAT_800eb208;
 		}
-		aux = (DAT_800eb20c >> 10) * DAT_800eb208;
-		DAT_800eb208 = fix6(aux);
-		if (DAT_800eb204 != 0) {
-			DAT_800eb208 = (aux >> 6) << 1;
+		DAT_800eb208 = fix6((DAT_800eb20c >> 10) * DAT_800eb208);
+		if (is_drifting != 0) {
+			DAT_800eb208 = DAT_800eb208 * 2;
 		}
 		DAT_800eb210 = 0x4b0000;
-		if (DAT_800eb208 < 0) {
-			DAT_800eb208 = DAT_800eb208 + 0xff;
-		}
-		aux = -car_data->accel_lon + 0x280000;
-		if (aux < 0) {
-			aux = -car_data->accel_lon + 0x2800ff;
-		}
-		DAT_800eb208 = math_mul(DAT_800eb208, aux) / 0x28;
+		DAT_800eb208 = (fix8(DAT_800eb208) * fix8(0x280000 - car_data->accel_lon)) / 0x28;
 		if (DAT_800eb208 < car_data->angular_speed) {
 			angular_accel = (DAT_800eb208 - car_data->angular_speed) * 0x10;
 			if (angular_accel < -0x4b0000) {
@@ -1103,9 +1151,10 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 		if (track_heading_2 > 0x800000)
 			track_heading_2 -= 0x1000000;
 
-		body_roll_sine = math_sin_3(car_data->angle.z);// >> 14);
-		angular_accel = (car_data->speed_local_lon >> 8) * (track_heading_2 - track_heading_1);
-		angular_accel = math_mul(body_roll_sine, angular_accel >> 8);
+		// the original's sine table has 1024 steps per turn
+		body_roll_sine = math_sin_3((car_data->angle.z >> 14) << 14);
+		angular_accel = fix8(car_data->speed_local_lon) * (track_heading_2 - track_heading_1);
+		angular_accel = math_mul(body_roll_sine, fix8(angular_accel));
 		car_data->angle.y -= fix7(angular_accel);
 	}
 
@@ -1216,6 +1265,12 @@ void tnfs_physics_update(tnfs_car_data *car_data) {
 		}
 	}
 
+	// PC (SE 0x430cb0) / PSX version: the wall and landing shake counters run down
+	if (car_data->collision_a > 1)
+		car_data->collision_a -= 2;
+	if (car_data->collision_b != 0)
+		car_data->collision_b--;
+
 	debug_sum = car_data->position.z + car_data->position.y + car_data->position.x;
 }
 
@@ -1295,8 +1350,9 @@ void tnfs_height_car_inclination(tnfs_car_data *car, int rX, int rZ) {
 	int dx;
 	int aux;
 
-	angle_x = math_atan2(car->car_length, rX - car->front_edge.y);
-	angle_z = math_atan2(car->car_width,  -rZ - car->side_edge.y);
+	// the original's arctangent has 1024 steps per turn (DOS 0x586f2, SE 0x428aec)
+	angle_x = (int) ((unsigned int) math_atan_1024(car->car_length, rX - car->front_edge.y) << 14);
+	angle_z = (int) ((unsigned int) math_atan_1024(car->car_width,  -rZ - car->side_edge.y) << 14);
 
 	// track slice inclination transition
 	dx = abs(fix2(angle_x - car->angle.x));
@@ -1320,8 +1376,9 @@ void tnfs_height_car_inclination(tnfs_car_data *car, int rX, int rZ) {
 }
 
 void tnfs_height_get_surface_inclination(tnfs_car_data *car, int *x, int *z) {
-	*x = math_atan2(car->car_length, -car->front_edge.y);
-	*z = math_atan2(car->car_width, -car->side_edge.y);
+	// 1024 steps per turn (inlined in SE tnfs_height_position 0x428bd8, calls at 0x428d3c / 0x428d57)
+	*x = (int) ((unsigned int) math_atan_1024(car->car_length, -car->front_edge.y) << 14);
+	*z = (int) ((unsigned int) math_atan_1024(car->car_width, -car->side_edge.y) << 14);
 }
 
 int DAT_00145380 = 0;
@@ -1345,10 +1402,10 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 	/* apply gravity */
 	car->speed_y -= ((car->delta_time >> 2) * 0x9cf5c) >> 14;
 
-	if ((g_game_settings & 0x20) == 0) {
-		aux = ((car->delta_time >> 2) * 0x9cf5c);
-		car->speed_y -= ((aux >> 14) - (aux >> 0x1f)) >> 1;
-	}
+	// 1.5 g: SE (0x428bd8) skips the extra half for g_game_settings bit 0x20, which its front end never sets (only 4
+	// and 8); DOS (0x58890) always applies it
+	aux = ((car->delta_time >> 2) * 0x9cf5c);
+	car->speed_y -= ((aux >> 14) - (aux >> 0x1f)) >> 1;
 
 	// next frame falling height
 	nextHeight = (car->delta_time >> 4) * ((fix2(car->speed_y) + car->speed_y) >> 0xc) + car->position.y;
@@ -1371,14 +1428,13 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 		tnfs_height_get_surface_inclination(car, &angleX, &angleZ);
 
 		// vertical ramp speed
-		car->speed_y = -fixmul(car->speed_local_lat, math_sin_3(angleZ)) - fixmul(car->speed_local_lon, math_sin_3(angleX));
+		// the original's sine table has 1024 steps per turn (DOS 0x58890, SE 0x428bd8)
+		car->speed_y = -fixmul(car->speed_local_lat, math_sin_3((angleZ >> 14) << 14)) - fixmul(car->speed_local_lon, math_sin_3((angleX >> 14) << 14));
 
 		if (car->time_off_ground > 20) {
-			if (g_game_settings & 0x20)
-				//bounce = fix2(car_data->time_off_ground / 6) * (((car_data->delta_time >> 2) * 0x9cf5c) >> 14); //PSX
-				bounce = (((car->delta_time >> 2) * 0x9cf5c) >> 14) * (((car->time_off_ground >> 0x1f) - car->time_off_ground) >> 1);
-			else
-				bounce = (((car->delta_time >> 2) * 0x9cf5c) >> 14) * fix2(car->time_off_ground);
+			// PC version (SE 0x428bd8; time_off_ground / 6 with the never set bit 0x20, except on tr6)
+			// DOS version (0x58890): rally mode (bit 0x20) time_off_ground / 2
+			bounce = (((car->delta_time >> 2) * 0x9cf5c) >> 14) * fix2(car->time_off_ground);
 
 			car->speed_y += bounce;
 			printf("Boink %d %d\n", car->speed_y >> 16, 0);
@@ -1389,8 +1445,14 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 			car->time_off_ground = -2;
 			car->angle.x = angleX;
 			car->angle.z = angleZ;
-			if (car->car_id2 == 0)
+			if (car->car_id2 == g_player_id)
 				DAT_8010c478 = 5;
+			// PC version (SE 0x428bd8): the landing shakes the body (pitch), not in DOS
+			aux = car->time_off_ground - 7;
+			if (aux > 7)
+				aux = 7;
+			car->collision_b = 0x1d;
+			car->collision_y = aux * -0x10000;
 		}
 
 		if (car->time_off_ground < 0)
@@ -1398,8 +1460,8 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 		else
 			car->time_off_ground = 0;
 
-		if (car->time_off_ground == -1 && car->car_id2 == 0) {
-			tnfs_sfx_play(-1, 4, 1, abs(car->speed_y), 1, 0x50000);
+		if (car->time_off_ground == -1 && car->car_id2 == g_player_id) {
+			tnfs_sfx_play(-1, 4, 1, abs(car->speed_y), 1, 0);
 		}
 
 		if (!car->wheels_on_ground && car->gear_selected != -1)
@@ -1428,7 +1490,8 @@ void tnfs_height_position(tnfs_car_data *car, int is_driving_mode) {
 		}
 	}
 
-	car->slope_force_lon = (math_sin_3(car->angle.x) >> 8) * 0x9cf;
+	// the original's sine table has 1024 steps per turn
+	car->slope_force_lon = (math_sin_3((car->angle.x >> 14) << 14) >> 8) * 0x9cf;
 	car->unknown_flag_3DD = 0;
 	car->slope_force_lat = 0;
 
@@ -1493,7 +1556,7 @@ void tnfs_driving_checkpoint_flick(tnfs_car_data *car) {
 		car->speed_local_lon = 0;
 		if (car->speed_local_lat < 1) {
 			if (car->field_4d1 < 0x190000) {
-				car->field_4d3 += 3;
+				car->field_4d1 += 0x30000;
 			}
 		} else {
 			if (car->field_4d1 > -0x190000) {
@@ -1507,8 +1570,9 @@ void tnfs_driving_checkpoint_flick(tnfs_car_data *car) {
 			car->field_4c9 = 0;
 			car->field_4d1 = 0;
 
-			iVar5 = math_sin_2(iVar4);
-			iVar6 = math_cos_2(iVar4);
+			// 2-byte angles (SE 0x401180: heading >> 8)
+			iVar5 = math_sin_2(iVar4 >> 8);
+			iVar6 = math_cos_2(iVar4 >> 8);
 			iVar4 = track_data[car->track_slice & g_slice_mask].pos.x;
 			iVar7 = track_data[car->track_slice & g_slice_mask].pos.z;
 
@@ -1544,8 +1608,7 @@ void tnfs_driving_checkpoint_flick(tnfs_car_data *car) {
 	}
 
 	car->field_4c9++;
-	//iVar7 = car->speed_local_lat >> 0x1f;
-	//car->speed_local_lat = car->speed_local_lat - (((car->speed_local_lat + iVar7 * -8) - (iVar7 << 2 < 0)) >> 3);
-	//iVar7 = car->speed_local_lon >> 0x1f;
-	//car->speed_local_lon -= -(((car->speed_local_lon + iVar7 * -8) - (iVar7 << 2 < 0)) >> 3);
+	// DOS 0x41b02, SE 0x4013c5
+	car->speed_local_lat -= car->speed_local_lat / 8;
+	car->speed_local_lon -= car->speed_local_lon / 8;
 }

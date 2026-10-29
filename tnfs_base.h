@@ -652,13 +652,13 @@ extern char g_sign_status[2000];
 extern struct tnfs_track_speed g_track_speed[600]; // 000FDB8C road speed limit array
 
 extern struct tnfs_car_specs car_specs;
-extern struct tnfs_car_data g_car_array[8];
-extern tnfs_car_data *g_car_ptr_array[8];
+extern struct tnfs_car_data g_car_array[9];
+extern tnfs_car_data *g_car_ptr_array[9];
 extern tnfs_car_data *player_car_ptr;
 extern tnfs_car_data *g_cop_car_ptr;
 extern tnfs_ai_skill_cfg g_ai_skill_cfg;
-extern tnfs_ai_opp_data g_ai_opp_data[8];
-extern tnfs_stats_data g_stats_data[8];
+extern tnfs_ai_opp_data g_ai_opp_data[9];
+extern tnfs_stats_data g_stats_data[9];
 
 extern int g_total_cars_in_scene;
 extern int g_racer_cars_in_scene;
@@ -670,10 +670,12 @@ extern char is_drifting;
 extern int iSimTimeClock;
 extern int g_road_node_count;
 extern int g_tri_num_chunks;
+extern int g_track_num_chunks;
 extern int g_road_finish_node;
 extern int sound_flag;
 extern int cheat_crashing_cars;
 extern int g_game_settings;
+extern int g_track_segment;
 extern int selected_track;
 extern char g_control_throttle;
 extern char g_control_brake;
@@ -753,15 +755,27 @@ int tnfs_racer_crossed_finish_line(tnfs_car_data *car);
  * Replay file (*.RPL), Win95 SE layout (SE FUN_0044d420 writes the five blocks with fwrite, no header): the race setup,
  * the highlights, the recording buffer, the replay state ("world") and the stats of 9 cars. 100374 bytes.
  * DOS (tnfs_replay_0006ce7f): 0x185, 0xb84, 150000, 0x15a4, 9 x 0x1d0 (keyframe every 0x4b0, 30 keyframes, 9000 samples).
+ * The buffer sizes follow from the keyframe count in both. A front end may define TNFS_REPLAY_KEYFRAMES (in every file
+ * that includes this one, or with -D) to hold longer races (port extra): the file then keeps the SE block order with
+ * bigger blocks, so SE can't read it and such a build can't load SE files.
  */
-#define TNFS_REPLAY_FILE_SIZE 100374
-#define TNFS_REPLAY_TICKS 0x7080 // clock units the buffer holds (8 min at 60 per second), DOS 36000
-#define TNFS_REPLAY_KEYFRAME 0x708 // clock units between keyframes (30 s), DOS 0x4b0
+#ifndef TNFS_REPLAY_KEYFRAMES
 #define TNFS_REPLAY_KEYFRAMES 16 // DOS 30
-#define TNFS_REPLAY_SAMPLES 7200 // control samples per player (one per 4 clock units), DOS 9000
+#endif
+#define TNFS_REPLAY_KEYFRAME 0x708 // clock units between keyframes (30 s), DOS 0x4b0
+// clock units the buffer holds (SE 0x7080: 8 min at 60 per second), DOS 36000
+#define TNFS_REPLAY_TICKS (TNFS_REPLAY_KEYFRAMES * TNFS_REPLAY_KEYFRAME)
+#define TNFS_REPLAY_SAMPLES (TNFS_REPLAY_TICKS / 4) // control samples per player (one per 4 clock units), SE 7200, DOS 9000
+#define TNFS_REPLAY_SECONDS (TNFS_REPLAY_TICKS / 0x3c) // highlight seconds, SE 480, DOS 600
+#define TNFS_REPLAY_RECORDING_SIZE (4 * TNFS_REPLAY_SAMPLES + TNFS_REPLAY_KEYFRAMES * (2 * 0x1a4 + 8 * 0x172)) // SE 0x15e00
+#define TNFS_REPLAY_WORLD_SIZE (0x14 + (TNFS_REPLAY_KEYFRAMES + 4) * 0xa2 + 0xc) // SE 0xcc8, DOS 0x15a4
+// SE 100374
+#define TNFS_REPLAY_FILE_SIZE (0x348 + 0x224 + TNFS_REPLAY_SECONDS * 4 + TNFS_REPLAY_RECORDING_SIZE + TNFS_REPLAY_WORLD_SIZE \
+		+ 9 * 0x1d2)
 
 /*
- * Highlights block, 0x9a4 bytes (SE 0x512d94, DOS 0x15a3bc with 600 seconds). The original saves the live globals.
+ * Highlights block, 0x9a4 bytes (SE 0x512d94, DOS 0x15a3bc with 600 seconds; the offsets after seconds are SE's). The
+ * original saves the live globals.
  */
 typedef struct tnfs_replay_highlights {
 	int clips[30][3]; //0x000 start clock, end clock, coolness
@@ -771,7 +785,7 @@ typedef struct tnfs_replay_highlights {
 	int return_pending; //0x1e8 set when a replay starts, the first played tick stores the clock in return_clock[0]
 	int saved_camera; //0x1ec camera mode of the race when the highlights were started from it (SE DAT_004f8020)
 	int return_clock[4]; //0x1f0 where a looping replay starts again ([0]; the others are unused)
-	int seconds[480]; //0x200 per second of the (wrapped) buffer: absolute second << 8 | best score (+ 0x80 until picked)
+	int seconds[TNFS_REPLAY_SECONDS]; //0x200 per second of the (wrapped) buffer: absolute second << 8 | best score (+ 0x80 until picked)
 	int current_second; //0x980 replay tick / 60 at the last tnfs_replay_highlight_record
 	int play_count; //0x984 played control steps
 	int tv_camera; //0x988 change the camera every 256 clock units (full replay)
@@ -786,8 +800,8 @@ typedef struct tnfs_replay_highlights {
 typedef struct tnfs_replay_file {
 	unsigned char setup[0x348]; // race settings, filled by the front end (SE 0x4fb7bc); random_seed at 0x38
 	tnfs_replay_highlights highlights;
-	unsigned char recording[0x15e00]; // control samples and car keyframes
-	unsigned char world[0xcc8]; // replay state: header and per keyframe globals (see tnfs_replay_world_save)
+	unsigned char recording[TNFS_REPLAY_RECORDING_SIZE]; // control samples and car keyframes
+	unsigned char world[TNFS_REPLAY_WORLD_SIZE]; // replay state: header and per keyframe globals (see tnfs_replay_world_save)
 	unsigned char stats[9][0x1d2];
 } tnfs_replay_file;
 

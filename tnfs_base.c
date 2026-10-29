@@ -17,13 +17,15 @@ tnfs_surface_type road_surface_type_array[3];
 tnfs_track_speed g_track_speed[600];
 
 tnfs_car_specs car_specs;
-tnfs_car_data g_car_array[8];
-tnfs_car_data *g_car_ptr_array[8]; // 00153ba0/00153bec 8010c720/800f7e60
+// 9 car slots (head-to-head: 2 racers, 1 cop, 6 traffic): DOS g_car_ptr_array 0x153ba0 (9 entries up to 0x153bc4),
+// Win95 SE 0x509e1c (up to 0x509e40)
+tnfs_car_data g_car_array[9];
+tnfs_car_data *g_car_ptr_array[9]; // 00153ba0/00153bec 8010c720/800f7e60
 tnfs_car_data *player_car_ptr;
 tnfs_car_data *g_cop_car_ptr = 0; // (DOS DAT_001651a8 is g_ai_skill_cfg.number_of_traffic_cars, not this)
 tnfs_ai_skill_cfg g_ai_skill_cfg;
-tnfs_ai_opp_data g_ai_opp_data[8];
-tnfs_stats_data g_stats_data[8];
+tnfs_ai_opp_data g_ai_opp_data[9]; // DOS pointers 0x165150 (up to 0x165174), SE 0x52b49c (up to 0x52b4c0)
+tnfs_stats_data g_stats_data[9]; // DOS 0x165344, SE 0x51cc5c: 9 records (the .RPL stats block)
 char * g_pbs_file = 0;
 
 int g_total_cars_in_scene = 7;
@@ -37,6 +39,8 @@ char is_drifting;
 int iSimTimeClock = 0;
 int g_road_node_count = 0;
 int g_tri_num_chunks = 0;
+// sections of a lap, 0x8000 on an open road (InitRoad: DOS g_tri_num_chunks 0x14dcd0, SE g_track_num_chunks 0x50420c)
+int g_track_num_chunks = 0;
 tnfs_road_object g_road_objects[1000];
 int g_road_object_count = 0;
 char g_sign_status[2000];
@@ -45,6 +49,7 @@ int sound_flag = 0;
 int g_selected_cheat = 0;
 int cheat_crashing_cars = 0;
 int g_game_settings = 0;
+int g_track_segment = 0; // segment of an open road track, 0..2 (DOS 0x16708d, SE 0x4fb7be)
 char g_control_throttle;
 char g_control_brake;
 signed char g_control_steer;
@@ -81,7 +86,7 @@ static const unsigned int g_torque_table[120] = {
 		5000, 560, 5200, 550, 5400, 550, 5600, 530, 5800, 510, 6000, 500, 6200, 490, 6400, 480, 6600, 470, 6800, 460
 };
 
-int DAT_800eb6a4 = 0; //800eb6a4
+int DAT_800eb6a4 = 0x28; //800eb6a4 (gp: 0x800db6a4), DOS 0xfdbd8, Win95 SE 0x4c5d20
 int DAT_8010d310 = 0; //8010d310
 
 int g_collision_bump_ref = 0x6666; //DAT_000f99f0 800eae58
@@ -134,6 +139,7 @@ void auto_generate_track() {
 
 	g_road_node_count = 2395;
 	g_tri_num_chunks = 598;
+	g_track_num_chunks = 0x8000;
 	g_road_finish_node = g_road_node_count - 0xb5;
 
 	for (i = 0; i < 2400; i++) {
@@ -246,24 +252,53 @@ void tnfs_init_track(char *tri_file) {
 void tnfs_init_surface_constants() {
 	int i;
 
-	// Road Traction sections (surface constants)
+	// Road Traction sections (surface constants), the shoulders by track (DOS 0x5a0c5, SE 0x42f734, PSX 0x80030008)
+	if (selected_track == 2 && g_track_segment == 2) {
+		// Alpine's last segment, snow; the second shoulder's is_unpaved stays as it was
+		road_surface_type_array[1].roadFriction = 0x4c;
+		road_surface_type_array[1].velocity_drag = 0x100;
+		road_surface_type_array[1].surface_drag = 0x1999;
+		road_surface_type_array[2].roadFriction = 0x4c;
+		road_surface_type_array[2].velocity_drag = 0x100;
+		road_surface_type_array[2].surface_drag = 0x1999;
+	} else if (selected_track < 4 && selected_track != 3) {
+		// open road tracks
+		road_surface_type_array[1].roadFriction = 0xcc;
+		road_surface_type_array[1].velocity_drag = 0xf00;
+		road_surface_type_array[1].surface_drag = 0x5999;
+		road_surface_type_array[2].roadFriction = 0xcc;
+		road_surface_type_array[2].velocity_drag = 0xf00;
+		road_surface_type_array[2].surface_drag = 0x5999;
+		road_surface_type_array[2].is_unpaved = 1;
+	} else if (selected_track == 3) {
+		// Rusty Springs
+		road_surface_type_array[1].roadFriction = 0x100;
+		road_surface_type_array[1].velocity_drag = 0x1400;
+		road_surface_type_array[1].surface_drag = 0x3333;
+		road_surface_type_array[2].roadFriction = 0x100;
+		road_surface_type_array[2].velocity_drag = 0x1400;
+		road_surface_type_array[2].surface_drag = 0x3333;
+		road_surface_type_array[2].is_unpaved = 1;
+	} else {
+		// the other closed tracks
+		road_surface_type_array[1].roadFriction = 0x133;
+		road_surface_type_array[1].velocity_drag = 0x100;
+		road_surface_type_array[1].surface_drag = 0x3333;
+		road_surface_type_array[2].roadFriction = 0x133;
+		road_surface_type_array[2].velocity_drag = 0x100;
+		road_surface_type_array[2].surface_drag = 0x3333;
+		road_surface_type_array[2].is_unpaved = 1;
+	}
+	road_surface_type_array[1].is_unpaved = 1;
 	// Tarmac
 	road_surface_type_array[0].roadFriction = 0x100;
 	road_surface_type_array[0].velocity_drag = 0x100;
 	road_surface_type_array[0].surface_drag = 0x3333;
 	road_surface_type_array[0].is_unpaved = 0;
-	// Shoulder
-	road_surface_type_array[1].roadFriction = 0x100;
-	road_surface_type_array[1].velocity_drag = 0x1400;
-	road_surface_type_array[1].surface_drag = 0x3333;
-	road_surface_type_array[1].is_unpaved = 1;
-	// Shoulder2
-	road_surface_type_array[2].roadFriction = 0x100;
-	road_surface_type_array[2].velocity_drag = 0x1400;
-	road_surface_type_array[2].surface_drag = 0x3333;
-	road_surface_type_array[2].is_unpaved = 1;
 
-	// rally mode surface constants
+	// rally mode surface constants, PC (Win95) / PSX version (SE 0x42f734, PSX 0x80030008): all tracks
+	// DOS version (0x5a0c5): only on tracks 1, 2, 3 and 5, roadFriction 0x100
+	//if ((g_game_settings & 0x20) && selected_track > 0 && selected_track < 6 && selected_track != 4) {
 	if (g_game_settings & 0x20) {
 		for (i = 0; i < 3; i++) {
 			road_surface_type_array[i].roadFriction = 0x180;
@@ -465,8 +500,9 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->world_position = car->position;
 	car->road_ground_position = car->position;
 
-	car->rpm_vehicle = car_specs.rpm_idle;
-	car->rpm_engine = car_specs.rpm_idle;
+	// car reset (DOS 0x639cc, SE 0x43fd00): 1 rpm, the engine then rises to idle
+	car->rpm_vehicle = 1;
+	car->rpm_engine = 1;
 	car->rpm_redline = car_specs.rpm_redline;
 
 	car->road_fence_normal.x = 0x10000;
@@ -533,6 +569,12 @@ void tnfs_reset_car(tnfs_car_data *car) {
 	car->field_4cd = 0;
 	car->field_4d1 = 0;
 	car->field_4d3 = 0;
+
+	// the wall and landing shake (SE 0x43fd00: +0x427..+0x42d)
+	car->collision_a = 0;
+	car->collision_b = 0;
+	car->collision_x = 0;
+	car->collision_y = 0;
 
 	if (car == player_car_ptr) {
 		// player car
@@ -606,8 +648,11 @@ void tnfs_Fiziks_InitCar(tnfs_car_data *car) {
 	car->collision_data.edge_length = math_vec3_length(&car->collision_data.size);
 }
 
+static int replay_get32(const unsigned char *p);
+
 void tnfs_init_car() {
 	int i;
+	unsigned char *entry;
 
 	tnfs_car_data *car = &g_car_array[0];
 	g_car_array[0].car_data_ptr = &g_car_array[0];
@@ -654,14 +699,18 @@ void tnfs_init_car() {
 		}
 	}
 
-	// net wheel torque values; tnfs_reset_car starts the car with the automatic gearbox
-	tnfs_load_torque_table(&car_specs, 1);
+	// the front-end options of the car's entry in the race setup (SE Fiziks_PreInitCar 0x4400f4: entry 0x4b bytes at
+	// setup + 0x3c by the car's car_id, SE +0x516: +0xf automatic gearbox, +0x13 TCS, +0x17 ABS), filled by the front end
+	// before init
+	entry = g_replay.setup + 0x3c + car->car_id * 0x4b;
+
+	// net wheel torque values
+	tnfs_load_torque_table(&car_specs, replay_get32(entry + 0xf));
 
 	car->car_length = car_specs.body_length;
 	car->car_width = car_specs.body_width;
-	// the front-end ABS/TCS options are taken as on
-	car->abs_enabled = car_specs.abs_equipped > 0;
-	car->tcs_enabled = car_specs.tcs_equipped > 0;
+	car->abs_enabled = replay_get32(entry + 0x17) > 0 && car_specs.abs_equipped > 0;
+	car->tcs_enabled = replay_get32(entry + 0x13) > 0 && car_specs.tcs_equipped > 0;
 	car->gear_auto_selected = 0;
 	car->drag_const_0x4a8 = 0;
 	car->drag_const_0x4aa = 0;
@@ -669,12 +718,14 @@ void tnfs_init_car() {
 	tnfs_Fiziks_InitCar(car);
 
 	tnfs_reset_car(car);
+	// SE: 2 (neutral) with the automatic gearbox, else 0 (manual)
+	car->gear_auto_selected = replay_get32(entry + 0xf) != 0 ? 2 : 0;
 }
 
 /* basic game controls */
 
 /*
- * steering with digital controls (Win95 0x438954 == PSX 0x800334a4; DOS 0x5e050 has no ">> autoRampDivShift_AS2" branch)
+ * steering with digital controls (Win95 0x438954 == PSX 0x800334a4 without its rally block; DOS 0x5e050 has no ">> autoRampDivShift_AS2" branch)
  */
 void tnfs_control_steering_a(tnfs_car_data *car, int input, int auto_steer) {
 	tnfs_car_specs *specs;
@@ -709,11 +760,11 @@ void tnfs_control_steering_a(tnfs_car_data *car, int input, int auto_steer) {
 		attenuation = 0x18000;
 	}
 
-	// PSX version, rally mode
-	if ((g_game_settings & 0x20) != 0) {
-		attenuation = 0;
-		auto_steer = target;
-	}
+	// PSX version, rally mode (not in DOS 0x5e050 and Win95 0x438954)
+	//if ((g_game_settings & 0x20) != 0) {
+	//	attenuation = 0;
+	//	auto_steer = target;
+	//}
 
 	rate = specs->velRamp_AS2 - attenuation;
 	if (rate > 0x19999) {
@@ -1366,7 +1417,8 @@ int g_replay_clip_cut = 0; // a crashed car was put back on the road (cuts a hig
 int g_replay_highlights_only = 0; // leave after the last highlight clip instead of looping (DOS 0x15c598, SE 0x5137e4)
 extern int general_flags;
 // AI globals of the keyframes (tnfs_ai.c)
-extern int g_some_car_array2[8];
+extern int g_some_car_array1[9];
+extern int g_some_car_array2[9];
 extern tnfs_random_struct g_random_struct[2];
 extern int g_cop_park_position;
 extern int g_random_direction[2];
@@ -1375,11 +1427,11 @@ extern int g_number_of_hidden_cars;
 // world block: header
 #define REPLAY_WORLD_END_CLOCK 0x04 // last recorded clock (DOS g_min_iSimTimeClock 0x15af4c, SE 0x5120c8)
 #define REPLAY_WORLD_COUNTDOWN 0x10 // control steps until the next keyframe (DOS 0x15af58: 300, SE 0x5120d4: 0x1c2)
-#define REPLAY_WORLD_KEYFRAMES 0x14 // keyframe records of 0xa2 bytes (room for 20 in SE, 16 used)
+#define REPLAY_WORLD_KEYFRAMES 0x14 // keyframe records of 0xa2 bytes (room for TNFS_REPLAY_KEYFRAMES + 4: SE 20, DOS 34)
 // recording block
 #define REPLAY_CONTROLS_HIGH (2 * TNFS_REPLAY_SAMPLES) // low bytes of player 0, 1, then high bytes of player 0, 1
-#define REPLAY_PLAYER_FRAMES (4 * TNFS_REPLAY_SAMPLES) // 0x7080 [player][keyframe] 0x1a4 bytes (DOS 36000)
-#define REPLAY_OTHER_FRAMES (REPLAY_PLAYER_FRAMES + 2 * TNFS_REPLAY_KEYFRAMES * 0x1a4) // 0xa500 [keyframe][slot] 0x172
+#define REPLAY_PLAYER_FRAMES (4 * TNFS_REPLAY_SAMPLES) // SE 0x7080 [player][keyframe] 0x1a4 bytes (DOS 36000)
+#define REPLAY_OTHER_FRAMES (REPLAY_PLAYER_FRAMES + 2 * TNFS_REPLAY_KEYFRAMES * 0x1a4) // SE 0xa500 [keyframe][slot] 0x172
 
 static void replay_put32(unsigned char *p, int v) {
 	p[0] = (unsigned char) v;
@@ -1491,7 +1543,7 @@ void tnfs_sign_status_replay_rewind(int keyframe) {
  */
 void tnfs_replay_init() {
 	int i;
-	replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, 0x1c2);
+	replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, TNFS_REPLAY_KEYFRAME / 4);
 	g_replay.highlights.clip = -2;
 	replay_put32(g_replay.world, 0);
 	replay_put32(g_replay.world + REPLAY_WORLD_END_CLOCK, 0);
@@ -1501,7 +1553,7 @@ void tnfs_replay_init() {
 	g_replay.highlights.current_second = 0;
 	g_replay.highlights.play_count = 1;
 	g_replay.highlights.panel_state = 6;
-	for (i = 0; i < 480; i++) {
+	for (i = 0; i < TNFS_REPLAY_SECONDS; i++) {
 		g_replay.highlights.seconds[i] = 0;
 	}
 	g_replay.highlights.tv_camera = 0;
@@ -1530,9 +1582,9 @@ void tnfs_replay_highlight_record(int score) {
 }
 
 /*
- * Highlight clips (Win95 SE FUN_0044d7d8, DOS 0x6d221 with 600 seconds and + 0x28): up to 30 seconds with the best
- * marked scores, oldest first, each becomes the clip second - 2 .. second + 5 (clock rounded down to 4), overlapping
- * clips are merged (the higher coolness is kept). No highlight: one clip of the whole race, coolness 200.
+ * Highlight clips (Win95 SE FUN_0044d7d8, DOS 0x6d221 with 600 seconds): up to 30 seconds with the best marked
+ * scores, oldest first, each becomes the clip second - 2 .. second + 5 (clock rounded down to 4), overlapping clips are
+ * merged (the higher coolness is kept). No highlight: one clip of the whole race, coolness 200.
  */
 void tnfs_replay_highlights_select() {
 	tnfs_replay_highlights *hl = &g_replay.highlights;
@@ -1552,14 +1604,14 @@ void tnfs_replay_highlights_select() {
 
 	end = tnfs_replay_end_clock();
 	count = end / 0x3c;
-	if (count > 480) {
-		count = 480;
+	if (count > TNFS_REPLAY_SECONDS) {
+		count = TNFS_REPLAY_SECONDS;
 	}
 	min = (end - TNFS_REPLAY_TICKS) / 0x3c;
 	if (min < -2) {
 		min = -2;
 	} else {
-		min = min + 0x3c;
+		min = min + 2 * TNFS_REPLAY_KEYFRAME / 0x3c; // SE 0x3c, DOS 0x28
 	}
 
 	best_i = 0;
@@ -1608,11 +1660,12 @@ void tnfs_replay_highlights_select() {
 		if (min <= hl->best_seconds[i] - 2) {
 			hl->clips[cc][0] = (hl->best_seconds[i] - 2) * 0x3c;
 			hl->clips[cc][1] = (hl->best_seconds[i] + 5) * 0x3c;
-			// the original indexes the seconds by the absolute second, which is past the array after 8 minutes: up to
-			// second 488 it reads the following highlights fields (as here), from 489 on SE globals the port doesn't
-			// have (0 here); coolness only picks the camera and slow motion (front end) and the merged maximum
+			// the original indexes the seconds by the absolute second, which is past the array once the race is longer
+			// than the buffer: up to 9 seconds past it, it reads the following highlights fields (as here), then SE
+			// globals the port doesn't have (0 here); coolness only picks the camera and slow motion (front end) and the
+			// merged maximum
 			value = hl->best_seconds[i];
-			if (value >= 0 && value < 480 + 9) {
+			if (value >= 0 && value < TNFS_REPLAY_SECONDS + 9) {
 				hl->clips[cc][2] = ((int *) hl->seconds)[value] & 0xff;
 			} else {
 				hl->clips[cc][2] = 0;
@@ -1786,7 +1839,7 @@ static void tnfs_replay_car_restore(tnfs_car_data *car, const unsigned char *r) 
 	car->is_wrecked = replay_get32(r + 0x164);
 	car->slide_front = 0;
 	car->slide_rear = 0;
-	car->track_slice_lap = (car->lap_number - 1) * g_tri_num_chunks * 4 + car->track_slice;
+	car->track_slice_lap = (car->lap_number - 1) * g_track_num_chunks * 4 + car->track_slice;
 }
 
 /*
@@ -1884,7 +1937,7 @@ static void tnfs_replay_car_keyframe_restore(int is_player, int k, int index) {
 	} else {
 		r = g_replay.recording + REPLAY_OTHER_FRAMES + k * (8 * 0x172) + index * 0x172;
 		if ((replay_get32(r + 8) >> 24) >= g_total_cars_in_scene) {
-			// the port has 8 car slots, SE 9 (a head-to-head with a cop and 6 traffic cars): not restored
+			// port check: a car the race doesn't have is not restored
 			return;
 		}
 		car = g_car_ptr_array[replay_get32(r + 8) >> 24];
@@ -1905,8 +1958,8 @@ static void tnfs_replay_world_save(int k, int other_cars) {
 	int i;
 
 	for (i = 0; i < g_total_cars_in_scene; i++) {
-		// 0x00 handler order (DOS g_some_car_array1 0x153bec, SE 0x509e68): the port runs the cars in index order
-		replay_put32(r + i * 4, i);
+		// 0x00 road order (g_some_car_array1, DOS 0x153bec, SE 0x509e68)
+		replay_put32(r + i * 4, g_some_car_array1[i]);
 		// 0x24 race order (g_some_car_array2)
 		replay_put32(r + 0x24 + i * 4, g_some_car_array2[i]);
 	}
@@ -1947,7 +2000,8 @@ static void tnfs_replay_world_save(int k, int other_cars) {
 
 /*
  * Restores keyframe k (Win95 SE tnfs_replay_reinstate 0x44e354, DOS 0x6e53b). k = tick / TNFS_REPLAY_KEYFRAME, or
- * param_2 + 16 (DOS + 30) for param_2 >= 0, which nothing calls. Camera and sound restarts are left out.
+ * param_2 + TNFS_REPLAY_KEYFRAMES (SE + 16, DOS + 30) for param_2 >= 0, which nothing calls. Camera and sound restarts
+ * are left out.
  */
 void tnfs_replay_reinstate(int tick, int param_2) {
 	unsigned char *r;
@@ -1958,7 +2012,7 @@ void tnfs_replay_reinstate(int tick, int param_2) {
 	if (param_2 >= 0) {
 		iSimTimeClock = g_replay.highlights.return_clock[param_2];
 		replay_set_flags();
-		k = param_2 + 0x10;
+		k = param_2 + TNFS_REPLAY_KEYFRAMES;
 	} else {
 		k = tick / TNFS_REPLAY_KEYFRAME;
 	}
@@ -1967,7 +2021,7 @@ void tnfs_replay_reinstate(int tick, int param_2) {
 
 	r = g_replay.world + REPLAY_WORLD_KEYFRAMES + k * 0xa2;
 	for (i = 0; i < g_total_cars_in_scene; i++) {
-		// handler order (r + i * 4): the port runs the cars in index order
+		g_some_car_array1[i] = replay_get32(r + i * 4);
 		g_some_car_array2[i] = replay_get32(r + 0x24 + i * 4);
 	}
 	other_cars = replay_get32(r + 0x50);
@@ -2020,7 +2074,8 @@ void tnfs_replay_reinstate(int tick, int param_2) {
 /*
  * Recording, once per control step in mode 1 (Win95 SE FUN_0044e8f8, DOS tnfs_control_0006ec66): latches the
  * control words (neutral before clock 0x78), then either stores a sample or, every TNFS_REPLAY_KEYFRAME clock units
- * (countdown of 0x1c2 control steps), saves a keyframe (sign status, race globals, sample, cars) and reinstates it.
+ * (countdown of TNFS_REPLAY_KEYFRAME / 4 control steps, SE 0x1c2), saves a keyframe (sign status, race globals, sample,
+ * cars) and reinstates it.
  * Only the local player's word is read here (SE FUN_004397f4 pops every player's word from the input / network
  * queues); the words of other players are whatever the caller put in g_control_word.
  */
@@ -2043,7 +2098,7 @@ static void tnfs_replay_record() {
 	countdown = replay_get32(g_replay.world + REPLAY_WORLD_COUNTDOWN);
 	if (countdown == 0) {
 		tnfs_sign_status_save();
-		replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, 0x1c2);
+		replay_put32(g_replay.world + REPLAY_WORLD_COUNTDOWN, TNFS_REPLAY_KEYFRAME / 4);
 		other_cars = 0;
 		tnfs_replay_store_controls();
 		for (i = 0; i < g_total_cars_in_scene; i++) {
@@ -2266,8 +2321,8 @@ void tnfs_replay_update() {
 
 /*
  * Starts a replay (Win95 SE FUN_0044f188, DOS 0x6f763): 2 the highlights (from the race: the camera mode is kept to
- * return to), 3 the whole buffer (the last 27000 clock units, TV cameras), else the last 600 clock units (10 s).
- * 3 and others loop (return mode 4).
+ * return to), 3 the whole buffer (all but its oldest keyframe interval: SE 27000 clock units, DOS 0x87f0; TV cameras),
+ * else the last 600 clock units (10 s). 3 and others loop (return mode 4).
  */
 void tnfs_replay_start(int type) {
 	tnfs_replay_highlights *hl = &g_replay.highlights;
@@ -2291,7 +2346,7 @@ void tnfs_replay_start(int type) {
 	g_replay_speed = 4;
 	g_replay_speed_skip = 0;
 	if (type == 3) {
-		clock = end - 27000;
+		clock = end - (TNFS_REPLAY_TICKS - TNFS_REPLAY_KEYFRAME);
 	} else {
 		clock = end - 600;
 	}
@@ -2433,7 +2488,7 @@ void tnfs_replay_stats_save() {
 	unsigned char *r;
 
 	memset(g_replay.stats, 0, sizeof(g_replay.stats));
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 9; i++) {
 		r = g_replay.stats[i];
 		for (j = 0; j < 17; j++) {
 			replay_put32(r + j * 4, g_stats_data[i].lap_timer[j]);
@@ -2458,7 +2513,7 @@ void tnfs_replay_stats_load() {
 	int j;
 	unsigned char *r;
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 9; i++) {
 		r = g_replay.stats[i];
 		for (j = 0; j < 17; j++) {
 			g_stats_data[i].lap_timer[j] = replay_get32(r + j * 4);
@@ -2700,7 +2755,7 @@ int tnfs_track_node_update(tnfs_car_data *car) {
 				printf("UN-LAP %d\n", car->lap_number);
 			}
 		}
-		car->track_slice_lap = (car->lap_number - 1) * g_tri_num_chunks * 4 + car->track_slice;
+		car->track_slice_lap = (car->lap_number - 1) * g_track_num_chunks * 4 + car->track_slice;
 	}
 
 	return changed;
@@ -2839,7 +2894,7 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	//init track
 	tnfs_init_track(trifile);
 
-	// AI skill constants
+	// AI skill constants (DOS tnfs_ai_init_constants 0x712a2, PSX 0x8004c4fc, SE 0x456410)
 	g_ai_skill_cfg.opp_desired_ahead = 0x140000;
 	g_ai_skill_cfg.cop_warning_time = 400;
 	g_ai_skill_cfg.max_player_runways = 2;
@@ -2847,15 +2902,15 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	g_ai_skill_cfg.traffic_density = 0x1f4;
 	g_ai_skill_cfg.number_of_traffic_cars = 4;
 	g_ai_skill_cfg.traffic_speed_factors[0] = 0x10000;
-	g_ai_skill_cfg.traffic_speed_factors[1] = 0xe665;
+	g_ai_skill_cfg.traffic_speed_factors[1] = 0xe666;
 	g_ai_skill_cfg.traffic_speed_factors[2] = 0xb333;
-	g_ai_skill_cfg.traffic_speed_factors[3] = 0x9999;
+	g_ai_skill_cfg.traffic_speed_factors[3] = 0xcccc;
 	g_ai_skill_cfg.opp_desired_speed_c = math_mul(0x960000, 0x471c); //0x29aa68;
 	g_ai_skill_cfg.traffic_base_speed = 0xDE38D;
-	g_ai_skill_cfg.lane_slack[0] = 0x10000;
-	g_ai_skill_cfg.lane_slack[1] = -0x10000;
-	g_ai_skill_cfg.lane_slack[2] = 0x8000;
-	g_ai_skill_cfg.lane_slack[3] = 0xCCCC;
+	g_ai_skill_cfg.lane_slack[0] = 0;
+	g_ai_skill_cfg.lane_slack[1] = 0;
+	g_ai_skill_cfg.lane_slack[2] = 0;
+	g_ai_skill_cfg.lane_slack[3] = 0;
 
 	g_ai_skill_cfg.opponent_glue_0[0] = 0x20000;
 	g_ai_skill_cfg.opponent_glue_0[1] = 0x20000;
@@ -2891,7 +2946,7 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	g_ai_skill_cfg.opponent_glue_1[9] = 0x10000;
 	g_ai_skill_cfg.opponent_glue_1[10] = 0x10000;
 	g_ai_skill_cfg.opponent_glue_1[11] = 0x10000;
-	g_ai_skill_cfg.opponent_glue_1[12] = 0xe666;
+	g_ai_skill_cfg.opponent_glue_1[12] = 0xf333; // PC version (SE 0x456410); DOS (0x712a2) 0xe666
 	g_ai_skill_cfg.opponent_glue_1[13] = 0xe666;
 	g_ai_skill_cfg.opponent_glue_1[14] = 0xd999;
 	g_ai_skill_cfg.opponent_glue_1[15] = 0xcccc;
@@ -2935,7 +2990,7 @@ void tnfs_init_sim(char *trifile, char *pbsfile) {
 	g_ai_skill_cfg.opponent_glue_3[9] = 0x10000;
 	g_ai_skill_cfg.opponent_glue_3[10] = 0x10000;
 	g_ai_skill_cfg.opponent_glue_3[11] = 0x10000;
-	g_ai_skill_cfg.opponent_glue_3[12] = 0x10000;
+	g_ai_skill_cfg.opponent_glue_3[12] = 0x50000; // PC version (SE 0x456410); DOS (0x712a2) 0x10000
 	g_ai_skill_cfg.opponent_glue_3[13] = 0x90000;
 	g_ai_skill_cfg.opponent_glue_3[14] = 0x90000;
 	g_ai_skill_cfg.opponent_glue_3[15] = 0x90000;
@@ -3019,10 +3074,10 @@ void tnfs_game_loop() {
 		return;
 	}
 
-	// control step: the control handlers of the cars (players: tnfs_controls_update; AI: empty)
+	// control step: the control handlers of the cars (players: tnfs_controls_update; AI: empty), in road order
 	if (general_flags & 4) {
 		for (i = 0; i < g_total_cars_in_scene; i++) {
-			car = g_car_ptr_array[i];
+			car = g_car_ptr_array[g_some_car_array1[i]];
 			if ((car->field_4e9 & 4) != 0 && car->car_id < g_number_of_players) {
 				tnfs_controls_update(car);
 			}
@@ -3033,7 +3088,8 @@ void tnfs_game_loop() {
 		return;
 	}
 
-	player_car_ptr->car_road_speed = tnfs_car_road_speed(player_car_ptr);
+	// the player's car_road_speed is updated on the 4th-step AI update only (DOS: tnfs_car_road_speed's one caller is
+	// tnfs_ai_update_speed_targets 0x781a5)
 
 	// race times, while racing only (DOS tnfs_ai_finish_line_cross 0x64c8e), for the first g_num_of_racers_00153b34
 	// cars (DOS 0x153b34 from tnfs_game_reset_stats 0x637d8: 1 in time trial, 2 head-to-head, else all racers)
@@ -3046,9 +3102,9 @@ void tnfs_game_loop() {
 		}
 	}
 
-	// for each car
+	// for each car, in road order (DOS 0x650cb)
 	for (i = 0; i < g_total_cars_in_scene; i++) {
-		car = g_car_ptr_array[i];
+		car = g_car_ptr_array[g_some_car_array1[i]];
 
 		if ((car->field_4e9 & 4) == 0) {
 			//disabled car
@@ -3058,15 +3114,13 @@ void tnfs_game_loop() {
 		if (car->crash_state == 6) {
 			//hidden traffic car
 			tnfs_ai_hidden_traffic_main(car);
-			continue;
-		}
-
-		if (car->crash_state == 1) {
+		} else if (car->crash_state == 1) {
 			tnfs_car_wait_after_busted(car);
 		} else if (car->crash_state == 5) {
 			tnfs_ai_wrecked_wait(car);
 		} else if (car->crash_state != 4) {
-			if (i < g_number_of_players) {
+			// handler by crash_state (DOS table 0x153ae0): 2 driving, 3 AI
+			if (car->crash_state == 2) {
 				// no matrix here: a driving player's matrix is the bare angles, rebuilt every 4th tick by
 				// tnfs_ai_update_speed_targets (DOS 0x77d1c, PSX 0x80053d98, SE 0x46aba4); the body lean is added
 				// only when drawing (DOS gfx_draw_car 0x74d73, PSX 0x80050584, SE 0x4591d4)

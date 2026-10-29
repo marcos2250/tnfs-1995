@@ -26,7 +26,9 @@ int DAT_000fdbe8[4] = { 0x20, 0x40, 0x60, 0x80 };
 int g_cop_park_position = 0; //000fdbf8
 int g_tri_lap_chunks = 0x208;
 int g_number_of_hidden_cars = 0;
-int g_some_car_array2[8]; //00153bc8 car ids sorted by track_slice_lap, the last one leads
+int g_some_car_array1[9]; //00153bec (SE 0x509e68) car ids sorted by track_slice, then track_center_distance: the order
+// the game loop runs the cars in, the car-car collisions and the lane changes use (road order)
+int g_some_car_array2[9]; //00153bc8 (up to 0x153bec, SE 0x509e44) car ids sorted by track_slice_lap, the last one leads
 int DAT_00165324 = 0;
 int DAT_00165328 = 0;
 int DAT_00165330 = 0;
@@ -44,7 +46,11 @@ int tnfs_ai_lane_table(int lanes, int margin) {
 }
 tnfs_random_struct g_random_struct[2]; //DAT_00165120-00165137 (Ghidra label g_random_struct DOS 0x16511e, SE 0x52b476: 2 bytes early)
 
-int g_ai_opp_speed_factors[8] = { 0xf5c2, 0x10000, 0xfae1, 0xfae1, 0x10000, 0xfae1, 0xf333, 0xf333 };
+// non-racers' top speed factor by the player's car model (tnfs_ai_racer_speed)
+// Win95 SE version (0x4c5ce0, also DOS SE)
+int g_ai_opp_speed_factors[8] = { 0xeb85, 0x10000, 0xee14, 0xee14, 0x10000, 0xf333, 0xe666, 0xe666 };
+// DOS version (0xfdb98): { 0xeb85, 0x10000, 0xee14, 0xf333, 0x10000, 0xf333, 0xe666, 0xe666 }
+// PSX version (0x800c1774): { 0xf5c2, 0x10000, 0xfae1, 0xfae1, 0x10000, 0xfae1, 0xf333, 0xf333 }
 
 void tnfs_ai_load_car(tnfs_car_data *car, int newCarModelId);
 
@@ -190,8 +196,9 @@ void tnfs_ai_init() {
 		g_ai_opp_data[i] = g_ai_opp_profiles[g_ai_opp_profile_map[j][g_race_positions[i]] - 'A'];
 	}
 
-	// race order, DOS tnfs_car_init_carObj 0x6466b
+	// road and race order, DOS tnfs_car_init_carObj 0x6466b
 	for (i = 0; i < g_total_cars_in_scene; i++) {
+		g_some_car_array1[i] = i;
 		g_some_car_array2[i] = i;
 	}
 
@@ -271,7 +278,7 @@ void tnfs_ai_load_car(tnfs_car_data *car, int newCarModelId) {
 int FUN_00077c58(tnfs_car_data *car) {
 	int iVar1;
 	iVar1 = g_car_array[g_random_struct[car->field_158].id].car_road_speed;
-	if (iVar1 < 90439) {
+	if (iVar1 < 904396) { // 0xdcccc (DOS 0x77c58)
 		return 1271398;
 	}
 	if (iVar1 < 1821900) {
@@ -318,15 +325,34 @@ void tnfs_ai_police_reset_state(int flag) {
 
 
 /*
- * DOS 0x64e46: bubble sorts the cars by track_slice_lap (then track_center_distance), the leader last.
- * Not ported: the first half, which sorts g_some_car_array1 by track_slice in the same way (the DOS game loop runs
- * the car handlers in that order).
+ * DOS 0x64e46: bubble sorts the cars by track_slice (road order, g_some_car_array1), then by track_slice_lap (race
+ * order, g_some_car_array2), ties by track_center_distance, the furthest last.
  */
 void FUN_00064e46() {
 	int iVar1;
 	int bVar3;
 	int bVar4;
 	int i;
+
+	bVar3 = 1;
+	while (bVar3) {
+		bVar3 = 0;
+		for (i = 0; i < g_total_cars_in_scene - 1; i++) {
+			bVar4 = 0;
+			if (g_car_ptr_array[g_some_car_array1[i + 1]]->track_slice < g_car_ptr_array[g_some_car_array1[i]]->track_slice) {
+				bVar4 = 1;
+			} else if ((g_car_ptr_array[g_some_car_array1[i]]->track_slice == g_car_ptr_array[g_some_car_array1[i + 1]]->track_slice)
+					&& (g_car_ptr_array[g_some_car_array1[i + 1]]->track_center_distance < g_car_ptr_array[g_some_car_array1[i]]->track_center_distance)) {
+				bVar4 = 1;
+			}
+			if (bVar4) {
+				bVar3 = 1;
+				iVar1 = g_some_car_array1[i];
+				g_some_car_array1[i] = g_some_car_array1[i + 1];
+				g_some_car_array1[i + 1] = iVar1;
+			}
+		}
+	}
 
 	bVar3 = 1;
 	while (bVar3) {
@@ -469,12 +495,12 @@ char tnfs_ai_random_boolean_a(int param_1, int param_2) {
 	local_1c -= local_34;
 
 	if (local_1c < 0) {
-		local_1c += g_tri_num_chunks << 2;
+		local_1c += g_track_num_chunks << 2;
 	}
 	if (local_34 < param_1) {
 		local_34 = param_1 - local_34;
 	} else {
-		local_34 = (g_tri_num_chunks << 2) + param_1 - local_34;
+		local_34 = (g_track_num_chunks << 2) + param_1 - local_34;
 	}
 	return local_34 < local_1c;
 }
@@ -499,12 +525,12 @@ char tnfs_ai_random_boolean_b(int param_1, int param_2) {
 	local_1c -= local_34;
 
 	if (local_1c < 0) {
-		local_1c += g_tri_num_chunks << 2;
+		local_1c += g_track_num_chunks << 2;
 	}
 	if (local_34 < param_1) {
 		local_34 = param_1 - local_34;
 	} else {
-		local_34 = (g_tri_num_chunks << 2) + param_1 - local_34;
+		local_34 = (g_track_num_chunks << 2) + param_1 - local_34;
 	}
 	return local_34 < local_1c;
 }
@@ -679,9 +705,6 @@ void tnfs_ai_respawn_reset(tnfs_car_data *car) {
 		math_matrix_set_rot_Y(&rot_matrix, car->steer_angle);
 		math_matrix_multiply(&car->matrix, &rot_matrix, &car->matrix);
 	}
-
-	// ...
-	tnfs_collision_data_set(car);
 }
 
 void tnfs_ai_respawn_do(tnfs_car_data *car, int node, int side, int centerline, int flag) {
@@ -697,7 +720,7 @@ void tnfs_ai_respawn_do(tnfs_car_data *car, int node, int side, int centerline, 
 	}
 
 	car->track_slice = node;
-	car->track_slice_lap = (car->lap_number - 1) * g_tri_num_chunks * 4 + car->track_slice;
+	car->track_slice_lap = (car->lap_number - 1) * g_track_num_chunks * 4 + car->track_slice;
 
 	tnfs_ai_get_speed_factor(car);
 	tnfs_ai_get_lane_slack(car);
@@ -716,7 +739,9 @@ void tnfs_ai_respawn_do(tnfs_car_data *car, int node, int side, int centerline, 
 	//}
 
 	FUN_0007da53(car);
-	FUN_00064e46();
+	// PC version (SE 0x46f110, DOS SE): no sort here; DOS version (0x7e62c) sorts the road and race orders, in the
+	// middle of the game loop's car loop
+	//FUN_00064e46();
 	FUN_0007db5a(car, side);
 	car->target_center_line = centerline;
 	tnfs_ai_respawn_reset(car);
@@ -920,9 +945,11 @@ int tnfs_ai_racer_speed(tnfs_car_data *car) {
 	}
 
 	top_speed = g_track_speed[car->track_slice >> 2].top_speed * 0x10000;
-	if ((g_game_settings & 0x20) != 0) { // PSX version, rally mode
-		top_speed = top_speed - (top_speed >> 3);
-	}
+	// PSX version, rally mode (PSX 0x8005bcc8; not in DOS 0x80c50 and Win95 0x470a9c, which pair the PC rally car
+	// changes of Fiziks_PreInitCar with the AI at full speed)
+	//if ((g_game_settings & 0x20) != 0) {
+	//	top_speed = top_speed - (top_speed >> 3);
+	//}
 
 	local_30 = car->speed_factor;
 	if (uVar8 == 0) {
@@ -1102,6 +1129,7 @@ void tnfs_ai_update_speed_targets(tnfs_car_data *car) {
 void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 	int steer_speed;
 	int lane;
+	int lane_width;
 	int iVar3;
 	tnfs_vec3 local_position;
 	tnfs_vec3 right_normal;
@@ -1196,10 +1224,11 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 	}
 
 	// floor it or maintain speed
+	// not near a racer, or on the road between the fences and not changing gear (DOS 0x7e961)
 	floor_it = tnfs_util_random_value_b(car->track_slice) == 0 //
-		|| car->center_line_distance < track_data[car->track_slice].roadLeftFence * -0x2000 //
-		|| car->center_line_distance > track_data[car->track_slice].roadRightFence * 0x2000 //
-		|| car->collision_data.field_08c <= 0;
+		|| (car->center_line_distance >= track_data[car->track_slice & g_slice_mask].roadLeftFence * -0x2000 //
+			&& car->center_line_distance <= track_data[car->track_slice & g_slice_mask].roadRightFence * 0x2000 //
+			&& car->collision_data.field_08c <= 0);
 
 	if (car->collision_data.field_08c > 0) {
 		car->collision_data.field_08c--;
@@ -1273,9 +1302,9 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 	right_normal.y = car->road_fence_normal.y;
 	right_normal.z = car->road_fence_normal.z;
 
-	if (car->collision_data.field_088 != 0 //
-			&& (car->collision_data.field_088 != (is_a_racer ? 100 : 160) //
-	|| abs(car->steer_angle - car->target_angle) < 0x20000)) {
+	if ((car->collision_data.field_088 != 0 //
+			&& car->collision_data.field_088 != (is_a_racer ? 100 : 160)) //
+			|| abs(car->steer_angle - car->target_angle) < 0x20000) {
 		forward_vector.x = car->road_heading.x;
 		forward_vector.y = car->road_heading.y;
 		forward_vector.z = car->road_heading.z;
@@ -1317,10 +1346,30 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 		lane = 1;
 	}
 	*/
-	//3do version
-	lane = (((car->center_line_distance >> 8) * 0x33) >> 0x10) + 4;
-	if (lane < 0) lane = 0;
-	if (lane > 7) lane = 7;
+	// PC version (DOS 0x7e961): the lane from the lane table, as in tnfs_ai_lane_change
+	lane_width = tnfs_ai_lane_table(track_data[car->track_slice & g_slice_mask].num_lanes & 0xf,
+			track_data[car->track_slice & g_slice_mask].roadRightMargin >> 3) * 0x100;
+	if (car->center_line_distance < 0) {
+		if (-lane_width < car->center_line_distance) {
+			lane = 3;
+		} else if (lane_width * -2 < car->center_line_distance) {
+			lane = 2;
+		} else {
+			lane = lane_width * -3 < car->center_line_distance;
+		}
+	} else if (car->center_line_distance < lane_width) {
+		lane = 4;
+	} else if (car->center_line_distance < lane_width * 2) {
+		lane = 5;
+	} else if (car->center_line_distance < lane_width * 3) {
+		lane = 6;
+	} else {
+		lane = 7;
+	}
+	// 3DO version
+	//lane = (((car->center_line_distance >> 8) * 0x33) >> 0x10) + 4;
+	//if (lane < 0) lane = 0;
+	//if (lane > 7) lane = 7;
 
 	centerline = car->target_center_line - car->center_line_distance;
 
@@ -1362,7 +1411,8 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 		right_normal.z = math_mul(right_normal.z, car->speed_local_lat);
 
 		if ((car->ai_state & 0x1000) == 0) {
-			switch ((lateral_speed >> 0x10) / 5) {
+			// by the road speed (DOS 0x7e961: |car_road_speed|), not the lateral speed
+			switch ((abs(car->car_road_speed) >> 0x10) / 5) {
 			case 0:
 				steer_speed = 0x10000;
 				break;
@@ -1408,11 +1458,11 @@ void tnfs_ai_drive_car(tnfs_car_data *car, int curr_state) {
 
 	// position car above road (again?)
 	ground_height = math_vec3_dot(&local_position, &car->road_surface_normal);
-	if (ground_height > 0x667
+	if (ground_height >= 0x667
 			&& tnfs_ai_car_near_player(car)
 			&& car->track_slice_lap > 100 // wut??
 			&& (car->ai_state & 4)
-			&& car->car_road_speed > 0x1b0001) {
+			&& car->car_road_speed >= 0x1b0001) {
 		if (car->wheels_on_ground)
 			car->wheels_on_ground = 0;
 	} else {
@@ -1470,12 +1520,13 @@ void tnfs_ai_fence_collision(tnfs_car_data *car) {
 
 	iVar5 = fixmul(normalX, reboundX) + fixmul(reboundZ, normalZ);
 
+	// pushed back towards the road by 1 m/s on top of the speed (DOS 0x7bc96)
 	if ((car->center_line_distance < 0) && (iVar5 < 0x10000)) {
-		reboundX = math_mul(normalX, 0x10000);
-		reboundZ = math_mul(normalZ, 0x10000);
+		reboundX += math_mul(normalX, 0x10000);
+		reboundZ += math_mul(normalZ, 0x10000);
 	} else if ((car->center_line_distance > 0) && (iVar5 > -0x10000)) {
-		reboundX = math_mul(normalX, -0x10000);
-		reboundZ = math_mul(normalZ, -0x10000);
+		reboundX += math_mul(normalX, -0x10000);
+		reboundZ += math_mul(normalZ, -0x10000);
 	}
 
 	car->speed_x = reboundX;
@@ -1486,6 +1537,8 @@ void tnfs_ai_driving_main(tnfs_car_data *car) {
 	signed int ground_height;
 	tnfs_vec3 local_position;
 	int lane;
+	int node;
+	int lane_width;
 	int max_angular_speed;
 	int *angular_speed;
 	int rotation;
@@ -1494,8 +1547,11 @@ void tnfs_ai_driving_main(tnfs_car_data *car) {
 	char is_a_racer;
 	int speed_x;
 	int speed_z;
+	int timer_at_entry;
 
 	is_a_racer = (car->ai_state & 4) != 0;
+	// the plan's step count is the timer before a slice change zeroes it (DOS 0x7beca, SE 0x46d79c)
+	timer_at_entry = car->collision_data.state_timer;
 
 	if (is_a_racer) {
 		speed_x = abs(car->speed_x);
@@ -1594,7 +1650,7 @@ void tnfs_ai_driving_main(tnfs_car_data *car) {
 		else
 			max_steer = 0x160000;
 
-		if (abs(car->steer_angle) > max_steer && (car->ai_state & 0x200000) == 0) {
+		if (abs(car->steer_angle) > max_steer && (car->ai_state & 0x20000) == 0) {
 			FUN_0044E11(car);
 			if (car->ai_state & 8) {
 				if (tnfs_util_random_value_b(car->track_slice))
@@ -1674,70 +1730,36 @@ void tnfs_ai_driving_main(tnfs_car_data *car) {
 	}
 
 	if (car->collision_data.state_timer == 0)
-		tnfs_ai_drive_car(car, car->collision_data.state_timer);
+		tnfs_ai_drive_car(car, timer_at_entry);
 
 	car->collision_data.state_timer--;
 
+	// slower in the edge lanes (DOS 0x7beca): the lane from the lane table, as in tnfs_ai_lane_change
 	if (!g_is_closed_track && tnfs_util_random_value_b(car->track_slice)) {
-
-		/*
-		//DAT_00165340 = DAT_00164FDC
-		//		+ ((track_data[car->track_slice].num_lanes & 0xF) * 0x50)
-		//		+ (2 * track_data[car->track_slice].roadRightMargin);
-		DAT_00165340 = DAT_00164FDC[(track_data[car->track_slice].roadRightMargin >> 3) + ((track_data[car->track_slice].num_lanes & 0xf) >> 4)] * 0x100;
-		if (car->center_line_distance > 3 * DAT_00165340) {
-			lane = 7;
-		} else if (car->center_line_distance > 2 * DAT_00165340) {
-			lane = 6;
-		} else if (car->center_line_distance > DAT_00165340) {
-			lane = 5;
-		} else if (car->center_line_distance > 0) {
-			lane = 4;
-		} else if (car->center_line_distance > -DAT_00165340) {
-			lane = 3;
-		} else if (car->center_line_distance > -2 * DAT_00165340) {
-			lane = 2;
-		} else {
-			lane = 1;
-		}
-		*/
-		//3do
-		lane = (((car->center_line_distance >> 8) * 0x33) >> 0x10) + 4;
-		if (lane < 0) lane = 0;
-		if (lane > 7) lane = 7;
-
-		if (3 - (track_data[car->track_slice].num_lanes >> 4) != lane) {
-
-			/*
-			//DAT_00165340 = DAT_00164FDC
-			//		+ ((track_data[car->track_slice].num_lanes & 0xF) * 0x50)
-			//		+ (2 * track_data[car->track_slice].roadRightMargin);
-			if (car->center_line_distance > DAT_00165340 * 0x300) {
-				lane = 7;
-			} else if (car->center_line_distance > DAT_00165340 * 0x200) {
-				lane = 6;
-			} else if (car->center_line_distance > DAT_00165340 * 0x100) {
-				lane = 5;
-			} else if (car->center_line_distance > 0) {
-				lane = 4;
-			} else if (car->center_line_distance > DAT_00165340 * -0x100) {
+		node = car->track_slice & g_slice_mask;
+		lane_width = tnfs_ai_lane_table(track_data[node].num_lanes & 0xf, track_data[node].roadRightMargin >> 3) * 0x100;
+		if (car->center_line_distance < 0) {
+			if (-lane_width < car->center_line_distance) {
 				lane = 3;
-			} else if (car->center_line_distance > DAT_00165340 * -0x200) {
+			} else if (lane_width * -2 < car->center_line_distance) {
 				lane = 2;
-			} else if (car->center_line_distance > DAT_00165340 * -0x300) {
-				lane = 1;
+			} else {
+				lane = lane_width * -3 < car->center_line_distance;
 			}
-			*/
-
-			/*
-			// FIXME ???
-			if ((track_data[car->track_slice].num_lanes & 0xf) + 4 != lane) {
-				if (car->track_slice_lap > 70)
-					car->car_road_speed = 255 * (car->car_road_speed >> 8);
-			}
-			*/
+		} else if (car->center_line_distance < lane_width) {
+			lane = 4;
+		} else if (car->center_line_distance < lane_width * 2) {
+			lane = 5;
+		} else if (car->center_line_distance < lane_width * 3) {
+			lane = 6;
+		} else {
+			lane = 7;
 		}
-
+		if (lane == 3 - (track_data[node].num_lanes >> 4) || lane == (track_data[node].num_lanes & 0xf) + 4) {
+			if (car->track_slice_lap > 0x46) {
+				car->car_road_speed = (car->car_road_speed >> 8) * 0xff;
+			}
+		}
 	}
 
 	// fence collision
@@ -1798,9 +1820,10 @@ void tnfs_ai_traffic_swerve(tnfs_car_data *car1, int *lane_grid, int lane, int *
 	int i, j;
 	int aiCarID;
 
+	// positions in the road order (DOS tnfs_ai_traffic_swerve: g_some_car_array1, lane_grid by position)
 	aiCarID = 0;
 	for (i = 0; i < g_total_cars_in_scene; ++i) {
-		if (car1 == g_car_ptr_array[i]) {
+		if (car1 == g_car_ptr_array[g_some_car_array1[i]]) {
 			aiCarID = i;
 		}
 	}
@@ -1810,7 +1833,7 @@ void tnfs_ai_traffic_swerve(tnfs_car_data *car1, int *lane_grid, int lane, int *
 		local_1c = 0;
 		while (local_1c != 3 && j > 0) {
 			carId = (j + aiCarID) % g_total_cars_in_scene;
-			car = g_car_ptr_array[carId];
+			car = g_car_ptr_array[g_some_car_array1[carId]];
 			if ((car1 != car) && (car->field_4e9 & 4) && (car->crash_state != 6)) {
 				seg_distance = car->track_slice - car1->track_slice;
 				if ((seg_distance < 0) && (0 < car->track_slice_lap - car1->track_slice_lap)) {
@@ -1854,7 +1877,8 @@ void tnfs_ai_traffic_swerve(tnfs_car_data *car1, int *lane_grid, int lane, int *
 				&& ((car1->track_slice - others[1]->track_slice) < 3)) {
 			speedA->y >>= 1;
 			speedB->y >>= 1;
-			if (others[1]->speed_target <= car1->speed_target) {
+			// the road speed of the car ahead (DOS tnfs_ai_traffic_swerve)
+			if (others[1]->car_road_speed <= car1->speed_target) {
 				speedA->x >>= 1;
 				speedB->x >>= 1;
 				speedA->z >>= 1;
@@ -1866,7 +1890,7 @@ void tnfs_ai_traffic_swerve(tnfs_car_data *car1, int *lane_grid, int lane, int *
 		local_1c = 0;
 		while (local_1c != 3 && i < g_total_cars_in_scene) {
 			carId = (i + aiCarID) % g_total_cars_in_scene;
-			car = g_car_ptr_array[carId];
+			car = g_car_ptr_array[g_some_car_array1[carId]];
 			if (car1 != car //
 			&& (car->field_4e9 & 4) != 0 //
 			&& car->crash_state != 6) {
@@ -1919,19 +1943,20 @@ void tnfs_ai_traffic_swerve(tnfs_car_data *car1, int *lane_grid, int lane, int *
 				}
 			}
 			++i;
+		}
 
-			if ((g_number_of_cops + g_racer_cars_in_scene <= car1->car_id) //
-					&& (g_number_of_cops + g_racer_cars_in_scene + g_number_of_traffic_cars > car1->car_id) //
-					&& (others[1] != 0) //
-					&& (others[1]->track_slice - car1->track_slice < 3)) {
-				speedA->y >>= 1;
-				speedB->y >>= 1;
-				if (others[1]->speed_target >= car1->speed_target) {
-					speedA->x >>= 1;
-					speedB->x >>= 1;
-					speedA->z >>= 1;
-					speedB->z >>= 1;
-				}
+		// traffic behind a car: once after the search (DOS tnfs_ai_traffic_swerve), by the road speed of the car ahead
+		if ((g_number_of_cops + g_racer_cars_in_scene <= car1->car_id) //
+				&& (g_number_of_cops + g_racer_cars_in_scene + g_number_of_traffic_cars > car1->car_id) //
+				&& (others[1] != 0) //
+				&& (others[1]->track_slice - car1->track_slice < 3)) {
+			speedA->y >>= 1;
+			speedB->y >>= 1;
+			if (car1->speed_target <= others[1]->car_road_speed) {
+				speedA->x >>= 1;
+				speedB->x >>= 1;
+				speedA->z >>= 1;
+				speedB->z >>= 1;
 			}
 		}
 
@@ -1968,7 +1993,8 @@ void tnfs_ai_traffic_swerve(tnfs_car_data *car1, int *lane_grid, int lane, int *
 			local_a4 = tnfs_ai_lane_change_lateral_speed(car1, 1, car1->car_road_speed);
 			local_a4 = abs(local_a4);
 			local_a4 = math_mul(seg_distance * 0x60000, local_a4);
-			lVar2 = math_mul(math_mul(0x50000, local_a4), 0x20000);
+			// the speed difference (DOS tnfs_ai_traffic_swerve)
+			lVar2 = math_mul(math_mul(0x50000, speed_diff), 0x20000);
 			if (local_a4 < lVar2) {
 				speedA->y = 0;
 				speedB->y = 0;
@@ -2033,8 +2059,34 @@ void tnfs_ai_change_vector_combine(tnfs_car_data *car, tnfs_vec3 *s0, tnfs_vec3 
 	}
 }
 
+/*
+ * Moves the car's road object cursor towards slice "node" and returns 1 when a road object lies on that slice
+ * (DOS tnfs_road_object_on_slice 0x4796f, PSX 0x8001ec14).
+ */
 int FUN_0004796f(tnfs_car_data *car, int node) {
-	return 1; //stub
+	if (node < car->road_object_slice || g_road_objects[car->road_object_index + 1].slice == -1) {
+		if (node < car->road_object_slice) {
+			while (car->road_object_index != 0) {
+				if (car->road_object_slice == node) {
+					return 1;
+				}
+				car->road_object_index--;
+				car->road_object_slice = g_road_objects[car->road_object_index].slice;
+				if (car->road_object_slice < node) {
+					return 0;
+				}
+			}
+		}
+	} else {
+		do {
+			if (car->road_object_slice == node) {
+				return 1;
+			}
+			car->road_object_index++;
+			car->road_object_slice = g_road_objects[car->road_object_index].slice;
+		} while (car->road_object_slice <= node && g_road_objects[car->road_object_index + 1].slice != -1);
+	}
+	return 0;
 }
 
 void tnfs_ai_police_busted() {
@@ -2044,7 +2096,6 @@ void tnfs_ai_police_busted() {
 		printf("Cop: Warning Ticket!");
 	}
 	printf(" Penalties %d - Warnings %d\n", g_stats_data[0].penalty_count, g_stats_data[0].warning_count);
-	g_police_speeding_ticket = 0;
 	//stub - just reset player car
 	//tnfs_reset_car(player_car_ptr);
 }
@@ -2081,12 +2132,12 @@ int tnfs_ai_car_in_slice_window(tnfs_car_data *car1, tnfs_car_data *car2) {
 	int distance;
 
 	if (window < 0) {
-		window += g_tri_num_chunks * 4;
+		window += g_track_num_chunks * 4;
 	}
 	if (start < car2->track_slice) {
 		distance = car2->track_slice - start;
 	} else {
-		distance = (car2->track_slice - start) + g_tri_num_chunks * 4;
+		distance = (car2->track_slice - start) + g_track_num_chunks * 4;
 	}
 	return distance < window;
 }
@@ -2107,9 +2158,10 @@ void tnfs_car_stop_0007d5c1(tnfs_car_data *car) {
 	car->steer_angle = 0;
 	car->target_angle = 0;
 	memcpy(&car->matrix, &car->road_fence_normal, sizeof(car->matrix));
-	car->speed_local_lat = 0;
-	car->speed_local_vert = 0;
-	car->speed_local_lon = 0;
+	// the world speeds (DOS 0x7d5c1: +0x54..+0x5c)
+	car->speed_x = 0;
+	car->speed_y = 0;
+	car->speed_z = 0;
 	car->car_road_speed = 0;
 	car->wheels_on_ground = 1;
 }
@@ -2221,19 +2273,18 @@ void FUN_0007b78f(tnfs_car_data *car, int lane) {
 
 	car->angular_speed = 0;
 
+	car->angle.y = ((int) track_data[car->track_slice & g_slice_mask].heading) * 0x400;
+
 	local_1c = ((int)track_data[car->track_slice & g_slice_mask].slope) * 0x400;
 	if (local_1c > 0x800000) {
 		local_1c -= 0x1000000;
+	} else if (local_1c < -0x800000) {
+		local_1c += 0x1000000;
 	}
 	car->angle.x = -local_1c;
 
-	car->angle.y = ((int) track_data[car->track_slice & g_slice_mask].heading) * 0x400;
-
-	local_1c = ((int) track_data[car->track_slice & g_slice_mask].slant) * 0x400;
-	if (local_1c > 0x800000) {
-		local_1c -= 0x1000000;
-	}
-	car->angle.z = -local_1c;
+	// not negated (DOS 0x7b78f, SE 0x46d308)
+	car->angle.z = ((int) track_data[car->track_slice & g_slice_mask].slant) * 0x400;
 
 	car->speed_local_lon = 0;
 	car->speed_local_lat = 0;
@@ -2241,14 +2292,15 @@ void FUN_0007b78f(tnfs_car_data *car, int lane) {
 	car->speed_y = car->speed_z;
 	car->speed_x = car->speed_y;
 
-	iVar12 = local_18 -
-			 (fixmul((car->position).x - (car->road_position).x, (car->road_fence_normal).x) //
-			+ fixmul((car->position).y - (car->road_position).y, (car->road_fence_normal).y) //
-			- fixmul((car->position).z - (car->road_position).z, (car->road_fence_normal).z));
+	// the car's offset across the road, to the right fence normal, 8.8 by 8.8 bits as DOS 0x7b78f == SE 0x46d308
+	iVar12 = (local_18
+			- (((car->road_fence_normal).x >> 8) * (((car->position).x - (car->road_position).x) >> 8) //
+			+ ((car->road_fence_normal).y >> 8) * (((car->position).y - (car->road_position).y) >> 8) //
+			+ ((car->road_fence_normal).z >> 8) * (((car->position).z - (car->road_position).z) >> 8))) >> 8;
 
-	(car->position).x += fixmul((car->road_fence_normal).x, iVar12);
-	(car->position).y += fixmul((car->road_fence_normal).y, iVar12);
-	(car->position).z += fixmul((car->road_fence_normal).z, iVar12);
+	(car->position).x += ((car->road_fence_normal).x >> 8) * iVar12;
+	(car->position).y += ((car->road_fence_normal).y >> 8) * iVar12;
+	(car->position).z += ((car->road_fence_normal).z >> 8) * iVar12;
 }
 
 
@@ -2268,9 +2320,9 @@ void tnfs_ai_police_chase(tnfs_car_data *car, int lane, tnfs_vec3 *direction) {
 
 	if ((g_police_chase_time >= g_ai_skill_cfg.cop_warning_time) //
 			&& (g_police_chase_time - 4 < g_ai_skill_cfg.cop_warning_time) //
-			&& ((car->ai_state & 0x24) != 0) //
+			&& ((car->ai_state & 0x2400) != 0) //
 			&& (g_is_playing == 1)) {
-		g_police_speeding_ticket = 1; //++
+		g_police_speeding_ticket++;
 	}
 
 	if (((car->ai_state & 0x400) != 0) && (player_car_ptr->is_wrecked == 0)) {
@@ -2367,7 +2419,7 @@ void tnfs_ai_police_chase(tnfs_car_data *car, int lane, tnfs_vec3 *direction) {
 			car->ai_state &= 0xfffdffff; // disable 0x20000 (unpark car)
 		}
 
-		if ((g_police_on_chase != 0) && ((car->ai_state & 4) == 0)) {
+		if ((g_police_on_chase != 0) && ((car->ai_state & 0x400) == 0)) {
 			if (((car->ai_state & 0x1000) == 0) //
 					&& (car->track_slice < playerNode)) {
 				car->ai_state |= 0x400;
@@ -2390,7 +2442,9 @@ void tnfs_ai_police_parked_respawn() {
 	int i;
 	int uVar2;
 
-	tnfs_car_data *car = g_cop_car_ptr;
+	// car slot 2 whatever the race (DOS DAT_00153ba8, SE PTR_00509e24): in a race of 8 a racer, which has flag 4, so only
+	// g_cop_park_position follows the player. Races of fewer than 3 cars have no car there in the port
+	tnfs_car_data *car = g_total_cars_in_scene > 2 ? g_car_ptr_array[2] : 0;
 
 	if ((car != 0) && (g_ai_skill_cfg.number_of_traffic_cars != 0) && (g_number_of_players < 2)) {
 		iVar2 = g_car_ptr_array[0]->track_slice;
@@ -2494,7 +2548,7 @@ void FUN_00077a05(tnfs_car_data *car, tnfs_car_data *others[3], int lane, int la
 	} else {
 		local_28 = car->track_slice_lap - others[1]->track_slice_lap;
 		if (local_28 < 0) {
-			local_28 = local_28 + g_tri_num_chunks * 4;
+			local_28 = local_28 + g_track_num_chunks * 4;
 		}
 		local_4c = abs(local_28);
 
@@ -2511,7 +2565,8 @@ void FUN_00077a05(tnfs_car_data *car, tnfs_car_data *others[3], int lane, int la
 		local_40 = abs(tnfs_ai_lane_change_lateral_speed(car, 1, car->car_road_speed));
 
 		lVar1 = math_mul(local_44, local_48);
-		lVar2 = math_mul(local_4c * 0x60000, local_40);
+		// a 32-bit product that wraps for distances past the open road's 0x8000 sections (DOS 0x77a05)
+		lVar2 = math_mul((int) ((unsigned int) local_4c * 0x60000), local_40);
 		lVar1 = math_mul(lVar1, 0x13333);
 
 		if (lVar1 < lVar2) {
@@ -2573,13 +2628,29 @@ void tnfs_ai_block_opponent_behind(tnfs_car_data *car, int lane, tnfs_vec3 *dire
 			uVar4 = 7;
 		}
 		*/
-		//FIXME simplified version
-		uVar4 = (((car1->center_line_distance >> 8) * 0x33) >> 0x10) + 4;
-		if (uVar4 < 0) uVar4 = 0;
-		if (uVar4 > 7) uVar4 = 7;
+		// the player's lane from the lane table (DOS 0x796fb, SE 0x46bfb0)
+		uVar2 = tnfs_ai_lane_table(track_data[car1->track_slice & g_slice_mask].num_lanes & 0xf,
+				track_data[car1->track_slice & g_slice_mask].roadRightMargin >> 3) * 0x100;
+		if (car1->center_line_distance < 0) {
+			if (-(int) uVar2 < car1->center_line_distance) {
+				uVar4 = 3;
+			} else if ((int) uVar2 * -2 < car1->center_line_distance) {
+				uVar4 = 2;
+			} else {
+				uVar4 = (int) uVar2 * -3 < car1->center_line_distance;
+			}
+		} else if (car1->center_line_distance < (int) uVar2) {
+			uVar4 = 4;
+		} else if (car1->center_line_distance < (int) uVar2 * 2) {
+			uVar4 = 5;
+		} else if (car1->center_line_distance < (int) uVar2 * 3) {
+			uVar4 = 6;
+		} else {
+			uVar4 = 7;
+		}
 
-		// block opponent from behind
-		if ((car1->track_slice < nodeA) //
+		// block opponent from behind (SE 0x46bfb0: from one node behind the player)
+		if ((car1->track_slice - 1 <= nodeA) //
 			&& (nodeA < car1->track_slice + g_ai_opp_data[car->car_id].opp_block_look_behind) //
 			&& (nodeB > 0x86) //
 			&& (g_ai_opp_data[car->car_id].opp_block_behind_distance //
@@ -2621,21 +2692,15 @@ void tnfs_ai_block_opponent_behind(tnfs_car_data *car, int lane, tnfs_vec3 *dire
 	}
 }
 
-int DAT_000fdbb8[8] = { 3, 3, 4, 5, 4, 5, 4, 3 };
+// PSX 0x800c1794 == SE 0x4c5d00 (DOS 0xfdbb8: 4, 3, 3, 3, 4, 5, 5, 4, then the same 0x28, 0x4b0, 0, 0). SE reads
+// model ids 8..11 past the table from the globals that follow (0x4c5d20 = DAT_800eb6a4, 0x4c5d24, 0x4c5d28 = cheat_crashing_cars, 0x4c5d2c): the Warrior (11) gets 0
+int DAT_000fdbb8[12] = { 3, 3, 4, 5, 4, 5, 4, 3, 0x28, 0x4b0, 0, 0 };
 
 void tnfs_ai_opp_engine_and_cornering(tnfs_car_data *car, int lane, tnfs_vec3 *direction) {
-	int node;
-	int iVar5;
 	char bVar9;
 	int iVar10;
-	int local_44;
-	int local_40;
-	int local_24;
 	int local_18;
 	int local_14;
-
-	node = car->track_slice;
-	if (node == 0) node = 1;
 
 	iVar10 = tnfs_racer_crossed_finish_line(car);
 	if (iVar10 == 2) {
@@ -2683,36 +2748,37 @@ void tnfs_ai_opp_engine_and_cornering(tnfs_car_data *car, int lane, tnfs_vec3 *d
 		car->rpm_engine = car->pdn_max_rpm >> 0x10;
 	}
 
-	// only 3DO and PC
-	iVar10 = ((int) track_data[(node - 1) & g_slice_mask].slant << 8) | track_data[(node - 1) & g_slice_mask].heading;
-	iVar10 >>= 0x10;
-	if (iVar10 * 0x400 < 0x800001) {
-		local_40 = iVar10 << 10;
-	} else {
-		local_40 = iVar10 * 0x400 + -0x1000000;
-	}
-	iVar5 = ((int) track_data[node & g_slice_mask].slant << 8) | track_data[node & g_slice_mask].heading;
-	iVar5 >>= 0x10;
-	if (iVar5 * 0x400 < 0x800001) {
-		local_44 = iVar5 << 10;
-	} else {
-		local_44 = iVar5 * 0x400 + -0x1000000;
-	}
-	local_24 = local_44 - local_40;
+	// DOS version (0x79af9) and 3DO: the left lane scored by the bend and the profile's corner swerve / cut corners;
+	// PC version (SE 0x46c278): no such term, and no SE code reads the profile's 0x71 / 0x75
+	//node = car->track_slice;
+	//iVar10 = ((int) track_data[(node - 1) & g_slice_mask].slant << 8) | track_data[(node - 1) & g_slice_mask].heading;
+	//iVar10 >>= 0x10;
+	//if (iVar10 * 0x400 < 0x800001) {
+	//	local_40 = iVar10 << 10;
+	//} else {
+	//	local_40 = iVar10 * 0x400 + -0x1000000;
+	//}
+	//iVar5 = ((int) track_data[node & g_slice_mask].slant << 8) | track_data[node & g_slice_mask].heading;
+	//iVar5 >>= 0x10;
+	//if (iVar5 * 0x400 < 0x800001) {
+	//	local_44 = iVar5 << 10;
+	//} else {
+	//	local_44 = iVar5 * 0x400 + -0x1000000;
+	//}
+	//local_24 = local_44 - local_40;
+	//if ((lane != 0) //
+	//	&& ((lane + -1 == 3 - (track_data[node & g_slice_mask].num_lanes >> 4) //
+	//	|| (lane + -1 == (track_data[node & g_slice_mask].num_lanes & 0xf) + 4)))) {
+	//	local_24 = 0;
+	//}
+	//if (local_24 > 0) {
+	//	direction->x += local_24 * g_ai_opp_data[car->car_id].opp_oncoming_corner_swerve;
+	//}
+	//if (local_24 < 0) {
+	//	direction->x += local_24 * -g_ai_opp_data[car->car_id].opp_cut_corners;
+	//}
 
-	if ((lane != 0) //
-		&& ((lane + -1 == 3 - (track_data[node & g_slice_mask].num_lanes >> 4) //
-		|| (lane + -1 == (track_data[node & g_slice_mask].num_lanes & 0xf) + 4)))) {
-		local_24 = 0;
-	}
-	if (local_24 > 0) {
-		direction->x += local_24 * g_ai_opp_data[car->car_id].opp_oncoming_corner_swerve;
-	}
-	if (local_24 < 0) {
-		direction->x += local_24 * -g_ai_opp_data[car->car_id].opp_cut_corners;
-	}
-
-	tnfs_ai_block_opponent_behind(car, lane, direction, node, car->track_slice_lap);
+	tnfs_ai_block_opponent_behind(car, lane, direction, car->track_slice, car->track_slice_lap);
 }
 
 void tnfs_ai_lane_change() {
@@ -2731,7 +2797,10 @@ void tnfs_ai_lane_change() {
 	int distance;
 	int lane_left;
 	int local_6c;
-	int lane_grid[8];
+	// DOS 0x79f3b: lane bits per car slot (EBP-0x50, 9 ints) and car count per lane (EBP-0x2c, 8 ints), SE 0x46c490
+	// ESP+0 / ESP+0x24. The binaries leave the masks of wrecked cars (crash_state 6) uncleared: zeroed here
+	int lane_grid[9] = { 0 };
+	int lane_cars[8];
 	int i;
 	tnfs_car_data *car;
 	int iVar3;
@@ -2757,90 +2826,97 @@ void tnfs_ai_lane_change() {
 		/* Populate the "lane_grid" array for all cars */
 
 		for (i = 0; i < 8; i++) {
-			lane_grid[i] = 0;
+			lane_cars[i] = 0;
 		}
+		// in road order (DOS 0x7a015), lane_grid by position
 		for (i = 0; i < g_total_cars_in_scene; i++) {
-			car = g_car_ptr_array[i];
+			car = g_car_ptr_array[g_some_car_array1[i]];
 
 			if (car->crash_state != 6) {
 				tnfs_ai_update_speed_targets(car);
 
 				// left side
 				distance = car->center_line_distance - car->side_width + 0x8000;
-				/*
-				 DAT_00165340 = g_random_direction[(track_data[car->track_slice].roadRightMargin >> 3) + ((track_data[car->track_slice].num_lanes & 0xf) >> 4)];
-				 DAT_00165340 = (track_data[car->track_slice].roadRightMargin >> 3) * 0x10000;
-
-				if (distance >= 3 * DAT_00165340) {
-					lane_left = 7;
-				} else if (distance >= 2 * DAT_00165340) {
-					lane_left = 6;
-				} else if (distance >= DAT_00165340) {
-					lane_left = 5;
-				} else if (distance >= 0) {
+				// PC version (DOS 0x79f3b == SE 0x46c490): lanes as wide as the lane table entry
+				lane_width = tnfs_ai_lane_table(track_data[car->track_slice & g_slice_mask].num_lanes & 0xf,
+						track_data[car->track_slice & g_slice_mask].roadRightMargin >> 3);
+				if (distance < 0) {
+					if (lane_width * -0x100 < distance) {
+						lane_left = 3;
+					} else if (lane_width * -0x200 < distance) {
+						lane_left = 2;
+					} else if (lane_width * -0x300 < distance) {
+						lane_left = 1;
+					} else {
+						lane_left = 0;
+					}
+				} else if (distance < lane_width * 0x100) {
 					lane_left = 4;
-				} else if (distance >= -DAT_00165340) {
-					lane_left = 3;
-				} else if (distance >= -2 * DAT_00165340) {
-					lane_left = 2;
+				} else if (distance < lane_width * 0x200) {
+					lane_left = 5;
+				} else if (distance < lane_width * 0x300) {
+					lane_left = 6;
 				} else {
-					lane_left = 1;
+					lane_left = 7;
 				}
-				*/
-				//3do version
-				lane_left = (((distance >> 8) * 0x33) >> 0x10) + 4;
-				if (lane_left < 0) lane_left = 0;
-				if (lane_left > 7) lane_left = 7;
+				// 3DO version:
+				// lane_left = (((distance >> 8) * 0x33) >> 0x10) + 4;
+				// if (lane_left < 0) lane_left = 0;
+				// if (lane_left > 7) lane_left = 7;
 
 				// right side
 				distance = car->side_width + car->center_line_distance - 0x8000;
-				/*
-				 //DAT_00165340 = DAT_00164FDC[(track_data[car->track_slice].roadRightMargin >> 3) + ((track_data[car->track_slice].num_lanes & 0xf) >> 4)];
-				 DAT_00165340 = (track_data[car->track_slice].roadRightMargin >> 3) * 0x10000;
-				if (distance >= 3 * DAT_00165340) {
-					lane_right = 7;
-				} else if (distance >= 2 * DAT_00165340) {
-					lane_right = 6;
-				} else if (distance >= DAT_00165340) {
-					lane_right = 5;
-				} else if (distance >= 0) {
+				// PC version
+				lane_width = tnfs_ai_lane_table(track_data[car->track_slice & g_slice_mask].num_lanes & 0xf,
+						track_data[car->track_slice & g_slice_mask].roadRightMargin >> 3);
+				if (distance < 0) {
+					if (lane_width * -0x100 < distance) {
+						lane_right = 3;
+					} else if (lane_width * -0x200 < distance) {
+						lane_right = 2;
+					} else if (lane_width * -0x300 < distance) {
+						lane_right = 1;
+					} else {
+						lane_right = 0;
+					}
+				} else if (distance < lane_width * 0x100) {
 					lane_right = 4;
-				} else if (distance >= -DAT_00165340) {
-					lane_right = 3;
-				} else if (distance >= -2 * DAT_00165340) {
-					lane_right = 2;
+				} else if (distance < lane_width * 0x200) {
+					lane_right = 5;
+				} else if (distance < lane_width * 0x300) {
+					lane_right = 6;
 				} else {
-					lane_right = 1;
+					lane_right = 7;
 				}
-				*/
-				//3do version
-				lane_right = (((distance >> 8) * 0x33) >> 0x10) + 4;
-				if (lane_right < 0) lane_right = 0;
-				if (lane_right > 7) lane_right = 7;
+				// 3DO version:
+				// lane_right = (((distance >> 8) * 0x33) >> 0x10) + 4;
+				// if (lane_right < 0) lane_right = 0;
+				// if (lane_right > 7) lane_right = 7;
 
 				// each bit represents a blocked lane (8 bits = 8 lanes)
 				if (lane_right == lane_left) {
 					lane_grid[i] = 1 << lane_left;
-					lane_grid[lane_right]++;
+					lane_cars[lane_right]++;
 				} else if (lane_left + 1 == lane_right) {
-					lane_grid[lane_right]++;
-					lane_grid[lane_left]++;
+					lane_cars[lane_right]++;
+					lane_cars[lane_left]++;
 					lane_grid[i] = 3 << lane_left;
 				} else {
-					lane_grid[lane_right]++;
-					lane_grid[lane_left]++;
-					lane_grid[lane_left + 1]++;
+					lane_cars[lane_right]++;
+					lane_cars[lane_left]++;
+					lane_cars[lane_left + 1]++;
 					lane_grid[i] = 7 << lane_left;
 				}
 			}
 		}
 
-		//player_car_ptr->ai_state &= 0xF700; //???
-		//player_car_ptr->ai_state &= 0xFB00;
+		// DOS 0x7a390 (byte +0x175 & 0xf7, & 0xfb), SE 0x46c735 (& 0xf3)
+		player_car_ptr->ai_state &= 0xfffff7ff;
+		player_car_ptr->ai_state &= 0xfffffbff;
 
-		// do lane changes
+		// do lane changes, in road order (DOS 0x7a3da)
 		for (i = 0; i < g_total_cars_in_scene; i++) {
-			car = g_car_ptr_array[i];
+			car = g_car_ptr_array[g_some_car_array1[i]];
 
 			if (car->crash_state != 6) {
 				local_bc = tnfs_util_random_value_b(car->track_slice);
@@ -2851,30 +2927,32 @@ void tnfs_ai_lane_change() {
 						&& (car->car_id < 0 || car->car_id >= g_number_of_players) //
 						&& (car->crash_state != 4)) {
 
-					/*
-					 // current lane
-					 //DAT_00165340 = DAT_000164FDC[(track_data[car->track_slice].roadRightMargin >> 3) + ((track_data[car->track_slice].num_lanes & 0xf) >> 4)] * 0x100;
-					 DAT_00165340 = (track_data[car->track_slice].roadRightMargin >> 3) * 0x10000;
-						if (car->center_line_distance >= 3 * DAT_00165340) {
-							lane = 7;
-						} else if (car->center_line_distance >= 2 * DAT_00165340) {
-							lane = 6;
-						} else if (car->center_line_distance >= DAT_00165340) {
-							lane = 5;
-						} else if (car->center_line_distance >= 0) {
-							lane = 4;
-						} else if (car->center_line_distance >= -DAT_00165340) {
+					// current lane, PC version
+					lane_width = tnfs_ai_lane_table(track_data[car->track_slice & g_slice_mask].num_lanes & 0xf,
+							track_data[car->track_slice & g_slice_mask].roadRightMargin >> 3);
+					if (car->center_line_distance < 0) {
+						if (lane_width * -0x100 < car->center_line_distance) {
 							lane = 3;
-						} else if (car->center_line_distance >= -2 * DAT_00165340) {
+						} else if (lane_width * -0x200 < car->center_line_distance) {
 							lane = 2;
-						} else {
+						} else if (lane_width * -0x300 < car->center_line_distance) {
 							lane = 1;
+						} else {
+							lane = 0;
 						}
-						*/
-					//3do version
-					lane = (((car->center_line_distance >> 8) * 0x33) >> 0x10) + 4;
-					if (lane < 0) lane = 0;
-					if (lane > 7) lane = 7;
+					} else if (car->center_line_distance < lane_width * 0x100) {
+						lane = 4;
+					} else if (car->center_line_distance < lane_width * 0x200) {
+						lane = 5;
+					} else if (car->center_line_distance < lane_width * 0x300) {
+						lane = 6;
+					} else {
+						lane = 7;
+					}
+					// 3DO version:
+					// lane = (((car->center_line_distance >> 8) * 0x33) >> 0x10) + 4;
+					// if (lane < 0) lane = 0;
+					// if (lane > 7) lane = 7;
 
 					if (car->ai_state & 0x1000) {
 						change_lane_vector.x = 0x10000;
@@ -2885,11 +2963,13 @@ void tnfs_ai_lane_change() {
 						change_lane_vector.y = 0;
 						change_lane_vector.z = 0;
 
-						if ((g_opponent_skill > 1) && (car->track_slice_lap < 100)) {
-							if (((g_race_positions[car->car_id2] * 5 + 100) <= car->track_slice_lap) //
-								&& ((3 - ((track_data[car->track_slice].num_lanes >> 4) & 0xF) != lane) //
-								&& (track_data[car->track_slice].num_lanes & 0xF) + 4 != lane)) {
-								change_lane_vector.y = 0x460000;
+						// Win95 SE 0x46c8a2 == PSX 0x800560c0; DOS 0x7a651: track_slice_lap < 100,
+						// track_slice_lap < position * 5 + 0x20, change_lane_vector.y = 0x460000
+						if ((g_opponent_skill > 1) && (car->track_slice_lap < 200)
+								&& (car->track_slice_lap < g_race_positions[car->car_id2] * 5 + 100)) {
+							if ((3 - ((track_data[car->track_slice].num_lanes >> 4) & 0xF) != lane) //
+								&& (track_data[car->track_slice].num_lanes & 0xF) + 4 != lane) {
+								change_lane_vector.y = 0x1b580000;
 							}
 						} else if ((g_opponent_skill == 1) && (car->ai_state & 4) && (car->track_slice < 60)) {
 							if ((abs(car->track_slice - g_car_ptr_array[0]->track_slice) < 5) //
@@ -2919,7 +2999,7 @@ void tnfs_ai_lane_change() {
 					// lane; a parked cop (0x20000) keeps it too (it never scores lane changes)
 					if (((others[1] == 0) //
 							&& ((track_data[car->track_slice].num_lanes & 0xF) == (track_data[(car->track_slice + 11)].num_lanes & 0xF)) //
-							&& lane_grid[lane] == 1 //
+							&& lane_cars[lane] == 1 //
 							&& (((car->ai_state & 0x1000) && lane < 4) || (((car->ai_state & 0x1000) == 0) && lane >= 4)) //
 							&& (3 - ((track_data[car->track_slice].num_lanes >> 4) & 0xF) < lane) //
 							&& (track_data[car->track_slice].num_lanes & 0xF) + 4 > lane //
@@ -3217,6 +3297,7 @@ void tnfs_ai_collision_handler() {
 	int iVar2;
 	int iVar3;
 	int iVar4;
+	int iVar5;
 	tnfs_car_data *car2;
 	int j;
 	tnfs_car_data *car1;
@@ -3239,10 +3320,11 @@ void tnfs_ai_collision_handler() {
 		return;
 	}
 
+	// in road order, the pairs from the car on (DOS 0x44a81)
 	for (i = 0; i < g_total_cars_in_scene; i++) {
-		car1 = g_car_ptr_array[i];
+		car1 = g_car_ptr_array[g_some_car_array1[i]];
 
-		iVar1 = g_tri_num_chunks * 4;
+		iVar1 = g_track_num_chunks * 4;
 
 		iVar2 = car1->car_id;
 		if (iVar2 >= 0) {
@@ -3265,29 +3347,24 @@ void tnfs_ai_collision_handler() {
 		}
 
 		if (car1->crash_state != 6) {
+			// near the end of the lap the pairs wrap around to the cars at its start
 			iVar2 = g_total_cars_in_scene;
-
-			//if (iVar1 - car1->track_slice < 4) {
-			//  iVar2 = g_total_cars_in_scene + 4;
-			//}
+			if (iVar1 - car1->track_slice < 4) {
+				iVar2 = g_total_cars_in_scene + 4;
+			}
 
 			if ((car1->field_4e9 & 6) == 6) {
 				for (j = i + 1; j < iVar2; j++) {
-					if (j < g_total_cars_in_scene - 1) {
-						iVar1 = j;
-					} else {
-						iVar1 = j % g_total_cars_in_scene;
-					}
-					car2 = g_car_ptr_array[iVar1];
+					car2 = g_car_ptr_array[g_some_car_array1[j % g_total_cars_in_scene]];
 
-					if ((car1->track_slice + 2 < car2->track_slice) && (4 < -car1->track_slice))
+					if ((car1->track_slice + 2 < car2->track_slice) && (4 < iVar1 - car1->track_slice))
 						break;
 
 					if ((car2->field_4e9 & 5) == 5) {
-						iVar1 = abs((car1->position).x - (car2->position).x);
+						iVar5 = abs((car1->position).x - (car2->position).x);
 						iVar4 = abs((car1->position).z - (car2->position).z);
 						iVar3 = car1->collision_data.edge_length + car2->collision_data.edge_length;
-						if ((iVar1 < iVar3) && (iVar4 < iVar3)) {
+						if ((iVar5 < iVar3) && (iVar4 < iVar3)) {
 							tnfs_collision_carcar(car1, car2);
 						}
 					}
